@@ -235,3 +235,59 @@ Future<bool> runWithSnack(
     return false;
   }
 }
+
+/// Segmented control Design.md: wadah `surfaceMuted`, segmen terpilih putih.
+class Segmented extends StatelessWidget {
+  const Segmented({
+    super.key,
+    required this.labels,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final List<String> labels;
+  final int selected;
+  final ValueChanged<int> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceMuted,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          for (final (i, label) in labels.indexed)
+            Expanded(
+              child: GestureDetector(
+                onTap: () => onSelected(i),
+                child: Container(
+                  height: 40,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: i == selected ? AppColors.surface : null,
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: i == selected
+                          ? FontWeight.w700
+                          : FontWeight.w500,
+                      color: i == selected
+                          ? AppColors.text
+                          : AppColors.textMuted,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}

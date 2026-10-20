@@ -1,13 +1,25 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'data/providers.dart';
 import 'presentation/app.dart';
+import 'services/background_tasks.dart';
+import 'services/local_notifications.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   LicenseRegistry.addLicense(_fontLicenses);
-  runApp(const ProviderScope(child: HppApp()));
+  await LocalNotifications.instance.init();
+  unawaited(registerBackgroundTasks().catchError((Object _) {}));
+  final container = ProviderContainer();
+  container.read(notificationSyncProvider).start();
+  runApp(
+    UncontrolledProviderScope(container: container, child: const HppApp()),
+  );
 }
 
 /// Lisensi OFL font yang dibundel, tampil di halaman lisensi aplikasi.

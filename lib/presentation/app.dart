@@ -1,10 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 
+import '../services/local_notifications.dart';
 import 'menu/menu_detail_screen.dart';
 import 'menu/menu_form_screen.dart';
 import 'menu/menu_screen.dart';
+import 'orders/order_detail_screen.dart';
+import 'orders/order_form_screen.dart';
+import 'orders/orders_screen.dart';
 import 'stock/ingredient_detail_screen.dart';
 import 'stock/ingredient_form_screen.dart';
 import 'stock/ingredients_screen.dart';
@@ -33,6 +39,40 @@ GoRouter buildRouter() {
   final rootKey = GlobalKey<NavigatorState>();
 
   GoRoute tabRoute(AppTab tab) => switch (tab.path) {
+    '/pesanan' => GoRoute(
+      path: tab.path,
+      builder: (context, state) => const OrdersScreen(),
+      routes: [
+        GoRoute(
+          path: 'baru',
+          parentNavigatorKey: rootKey,
+          builder: (context, state) => OrderFormScreen(
+            initialDay: DateTime.tryParse(
+              state.uri.queryParameters['tanggal'] ?? '',
+            ),
+          ),
+        ),
+        GoRoute(
+          path: 'jual',
+          parentNavigatorKey: rootKey,
+          builder: (context, state) => const OrderFormScreen(direct: true),
+        ),
+        GoRoute(
+          path: ':id',
+          parentNavigatorKey: rootKey,
+          builder: (context, state) =>
+              OrderDetailScreen(id: state.pathParameters['id']!),
+          routes: [
+            GoRoute(
+              path: 'ubah',
+              parentNavigatorKey: rootKey,
+              builder: (context, state) =>
+                  OrderFormScreen(id: state.pathParameters['id']),
+            ),
+          ],
+        ),
+      ],
+    ),
     '/menu' => GoRoute(
       path: tab.path,
       builder: (context, state) => const MenuScreen(),
@@ -110,9 +150,41 @@ class HppApp extends StatefulWidget {
 
 class _HppAppState extends State<HppApp> {
   final _router = buildRouter();
+  StreamSubscription<String>? _taps;
+
+  @override
+  void initState() {
+    super.initState();
+    // Ketuk notifikasi membuka layar terkait (FR-6.5).
+    _taps = LocalNotifications.instance.taps.listen(_open);
+    final launch = LocalNotifications.instance.launchPayload;
+    if (launch != null) {
+      LocalNotifications.instance.launchPayload = null;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _open(launch));
+    }
+  }
+
+  void _open(String payload) {
+    final (kind, id) = switch (payload.split(':')) {
+      [final k, final v] => (k, v),
+      [final k] => (k, ''),
+      _ => ('', ''),
+    };
+    switch (kind) {
+      case 'order':
+        _router.push('/pesanan/');
+      case 'ingredient':
+        _router.push('/bahan/');
+      case 'day-close':
+        _router.push('/tutup-hari');
+      default:
+        _router.go('/beranda');
+    }
+  }
 
   @override
   void dispose() {
+    _taps?.cancel();
     _router.dispose();
     super.dispose();
   }
@@ -120,7 +192,7 @@ class _HppAppState extends State<HppApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: 'HPP App',
+      title: 'HPP Usaha',
       theme: buildAppTheme(),
       locale: const Locale('id'),
       supportedLocales: const [Locale('id')],

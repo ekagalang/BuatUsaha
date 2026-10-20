@@ -7,7 +7,7 @@ Checklist pengerjaan, disusun mengikuti roadmap di PRD bagian 12. Diperbarui set
 - **Desain:** [Design.md](Design.md)
 
 **Terakhir diperbarui:** 20 Oktober 2026
-**Posisi sekarang:** Sprint 2 (menu & HPP) selesai di branch `dev`, belum dicoba di HP. Sprint 1 juga belum dicoba di HP. Dari persiapan masih tersisa keystore dan secrets CI. Berikutnya: Sprint 3 (pesanan & notifikasi).
+**Posisi sekarang:** Sprint 3 (pesanan & notifikasi) selesai di branch `dev`; Sprint 1–3 belum dicoba di HP. Dari persiapan masih tersisa keystore dan secrets CI. Berikutnya: Sprint 4 (Tutup hari, laporan, Beranda, pengaturan, backup).
 
 Tanda: `[x]` selesai · `[ ]` belum · "kalkulator ✓" = rumusnya sudah ada dan lulus test di `lib/domain/costing/`, tetapi penyimpanan ke database dan layarnya belum.
 
@@ -59,8 +59,8 @@ Tanda: `[x]` selesai · `[ ]` belum · "kalkulator ✓" = rumusnya sudah ada dan
 - [x] Mode stok per menu (ready stock / pre-order), stok produk jadi rata-rata tertimbang, stok awal produk jadi (FR-4.3–4.5)
 - [x] Layar Menu, Detail menu (HPP, saran harga, rincian, kapasitas, simulasi target, stok, riwayat produksi), Ubah resep dengan HPP langsung (mockup `Menu`, `DetailMenu`, `FormResep`)
 - [x] 12 test repository menu + 3 widget test layar menu; 80 test lulus
-- [ ] Penjualan dengan HPP belum lengkap ditandai (FR-2.9) — butuh penjualan di Sprint 3
-- [ ] Penjualan melebihi stok produk jadi (FR-4.9) — butuh penjualan di Sprint 3
+- [x] Penjualan dengan HPP belum lengkap ditandai (FR-2.9) — selesai di Sprint 3
+- [x] Penjualan melebihi stok produk jadi (FR-4.9) — selesai di Sprint 3
 - [ ] Kerugian sisa produk jadi (FR-3.5) — dicatat lewat Tutup hari di Sprint 4
 - [ ] Pengaturan markup bawaan dan pembulatan harga (repository `setPricing` sudah ada; layarnya di Pengaturan, Sprint 4)
 - [x] Sprint 2 di-commit dan di-push ke `dev`
@@ -68,15 +68,26 @@ Tanda: `[x]` selesai · `[ ]` belum · "kalkulator ✓" = rumusnya sudah ada dan
 
 ## Sprint 3 — Pesanan dan notifikasi (minggu 7–8)
 
-- [ ] Pesanan: item, jadwal, pembayaran DP/pelunasan, status, terlambat (FR-5.1–5.4, FR-5.6)
-- [ ] Penjualan langsung (FR-5.7)
-- [ ] Channel penjualan + potongan per pesanan (FR-5.8, FR-5.9) — kalkulator ✓
-- [ ] Kebutuhan produksi untuk tanggal terpilih (FR-5.5)
-- [ ] Pembatalan pesanan selesai + refund, hitung ulang HPP pesanan lama (FR-9.4, FR-9.5)
-- [ ] Notifikasi lokal: izin `POST_NOTIFICATIONS`, exact alarm + fallback, boot receiver, zona waktu (FR-6.1–6.8)
-- [ ] Pengingat Tutup hari (FR-6.9)
-- [ ] Panduan izin baterai/autostart untuk Xiaomi, Oppo, Vivo
-- [ ] Layar Pesanan dan Pesanan baru (mockup `Pesanan`, `FormPesanan`)
+- [x] Pesanan: pelanggan (dipakai ulang lewat nama/no. WA), item dengan harga bawaan yang bisa diubah, diskon, ongkir, jadwal, ambil/antar, nomor `PO-yyMMdd-NNN` (FR-5.1) — `lib/data/repositories/order_repository.dart`
+- [x] Pembayaran DP/pelunasan tunai/transfer/QRIS, sisa tagihan dan status bayar otomatis, pembatalan pembayaran (FR-5.2)
+- [x] Status Baru → Diproses → Siap → Selesai, Batal sebelum selesai, tanda Terlambat (FR-5.3)
+- [x] Selesai: omzet diakui di tanggal selesai, snapshot HPP (ready stock dari HPP rata-rata stok, pre-order dari HPP terkini atau produksi yang ditautkan), stok menu jadi berkurang, bahan pre-order dipotong (FR-7.1, FR-7.2)
+- [x] Laba per pesanan: omzet item − potongan channel − HPP, ditampilkan terpisah (FR-5.6, FR-5.9)
+- [x] Penjualan langsung, langsung Selesai dan Lunas (FR-5.7)
+- [x] Channel penjualan bawaan (WhatsApp, Instagram, GoFood, GrabFood, ShopeeFood, Shopee) + potongan otomatis yang bisa ditimpa per pesanan (FR-5.8, FR-5.9)
+- [x] Kebutuhan produksi untuk tanggal terpilih + bahan yang kurang dan perkiraan belanja (FR-5.5)
+- [x] Produksi ditautkan ke pesanan → status Diproses, bahan tidak dipotong dua kali (FR-4.3)
+- [x] Penjualan melebihi stok menu jadi ditolak dengan tawaran "Catat produksi" (FR-4.9); item dengan HPP belum lengkap ditandai (FR-2.9)
+- [x] Koreksi pesanan selesai: omzet dibalik, refund, barang kembali ke stok atau dicatat dibuang (FR-9.4)
+- [x] Notifikasi lokal: pengingat H-1 08.00 dan 2 jam sebelum (bisa diubah/ditambah/dimatikan per pesanan), ringkasan harian, stok menipis sekali per bahan, pengingat pelunasan, jam tenang, deep link ke pesanan/bahan/Tutup hari (FR-6.1–6.6, FR-6.8) — `lib/services/`
+- [x] Jadwal notifikasi disusun ulang otomatis setiap data berubah dan tiap 6 jam lewat WorkManager; izin `POST_NOTIFICATIONS`, `SCHEDULE_EXACT_ALARM` (fallback inexact), boot receiver di manifest, zona waktu perangkat (FR-6.6, FR-6.7)
+- [x] Pengingat Tutup hari pukul 20.00 hanya jika ada sisa dan hari belum ditutup, menyebut jumlah yang lewat umur simpan (FR-6.9)
+- [x] Layar Pesanan (kalender bulanan + daftar Terlambat/Hari ini/Besok/7 hari, saringan status), Pesanan baru/ubah, Jual langsung, Detail pesanan (mockup `Pesanan`, `FormPesanan`)
+- [x] 11 test repository pesanan + 5 test penjadwal notifikasi + 3 widget test layar pesanan; 99 test lulus
+- [ ] Minta izin notifikasi dan alarm tepat dari layar (onboarding/Pengaturan, Sprint 4)
+- [ ] Panduan izin baterai/autostart untuk Xiaomi, Oppo, Vivo (di Pengaturan, Sprint 4)
+- [ ] Daftar pesanan lama yang terpengaruh koreksi harga bahan + tawaran hitung ulang HPP (FR-9.5)
+- [ ] Uji notifikasi di HP sungguhan: tepat waktu ≤ 1 menit dengan alarm tepat, muncul setelah restart dan dalam mode pesawat
 
 ## Sprint 4 — Laporan dan persiapan pakai (minggu 9–11)
 

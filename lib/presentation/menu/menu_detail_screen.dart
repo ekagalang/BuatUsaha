@@ -95,7 +95,7 @@ class _Detail extends ConsumerWidget {
           _ProductionHistory(productId: product.id),
         ],
       ),
-      bottomNavigationBar: view.costing.lines.isEmpty
+      bottomNavigationBar: view.costing.lines.isEmpty || !view.isReadyStock
           ? null
           : BottomActionBar(
               child: FilledButton.icon(
@@ -130,6 +130,13 @@ class _Detail extends ConsumerWidget {
       notices.add((
         'Upah per jam pemilik belum diisi. Isi lewat "Ubah resep".',
         StatusKind.warning,
+      ));
+    }
+    if (!view.isReadyStock && view.costing.lines.isNotEmpty) {
+      notices.add((
+        'Menu pre-order: bahan dipotong saat pesanan selesai. Produksi untuk '
+            'pesanan dicatat dari detail pesanan.',
+        StatusKind.neutral,
       ));
     }
     if (view.status == HppStatus.estimated) {
@@ -294,7 +301,7 @@ class _PriceSuggestionState extends ConsumerState<_PriceSuggestion> {
           children: [
             const SectionTitle('Saran harga jual'),
             const SizedBox(height: 10),
-            _Segmented(
+            Segmented(
               labels: [
                 'Markup ${formatDecimal(markup)}%',
                 for (final m in _margins) 'Margin ${formatDecimal(m)}%',
@@ -333,60 +340,6 @@ class _PriceSuggestionState extends ConsumerState<_PriceSuggestion> {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _Segmented extends StatelessWidget {
-  const _Segmented({
-    required this.labels,
-    required this.selected,
-    required this.onSelected,
-  });
-
-  final List<String> labels;
-  final int selected;
-  final ValueChanged<int> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceMuted,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          for (final (i, label) in labels.indexed)
-            Expanded(
-              child: GestureDetector(
-                onTap: () => onSelected(i),
-                child: Container(
-                  height: 40,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: i == selected ? AppColors.surface : null,
-                    borderRadius: BorderRadius.circular(9),
-                  ),
-                  child: Text(
-                    label,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: i == selected
-                          ? FontWeight.w700
-                          : FontWeight.w500,
-                      color: i == selected
-                          ? AppColors.text
-                          : AppColors.textMuted,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-        ],
       ),
     );
   }

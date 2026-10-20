@@ -40,7 +40,13 @@ part 'app_database.g.dart';
 class AppDatabase extends _$AppDatabase {
   /// [executor] diisi saat test (mis. `NativeDatabase.memory()`).
   AppDatabase([QueryExecutor? executor])
-    : super(executor ?? driftDatabase(name: 'hpp_app'));
+    : super(
+        executor ??
+            driftDatabase(
+              name: 'hpp_app',
+              native: const DriftNativeOptions(shareAcrossIsolates: true),
+            ),
+      );
 
   @override
   int get schemaVersion => 1;

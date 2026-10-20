@@ -394,6 +394,20 @@ class ProductRepository {
         );
         await _recomputeProductStock(productId);
       }
+      if (orderId != null) {
+        // Produksi untuk pesanan → pesanan Diproses (FR-4.3).
+        await (_db.update(_db.orders)..where(
+              (t) =>
+                  t.id.equals(orderId) &
+                  t.status.equalsValue(OrderStatus.newOrder),
+            ))
+            .write(
+              OrdersCompanion(
+                status: const Value(OrderStatus.inProgress),
+                updatedAt: Value(_now()),
+              ),
+            );
+      }
       return production.id;
     });
   }
@@ -417,28 +431,7 @@ class ProductRepository {
         ),
       );
       await _stock.reverseByRef('production', productionId, reason);
-      final movements =
-          await (_db.select(_db.productStockMovements)..where(
-                (t) =>
-                    t.refType.equals('production') &
-                    t.refId.equals(productionId) &
-                    t.reversalOfId.isNull(),
-              ))
-              .get();
-      for (final m in movements) {
-        await _insertProductMovement(
-          m.productId,
-          type: m.type,
-          qty: -dec(m.qty),
-          unitCost: dec(m.unitCost),
-          refType: m.refType,
-          refId: m.refId,
-          reversalOfId: m.id,
-          at: m.occurredAt,
-          note: reason,
-        );
-      }
-      await _recomputeProductStock(production.productId);
+      await reverseProductByRef('production', productionId, reason);
     });
   }
 
@@ -461,6 +454,116 @@ class ProductRepository {
       await _recomputeProductStock(productId);
     });
   }
+
+  /// Produk jadi keluar (terjual, dibuang, penyesuaian) dengan HPP rata-rata
+  /// stok saat itu. [qty] positif = jumlah keluar; penyesuaian boleh negatif
+  /// (= masuk). Mengembalikan HPP per pcs yang dipakai. Boleh dipanggil di
+  /// dalam transaksi pemanggil.
+  Future<Decimal> issueProduct(
+    String productId, {
+    required ProductMovementType type,
+    required Decimal qty,
+    DateTime? at,
+    WasteReason? reason,
+    String? refType,
+    String? refId,
+    String? note,
+  }) {
+    if (qty == Decimal.zero) {
+      throw ArgumentError.value(qty, 'qty', 'tidak boleh 0');
+    }
+    return _db.transaction(() async {
+      final id = await _insertProductMovement(
+        productId,
+        type: type,
+        qty: -qty,
+        unitCost: Decimal.zero,
+        at: (at ?? _now()).toUtc(),
+        reason: reason,
+        refType: refType,
+        refId: refId,
+        note: note,
+      );
+      await _recomputeProductStock(productId);
+      final row = await (_db.select(
+        _db.productStockMovements,
+      )..where((t) => t.id.equals(id))).getSingle();
+      return dec(row.unitCost);
+    });
+  }
+
+  /// Produk jadi masuk di luar produksi dengan HPP tertentu, mis. barang
+  /// pesanan pre-order yang batal sebelum dicatat dibuang.
+  Future<void> receiveProduct(
+    String productId, {
+    required Decimal qty,
+    required Decimal unitCost,
+    required DateTime at,
+    String? refType,
+    String? refId,
+    String? note,
+  }) => _db.transaction(() async {
+    await _insertProductMovement(
+      productId,
+      type: ProductMovementType.opening,
+      qty: qty,
+      unitCost: unitCost,
+      at: at.toUtc(),
+      refType: refType,
+      refId: refId,
+      note: note,
+    );
+    await _recomputeProductStock(productId);
+  });
+
+  Future<ProductCosting> costingOf(String productId) async =>
+      loadProductCosting(_db, await _product(productId));
+
+  /// Membalik semua mutasi produk jadi dari satu sumber (produksi, pesanan,
+  /// Tutup hari) lalu menghitung ulang stok produk terkait.
+  Future<void> reverseProductByRef(
+    String refType,
+    String refId,
+    String reason,
+  ) async {
+    final rows = await (_db.select(
+      _db.productStockMovements,
+    )..where((t) => t.refType.equals(refType) & t.refId.equals(refId))).get();
+    final reversed = {
+      for (final r in rows)
+        if (r.reversalOfId != null) r.reversalOfId!,
+    };
+    final productIds = <String>{};
+    for (final m in rows) {
+      if (m.reversalOfId != null || reversed.contains(m.id)) continue;
+      await _insertProductMovement(
+        m.productId,
+        type: m.type,
+        qty: -dec(m.qty),
+        unitCost: dec(m.unitCost),
+        reason: m.reason,
+        refType: m.refType,
+        refId: m.refId,
+        reversalOfId: m.id,
+        at: m.occurredAt,
+        note: reason,
+      );
+      productIds.add(m.productId);
+    }
+    for (final id in productIds) {
+      await _recomputeProductStock(id);
+    }
+  }
+
+  /// Kartu stok produk jadi, terbaru di atas.
+  Stream<List<ProductStockMovement>> watchProductCard(String productId) =>
+      (_db.select(_db.productStockMovements)
+            ..where((t) => t.productId.equals(productId))
+            ..orderBy([
+              (t) => OrderingTerm.desc(t.occurredAt),
+              (t) => OrderingTerm.desc(t.createdAt),
+            ]))
+          .watch();
 
   Stream<List<Production>> watchProductions(String productId) =>
       (_db.select(_db.productions)
@@ -514,34 +617,38 @@ class ProductRepository {
     }
   }
 
-  Future<void> _insertProductMovement(
+  Future<String> _insertProductMovement(
     String productId, {
     required ProductMovementType type,
     required Decimal qty,
     required Decimal unitCost,
     required DateTime at,
+    WasteReason? reason,
     String? refType,
     String? refId,
     String? reversalOfId,
     String? note,
-  }) => _db
-      .into(_db.productStockMovements)
-      .insert(
-        ProductStockMovementsCompanion.insert(
-          productId: productId,
-          type: type,
-          qty: dbl(qty),
-          unitCost: dbl(unitCost),
-          value: toRupiah(qty * unitCost),
-          balanceAfter: 0,
-          avgCostAfter: 0,
-          refType: Value(refType),
-          refId: Value(refId),
-          reversalOfId: Value(reversalOfId),
-          occurredAt: at,
-          note: Value(note),
-        ),
-      );
+  }) async =>
+      (await _db
+              .into(_db.productStockMovements)
+              .insertReturning(
+                ProductStockMovementsCompanion.insert(
+                  productId: productId,
+                  type: type,
+                  qty: dbl(qty),
+                  unitCost: dbl(unitCost),
+                  value: toRupiah(qty * unitCost),
+                  balanceAfter: 0,
+                  avgCostAfter: 0,
+                  reason: Value(reason),
+                  refType: Value(refType),
+                  refId: Value(refId),
+                  reversalOfId: Value(reversalOfId),
+                  occurredAt: at,
+                  note: Value(note),
+                ),
+              ))
+          .id;
 
   Future<void> _recomputeProductStock(String productId) async {
     final rows = await (_db.select(

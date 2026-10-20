@@ -411,16 +411,33 @@ class StockRepository {
     required String productionId,
     required Map<String, Decimal> usage,
     required DateTime at,
+  }) => recordUsage(
+    type: MovementType.production,
+    refType: 'production',
+    refId: productionId,
+    usage: usage,
+    at: at,
+  );
+
+  /// Bahan keluar untuk satu sumber (produksi, atau pesanan pre-order yang
+  /// selesai). Mengembalikan biaya bahan dengan harga rata-rata pada
+  /// tanggalnya. Harus dipanggil di dalam transaksi pemanggil.
+  Future<int> recordUsage({
+    required MovementType type,
+    required String refType,
+    required String refId,
+    required Map<String, Decimal> usage,
+    required DateTime at,
   }) async {
     final when = at.toUtc();
     for (final MapEntry(key: ingredientId, value: qty) in usage.entries) {
       if (qty <= Decimal.zero) continue;
       await _insertMovement(
         ingredientId,
-        type: MovementType.production,
+        type: type,
         qtyBase: -qty,
-        refType: 'production',
-        refId: productionId,
+        refType: refType,
+        refId: refId,
         occurredAt: when,
       );
     }
@@ -428,8 +445,8 @@ class StockRepository {
     final rows =
         await (_db.select(_db.stockMovements)..where(
               (t) =>
-                  t.refType.equals('production') &
-                  t.refId.equals(productionId) &
+                  t.refType.equals(refType) &
+                  t.refId.equals(refId) &
                   t.reversalOfId.isNull(),
             ))
             .get();
