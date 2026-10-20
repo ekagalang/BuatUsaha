@@ -167,6 +167,17 @@ class $BusinessesTable extends Businesses
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _onboardedAtMeta = const VerificationMeta(
+    'onboardedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> onboardedAt = GeneratedColumn<DateTime>(
+    'onboarded_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -183,6 +194,7 @@ class $BusinessesTable extends Businesses
     timezone,
     ownerHourlyWage,
     lastClosedOn,
+    onboardedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -288,6 +300,15 @@ class $BusinessesTable extends Businesses
         ),
       );
     }
+    if (data.containsKey('onboarded_at')) {
+      context.handle(
+        _onboardedAtMeta,
+        onboardedAt.isAcceptableOrUnknown(
+          data['onboarded_at']!,
+          _onboardedAtMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -355,6 +376,10 @@ class $BusinessesTable extends Businesses
         DriftSqlType.string,
         data['${effectivePrefix}last_closed_on'],
       ),
+      onboardedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}onboarded_at'],
+      ),
     );
   }
 
@@ -390,6 +415,9 @@ class Business extends DataClass implements Insertable<Business> {
 
   /// Tanggal Tutup hari terakhir, `YYYY-MM-DD`.
   final String? lastClosedOn;
+
+  /// Diisi setelah onboarding selesai atau dilewati (FR-8.4). Skema v2.
+  final DateTime? onboardedAt;
   const Business({
     required this.id,
     required this.createdAt,
@@ -405,6 +433,7 @@ class Business extends DataClass implements Insertable<Business> {
     required this.timezone,
     this.ownerHourlyWage,
     this.lastClosedOn,
+    this.onboardedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -437,6 +466,9 @@ class Business extends DataClass implements Insertable<Business> {
     if (!nullToAbsent || lastClosedOn != null) {
       map['last_closed_on'] = Variable<String>(lastClosedOn);
     }
+    if (!nullToAbsent || onboardedAt != null) {
+      map['onboarded_at'] = Variable<DateTime>(onboardedAt);
+    }
     return map;
   }
 
@@ -466,6 +498,9 @@ class Business extends DataClass implements Insertable<Business> {
       lastClosedOn: lastClosedOn == null && nullToAbsent
           ? const Value.absent()
           : Value(lastClosedOn),
+      onboardedAt: onboardedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(onboardedAt),
     );
   }
 
@@ -491,6 +526,7 @@ class Business extends DataClass implements Insertable<Business> {
       timezone: serializer.fromJson<String>(json['timezone']),
       ownerHourlyWage: serializer.fromJson<int?>(json['ownerHourlyWage']),
       lastClosedOn: serializer.fromJson<String?>(json['lastClosedOn']),
+      onboardedAt: serializer.fromJson<DateTime?>(json['onboardedAt']),
     );
   }
   @override
@@ -511,6 +547,7 @@ class Business extends DataClass implements Insertable<Business> {
       'timezone': serializer.toJson<String>(timezone),
       'ownerHourlyWage': serializer.toJson<int?>(ownerHourlyWage),
       'lastClosedOn': serializer.toJson<String?>(lastClosedOn),
+      'onboardedAt': serializer.toJson<DateTime?>(onboardedAt),
     };
   }
 
@@ -529,6 +566,7 @@ class Business extends DataClass implements Insertable<Business> {
     String? timezone,
     Value<int?> ownerHourlyWage = const Value.absent(),
     Value<String?> lastClosedOn = const Value.absent(),
+    Value<DateTime?> onboardedAt = const Value.absent(),
   }) => Business(
     id: id ?? this.id,
     createdAt: createdAt ?? this.createdAt,
@@ -546,6 +584,7 @@ class Business extends DataClass implements Insertable<Business> {
         ? ownerHourlyWage.value
         : this.ownerHourlyWage,
     lastClosedOn: lastClosedOn.present ? lastClosedOn.value : this.lastClosedOn,
+    onboardedAt: onboardedAt.present ? onboardedAt.value : this.onboardedAt,
   );
   Business copyWithCompanion(BusinessesCompanion data) {
     return Business(
@@ -575,6 +614,9 @@ class Business extends DataClass implements Insertable<Business> {
       lastClosedOn: data.lastClosedOn.present
           ? data.lastClosedOn.value
           : this.lastClosedOn,
+      onboardedAt: data.onboardedAt.present
+          ? data.onboardedAt.value
+          : this.onboardedAt,
     );
   }
 
@@ -594,7 +636,8 @@ class Business extends DataClass implements Insertable<Business> {
           ..write('allowNegativeStock: $allowNegativeStock, ')
           ..write('timezone: $timezone, ')
           ..write('ownerHourlyWage: $ownerHourlyWage, ')
-          ..write('lastClosedOn: $lastClosedOn')
+          ..write('lastClosedOn: $lastClosedOn, ')
+          ..write('onboardedAt: $onboardedAt')
           ..write(')'))
         .toString();
   }
@@ -615,6 +658,7 @@ class Business extends DataClass implements Insertable<Business> {
     timezone,
     ownerHourlyWage,
     lastClosedOn,
+    onboardedAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -633,7 +677,8 @@ class Business extends DataClass implements Insertable<Business> {
           other.allowNegativeStock == this.allowNegativeStock &&
           other.timezone == this.timezone &&
           other.ownerHourlyWage == this.ownerHourlyWage &&
-          other.lastClosedOn == this.lastClosedOn);
+          other.lastClosedOn == this.lastClosedOn &&
+          other.onboardedAt == this.onboardedAt);
 }
 
 class BusinessesCompanion extends UpdateCompanion<Business> {
@@ -651,6 +696,7 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
   final Value<String> timezone;
   final Value<int?> ownerHourlyWage;
   final Value<String?> lastClosedOn;
+  final Value<DateTime?> onboardedAt;
   final Value<int> rowid;
   const BusinessesCompanion({
     this.id = const Value.absent(),
@@ -667,6 +713,7 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
     this.timezone = const Value.absent(),
     this.ownerHourlyWage = const Value.absent(),
     this.lastClosedOn = const Value.absent(),
+    this.onboardedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   BusinessesCompanion.insert({
@@ -684,6 +731,7 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
     this.timezone = const Value.absent(),
     this.ownerHourlyWage = const Value.absent(),
     this.lastClosedOn = const Value.absent(),
+    this.onboardedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : name = Value(name);
   static Insertable<Business> custom({
@@ -701,6 +749,7 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
     Expression<String>? timezone,
     Expression<int>? ownerHourlyWage,
     Expression<String>? lastClosedOn,
+    Expression<DateTime>? onboardedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -719,6 +768,7 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
       if (timezone != null) 'timezone': timezone,
       if (ownerHourlyWage != null) 'owner_hourly_wage': ownerHourlyWage,
       if (lastClosedOn != null) 'last_closed_on': lastClosedOn,
+      if (onboardedAt != null) 'onboarded_at': onboardedAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -738,6 +788,7 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
     Value<String>? timezone,
     Value<int?>? ownerHourlyWage,
     Value<String?>? lastClosedOn,
+    Value<DateTime?>? onboardedAt,
     Value<int>? rowid,
   }) {
     return BusinessesCompanion(
@@ -755,6 +806,7 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
       timezone: timezone ?? this.timezone,
       ownerHourlyWage: ownerHourlyWage ?? this.ownerHourlyWage,
       lastClosedOn: lastClosedOn ?? this.lastClosedOn,
+      onboardedAt: onboardedAt ?? this.onboardedAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -806,6 +858,9 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
     if (lastClosedOn.present) {
       map['last_closed_on'] = Variable<String>(lastClosedOn.value);
     }
+    if (onboardedAt.present) {
+      map['onboarded_at'] = Variable<DateTime>(onboardedAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -829,6 +884,7 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
           ..write('timezone: $timezone, ')
           ..write('ownerHourlyWage: $ownerHourlyWage, ')
           ..write('lastClosedOn: $lastClosedOn, ')
+          ..write('onboardedAt: $onboardedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -15002,6 +15058,21 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _isMonthlyMeta = const VerificationMeta(
+    'isMonthly',
+  );
+  @override
+  late final GeneratedColumn<bool> isMonthly = GeneratedColumn<bool>(
+    'is_monthly',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_monthly" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _noteMeta = const VerificationMeta('note');
   @override
   late final GeneratedColumn<String> note = GeneratedColumn<String>(
@@ -15023,6 +15094,7 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
     categoryId,
     amount,
     spentAt,
+    isMonthly,
     note,
   ];
   @override
@@ -15102,6 +15174,12 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
     } else if (isInserting) {
       context.missing(_spentAtMeta);
     }
+    if (data.containsKey('is_monthly')) {
+      context.handle(
+        _isMonthlyMeta,
+        isMonthly.isAcceptableOrUnknown(data['is_monthly']!, _isMonthlyMeta),
+      );
+    }
     if (data.containsKey('note')) {
       context.handle(
         _noteMeta,
@@ -15157,6 +15235,10 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}spent_at'],
       )!,
+      isMonthly: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_monthly'],
+      )!,
       note: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}note'],
@@ -15181,6 +15263,10 @@ class Expense extends DataClass implements Insertable<Expense> {
   final String categoryId;
   final int amount;
   final DateTime spentAt;
+
+  /// Pengeluaran bulanan (sewa, gaji) tidak masuk ringkasan harian, hanya
+  /// laporan bulanan (FR-7.7). Skema v2.
+  final bool isMonthly;
   final String? note;
   const Expense({
     required this.id,
@@ -15193,6 +15279,7 @@ class Expense extends DataClass implements Insertable<Expense> {
     required this.categoryId,
     required this.amount,
     required this.spentAt,
+    required this.isMonthly,
     this.note,
   });
   @override
@@ -15214,6 +15301,7 @@ class Expense extends DataClass implements Insertable<Expense> {
     map['category_id'] = Variable<String>(categoryId);
     map['amount'] = Variable<int>(amount);
     map['spent_at'] = Variable<DateTime>(spentAt);
+    map['is_monthly'] = Variable<bool>(isMonthly);
     if (!nullToAbsent || note != null) {
       map['note'] = Variable<String>(note);
     }
@@ -15238,6 +15326,7 @@ class Expense extends DataClass implements Insertable<Expense> {
       categoryId: Value(categoryId),
       amount: Value(amount),
       spentAt: Value(spentAt),
+      isMonthly: Value(isMonthly),
       note: note == null && nullToAbsent ? const Value.absent() : Value(note),
     );
   }
@@ -15258,6 +15347,7 @@ class Expense extends DataClass implements Insertable<Expense> {
       categoryId: serializer.fromJson<String>(json['categoryId']),
       amount: serializer.fromJson<int>(json['amount']),
       spentAt: serializer.fromJson<DateTime>(json['spentAt']),
+      isMonthly: serializer.fromJson<bool>(json['isMonthly']),
       note: serializer.fromJson<String?>(json['note']),
     );
   }
@@ -15275,6 +15365,7 @@ class Expense extends DataClass implements Insertable<Expense> {
       'categoryId': serializer.toJson<String>(categoryId),
       'amount': serializer.toJson<int>(amount),
       'spentAt': serializer.toJson<DateTime>(spentAt),
+      'isMonthly': serializer.toJson<bool>(isMonthly),
       'note': serializer.toJson<String?>(note),
     };
   }
@@ -15290,6 +15381,7 @@ class Expense extends DataClass implements Insertable<Expense> {
     String? categoryId,
     int? amount,
     DateTime? spentAt,
+    bool? isMonthly,
     Value<String?> note = const Value.absent(),
   }) => Expense(
     id: id ?? this.id,
@@ -15302,6 +15394,7 @@ class Expense extends DataClass implements Insertable<Expense> {
     categoryId: categoryId ?? this.categoryId,
     amount: amount ?? this.amount,
     spentAt: spentAt ?? this.spentAt,
+    isMonthly: isMonthly ?? this.isMonthly,
     note: note.present ? note.value : this.note,
   );
   Expense copyWithCompanion(ExpensesCompanion data) {
@@ -15322,6 +15415,7 @@ class Expense extends DataClass implements Insertable<Expense> {
           : this.categoryId,
       amount: data.amount.present ? data.amount.value : this.amount,
       spentAt: data.spentAt.present ? data.spentAt.value : this.spentAt,
+      isMonthly: data.isMonthly.present ? data.isMonthly.value : this.isMonthly,
       note: data.note.present ? data.note.value : this.note,
     );
   }
@@ -15339,6 +15433,7 @@ class Expense extends DataClass implements Insertable<Expense> {
           ..write('categoryId: $categoryId, ')
           ..write('amount: $amount, ')
           ..write('spentAt: $spentAt, ')
+          ..write('isMonthly: $isMonthly, ')
           ..write('note: $note')
           ..write(')'))
         .toString();
@@ -15356,6 +15451,7 @@ class Expense extends DataClass implements Insertable<Expense> {
     categoryId,
     amount,
     spentAt,
+    isMonthly,
     note,
   );
   @override
@@ -15372,6 +15468,7 @@ class Expense extends DataClass implements Insertable<Expense> {
           other.categoryId == this.categoryId &&
           other.amount == this.amount &&
           other.spentAt == this.spentAt &&
+          other.isMonthly == this.isMonthly &&
           other.note == this.note);
 }
 
@@ -15386,6 +15483,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
   final Value<String> categoryId;
   final Value<int> amount;
   final Value<DateTime> spentAt;
+  final Value<bool> isMonthly;
   final Value<String?> note;
   final Value<int> rowid;
   const ExpensesCompanion({
@@ -15399,6 +15497,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     this.categoryId = const Value.absent(),
     this.amount = const Value.absent(),
     this.spentAt = const Value.absent(),
+    this.isMonthly = const Value.absent(),
     this.note = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -15413,6 +15512,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     required String categoryId,
     required int amount,
     required DateTime spentAt,
+    this.isMonthly = const Value.absent(),
     this.note = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : businessId = Value(businessId),
@@ -15430,6 +15530,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     Expression<String>? categoryId,
     Expression<int>? amount,
     Expression<DateTime>? spentAt,
+    Expression<bool>? isMonthly,
     Expression<String>? note,
     Expression<int>? rowid,
   }) {
@@ -15444,6 +15545,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
       if (categoryId != null) 'category_id': categoryId,
       if (amount != null) 'amount': amount,
       if (spentAt != null) 'spent_at': spentAt,
+      if (isMonthly != null) 'is_monthly': isMonthly,
       if (note != null) 'note': note,
       if (rowid != null) 'rowid': rowid,
     });
@@ -15460,6 +15562,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     Value<String>? categoryId,
     Value<int>? amount,
     Value<DateTime>? spentAt,
+    Value<bool>? isMonthly,
     Value<String?>? note,
     Value<int>? rowid,
   }) {
@@ -15474,6 +15577,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
       categoryId: categoryId ?? this.categoryId,
       amount: amount ?? this.amount,
       spentAt: spentAt ?? this.spentAt,
+      isMonthly: isMonthly ?? this.isMonthly,
       note: note ?? this.note,
       rowid: rowid ?? this.rowid,
     );
@@ -15512,6 +15616,9 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     if (spentAt.present) {
       map['spent_at'] = Variable<DateTime>(spentAt.value);
     }
+    if (isMonthly.present) {
+      map['is_monthly'] = Variable<bool>(isMonthly.value);
+    }
     if (note.present) {
       map['note'] = Variable<String>(note.value);
     }
@@ -15534,6 +15641,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
           ..write('categoryId: $categoryId, ')
           ..write('amount: $amount, ')
           ..write('spentAt: $spentAt, ')
+          ..write('isMonthly: $isMonthly, ')
           ..write('note: $note, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -15704,6 +15812,7 @@ typedef $$BusinessesTableCreateCompanionBuilder = BusinessesCompanion Function({
   Value<String> timezone,
   Value<int?> ownerHourlyWage,
   Value<String?> lastClosedOn,
+  Value<DateTime?> onboardedAt,
   Value<int> rowid,
 });
 typedef $$BusinessesTableUpdateCompanionBuilder = BusinessesCompanion Function({
@@ -15721,6 +15830,7 @@ typedef $$BusinessesTableUpdateCompanionBuilder = BusinessesCompanion Function({
   Value<String> timezone,
   Value<int?> ownerHourlyWage,
   Value<String?> lastClosedOn,
+  Value<DateTime?> onboardedAt,
   Value<int> rowid,
 });
 
@@ -16017,6 +16127,11 @@ class $$BusinessesTableFilterComposer
 
   ColumnFilters<String> get lastClosedOn => $composableBuilder(
     column: $table.lastClosedOn,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get onboardedAt => $composableBuilder(
+    column: $table.onboardedAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -16374,6 +16489,11 @@ class $$BusinessesTableOrderingComposer
     column: $table.lastClosedOn,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<DateTime> get onboardedAt => $composableBuilder(
+    column: $table.onboardedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$BusinessesTableAnnotationComposer
@@ -16437,6 +16557,11 @@ class $$BusinessesTableAnnotationComposer
 
   GeneratedColumn<String> get lastClosedOn => $composableBuilder(
     column: $table.lastClosedOn,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get onboardedAt => $composableBuilder(
+    column: $table.onboardedAt,
     builder: (column) => column,
   );
 
@@ -16772,6 +16897,7 @@ class $$BusinessesTableTableManager
                 Value<String> timezone = const Value.absent(),
                 Value<int?> ownerHourlyWage = const Value.absent(),
                 Value<String?> lastClosedOn = const Value.absent(),
+                Value<DateTime?> onboardedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => BusinessesCompanion(
                 id: id,
@@ -16788,6 +16914,7 @@ class $$BusinessesTableTableManager
                 timezone: timezone,
                 ownerHourlyWage: ownerHourlyWage,
                 lastClosedOn: lastClosedOn,
+                onboardedAt: onboardedAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -16806,6 +16933,7 @@ class $$BusinessesTableTableManager
                 Value<String> timezone = const Value.absent(),
                 Value<int?> ownerHourlyWage = const Value.absent(),
                 Value<String?> lastClosedOn = const Value.absent(),
+                Value<DateTime?> onboardedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => BusinessesCompanion.insert(
                 id: id,
@@ -16822,6 +16950,7 @@ class $$BusinessesTableTableManager
                 timezone: timezone,
                 ownerHourlyWage: ownerHourlyWage,
                 lastClosedOn: lastClosedOn,
+                onboardedAt: onboardedAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -28371,6 +28500,7 @@ typedef $$ExpensesTableCreateCompanionBuilder = ExpensesCompanion Function({
   required String categoryId,
   required int amount,
   required DateTime spentAt,
+  Value<bool> isMonthly,
   Value<String?> note,
   Value<int> rowid,
 });
@@ -28385,6 +28515,7 @@ typedef $$ExpensesTableUpdateCompanionBuilder = ExpensesCompanion Function({
   Value<String> categoryId,
   Value<int> amount,
   Value<DateTime> spentAt,
+  Value<bool> isMonthly,
   Value<String?> note,
   Value<int> rowid,
 });
@@ -28475,6 +28606,11 @@ class $$ExpensesTableFilterComposer
 
   ColumnFilters<DateTime> get spentAt => $composableBuilder(
     column: $table.spentAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isMonthly => $composableBuilder(
+    column: $table.isMonthly,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -28579,6 +28715,11 @@ class $$ExpensesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get isMonthly => $composableBuilder(
+    column: $table.isMonthly,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get note => $composableBuilder(
     column: $table.note,
     builder: (column) => ColumnOrderings(column),
@@ -28665,6 +28806,9 @@ class $$ExpensesTableAnnotationComposer
 
   GeneratedColumn<DateTime> get spentAt =>
       $composableBuilder(column: $table.spentAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get isMonthly =>
+      $composableBuilder(column: $table.isMonthly, builder: (column) => column);
 
   GeneratedColumn<String> get note =>
       $composableBuilder(column: $table.note, builder: (column) => column);
@@ -28755,6 +28899,7 @@ class $$ExpensesTableTableManager
                 Value<String> categoryId = const Value.absent(),
                 Value<int> amount = const Value.absent(),
                 Value<DateTime> spentAt = const Value.absent(),
+                Value<bool> isMonthly = const Value.absent(),
                 Value<String?> note = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ExpensesCompanion(
@@ -28768,6 +28913,7 @@ class $$ExpensesTableTableManager
                 categoryId: categoryId,
                 amount: amount,
                 spentAt: spentAt,
+                isMonthly: isMonthly,
                 note: note,
                 rowid: rowid,
               ),
@@ -28783,6 +28929,7 @@ class $$ExpensesTableTableManager
                 required String categoryId,
                 required int amount,
                 required DateTime spentAt,
+                Value<bool> isMonthly = const Value.absent(),
                 Value<String?> note = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ExpensesCompanion.insert(
@@ -28796,6 +28943,7 @@ class $$ExpensesTableTableManager
                 categoryId: categoryId,
                 amount: amount,
                 spentAt: spentAt,
+                isMonthly: isMonthly,
                 note: note,
                 rowid: rowid,
               ),

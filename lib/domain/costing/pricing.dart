@@ -25,6 +25,30 @@ int suggestPriceByMargin({
   return ceilToStep(price, rounding);
 }
 
+/// Markup → margin setara: markup 60% = margin 37,5%.
+Decimal marginFromMarkup(Decimal markupPct) =>
+    divide(markupPct * hundred, hundred + markupPct);
+
+enum PriceWarning { belowHpp, belowTargetMargin }
+
+/// Peringatan harga di daftar menu (FR-2.6); `null` = harga aman.
+PriceWarning? priceWarning({
+  required int sellingPrice,
+  required Decimal hppPerPcs,
+  required Decimal targetMarkupPct,
+}) {
+  if (sellingPrice <= 0 || rupiah(sellingPrice) < hppPerPcs) {
+    return PriceWarning.belowHpp;
+  }
+  final margin = actualMarginPct(
+    sellingPrice: sellingPrice,
+    hppPerPcs: hppPerPcs,
+  );
+  return margin < marginFromMarkup(targetMarkupPct).round(scale: 2)
+      ? PriceWarning.belowTargetMargin
+      : null;
+}
+
 /// Margin aktual dalam persen, 2 desimal: (harga − HPP) / harga × 100.
 Decimal actualMarginPct({
   required int sellingPrice,

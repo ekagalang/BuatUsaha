@@ -40,14 +40,31 @@ part 'app_database.g.dart';
 class AppDatabase extends _$AppDatabase {
   /// [executor] diisi saat test (mis. `NativeDatabase.memory()`).
   AppDatabase([QueryExecutor? executor])
-    : super(executor ?? driftDatabase(name: 'hpp_app'));
+    : super(
+        executor ??
+            driftDatabase(
+              name: 'hpp_app',
+              native: const DriftNativeOptions(shareAcrossIsolates: true),
+            ),
+      );
+
+  Future<void>? _closing;
+
+  /// Aman dipanggil berkali-kali, mis. saat restore lalu provider dibuang.
+  Future<void> closeOnce() => _closing ??= close();
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) => m.createAll(),
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        await m.addColumn(businesses, businesses.onboardedAt);
+        await m.addColumn(expenses, expenses.isMonthly);
+      }
+    },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
     },

@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hpp_app/data/db/app_database.dart';
+import 'package:hpp_app/data/repositories/business_repository.dart';
 
 void main() {
   late AppDatabase db;
@@ -231,5 +234,29 @@ void main() {
       db.orders,
     )..where((o) => o.id.equals(order.id))).getSingle();
     expect(voided.voidReason, 'Salah input');
+  });
+
+  test('migrasi skema v1 ke v2 menambah kolom tanpa menghapus data', () async {
+    final dir = Directory.systemTemp.createTempSync('hpp_migrasi');
+    final file = File('${dir.path}/app.sqlite');
+    var old = AppDatabase(NativeDatabase(file));
+    final id = (await BusinessRepository(old).ensureDefault()).id;
+    await old.customStatement(
+      'ALTER TABLE businesses DROP COLUMN onboarded_at',
+    );
+    await old.customStatement('ALTER TABLE expenses DROP COLUMN is_monthly');
+    await old.customStatement('PRAGMA user_version = 1');
+    await old.close();
+
+    old = AppDatabase(NativeDatabase(file));
+    final business = await old.select(old.businesses).getSingle();
+    expect(business.id, id);
+    expect(business.onboardedAt, isNull);
+    final columns = await old
+        .customSelect("SELECT name FROM pragma_table_info('expenses')")
+        .get();
+    expect(columns.map((r) => r.read<String>('name')), contains('is_monthly'));
+    await old.close();
+    dir.deleteSync(recursive: true);
   });
 }

@@ -40,7 +40,12 @@ Hasilnya ada di `build/app/outputs/flutter-apk/`. Untuk HP Android modern pakai 
 
 ## CI (GitHub Actions)
 
-`.github/workflows/build-apk.yml` menjalankan analyze, test, dan build APK setiap push ke `main` (atau manual lewat tab Actions). APK bisa diunduh dari bagian Artifacts di halaman run.
+`.github/workflows/build-apk.yml` menjalankan analyze, test, dan build APK. APK bisa diunduh dari bagian Artifacts di halaman run.
+
+Alur branch:
+
+- Pengerjaan harian di-commit dan di-push ke `dev`. Branch ini **tidak** memicu CI.
+- CI berjalan saat `dev` di-merge/di-push ke `main`, atau saat dijalankan manual lewat **Actions › Build APK › Run workflow** (branch bisa dipilih, termasuk `dev`).
 
 Agar APK dari CI ditandatangani dengan kunci sendiri, isi secrets di **Settings › Secrets and variables › Actions**:
 
@@ -58,3 +63,23 @@ Membuat base64 dari keystore di PowerShell:
 ```
 
 Tanpa secrets, artefak CI bernama `hpp-app-apk-debug-signed`.
+
+## Laporan crash (Firebase Crashlytics, opsional)
+
+Aplikasi tetap jalan tanpa ini; Crashlytics hanya aktif jika `android/app/google-services.json` ada. File itu tidak masuk git karena repo ini public.
+
+1. Buka [console.firebase.google.com](https://console.firebase.google.com), **Add project** (Google Analytics boleh dimatikan; paket Spark gratis).
+2. Di project itu pilih **Add app › Android**, isi package name `com.hppapp.hpp_app`, lalu unduh `google-services.json`.
+3. Taruh file itu di `android/app/google-services.json` untuk build lokal.
+4. Di menu **Crashlytics**, klik **Get started**. Laporan pertama muncul setelah aplikasi release dibuka sekali, crash, lalu dibuka lagi.
+5. Untuk CI, simpan isinya sebagai secret `GOOGLE_SERVICES_JSON_BASE64`:
+
+```bash
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("android\app\google-services.json")) | Set-Clipboard
+```
+
+Laporan crash tidak dikirim dari build debug.
+
+## Backup data
+
+Data hanya ada di HP. **Pengaturan › Data › Backup** membagikan satu file `.sqlite` (simpan ke Google Drive atau WhatsApp sendiri); **Restore** memulihkannya dan menyimpan data lama sebagai `.bak` di folder aplikasi.

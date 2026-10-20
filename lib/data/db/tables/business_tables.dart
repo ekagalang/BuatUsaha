@@ -28,6 +28,9 @@ class Businesses extends Table with EntityColumns {
 
   /// Tanggal Tutup hari terakhir, `YYYY-MM-DD`.
   TextColumn get lastClosedOn => text().nullable()();
+
+  /// Diisi setelah onboarding selesai atau dilewati (FR-8.4). Skema v2.
+  DateTimeColumn get onboardedAt => dateTime().nullable()();
 }
 
 /// Pengaturan notifikasi, 1:1 dengan [Businesses].
@@ -68,5 +71,9 @@ class Expenses extends Table with EntityColumns, VoidColumns {
   TextColumn get categoryId => text().references(ExpenseCategories, #id)();
   IntColumn get amount => integer()();
   DateTimeColumn get spentAt => dateTime()();
+
+  /// Pengeluaran bulanan (sewa, gaji) tidak masuk ringkasan harian, hanya
+  /// laporan bulanan (FR-7.7). Skema v2.
+  BoolColumn get isMonthly => boolean().withDefault(const Constant(false))();
   TextColumn get note => text().nullable()();
 }

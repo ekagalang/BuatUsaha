@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../data/db/app_database.dart';
+import '../../data/repositories/day_close_repository.dart';
 import '../theme.dart';
+import 'format.dart';
 
 enum StatusKind { success, warning, danger, neutral }
 
@@ -155,4 +158,160 @@ class ChoicePill extends StatelessWidget {
       materialTapTargetSize: MaterialTapTargetSize.padded,
     );
   }
+}
+
+/// Konfirmasi pembatalan transaksi dengan alasan wajib (FR-9.1).
+class ReasonDialog extends StatefulWidget {
+  const ReasonDialog({
+    super.key,
+    required this.title,
+    required this.message,
+    this.warning,
+  });
+
+  final String title;
+  final String message;
+
+  /// mis. peringatan tanggal yang sudah Tutup hari (FR-9.6).
+  final String? warning;
+
+  @override
+  State<ReasonDialog> createState() => _ReasonDialogState();
+}
+
+class _ReasonDialogState extends State<ReasonDialog> {
+  final _reason = TextEditingController();
+
+  @override
+  void dispose() {
+    _reason.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final reason = _reason.text.trim();
+    return AlertDialog(
+      title: Text(widget.title),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(widget.message),
+          if (widget.warning != null) ...[
+            const SizedBox(height: 8),
+            InfoBox(widget.warning!),
+          ],
+          const SizedBox(height: 12),
+          TextField(
+            controller: _reason,
+            autofocus: true,
+            onChanged: (_) => setState(() {}),
+            decoration: const InputDecoration(
+              labelText: 'Alasan',
+              hintText: 'mis. salah ketik harga',
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Tidak'),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(
+            minimumSize: const Size(0, 44),
+            backgroundColor: AppColors.danger,
+          ),
+          onPressed: reason.isEmpty
+              ? null
+              : () => Navigator.pop(context, reason),
+          child: const Text('Batalkan'),
+        ),
+      ],
+    );
+  }
+}
+
+/// Jalankan aksi lalu tampilkan hasilnya di snackbar.
+Future<bool> runWithSnack(
+  BuildContext context,
+  Future<void> Function() action,
+  String done,
+) async {
+  final messenger = ScaffoldMessenger.of(context);
+  try {
+    await action();
+    messenger.showSnackBar(SnackBar(content: Text(done)));
+    return true;
+  } catch (error) {
+    messenger.showSnackBar(SnackBar(content: Text('Gagal: $error')));
+    return false;
+  }
+}
+
+/// Segmented control Design.md: wadah `surfaceMuted`, segmen terpilih putih.
+class Segmented extends StatelessWidget {
+  const Segmented({
+    super.key,
+    required this.labels,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final List<String> labels;
+  final int selected;
+  final ValueChanged<int> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceMuted,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          for (final (i, label) in labels.indexed)
+            Expanded(
+              child: GestureDetector(
+                onTap: () => onSelected(i),
+                child: Container(
+                  height: 40,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: i == selected ? AppColors.surface : null,
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: i == selected
+                          ? FontWeight.w700
+                          : FontWeight.w500,
+                      color: i == selected
+                          ? AppColors.text
+                          : AppColors.textMuted,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Koreksi pada tanggal yang sudah Tutup hari tetap boleh, tetapi ringkasan
+/// hari itu akan berubah (FR-9.6).
+String? closedDayWarning(Business? business, DateTime at) {
+  final last = business?.lastClosedOn;
+  if (last == null || dayKey(at).compareTo(last) > 0) return null;
+  return '${formatLongDate(at)} sudah Tutup hari; ringkasan hari itu akan '
+      'berubah.';
 }

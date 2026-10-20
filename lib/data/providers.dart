@@ -1,8 +1,16 @@
+import 'package:drift/drift.dart' show TableUpdateQuery;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../services/local_notifications.dart';
+import '../services/notification_sync.dart';
 import 'db/app_database.dart';
 import 'db/database_provider.dart';
 import 'repositories/business_repository.dart';
+import 'repositories/day_close_repository.dart';
+import 'repositories/expense_repository.dart';
+import 'repositories/order_repository.dart';
+import 'repositories/product_repository.dart';
+import 'repositories/report_repository.dart';
 import 'repositories/stock_repository.dart';
 
 export 'db/database_provider.dart';
@@ -32,3 +40,159 @@ final ingredientProvider = StreamProvider.family<IngredientView, String>(
 final stockCardProvider = StreamProvider.family<List<StockCardEntry>, String>(
   (ref, id) => ref.watch(stockRepositoryProvider).watchStockCard(id),
 );
+
+/// Usaha aktif yang selalu terbaru (upah per jam, markup bawaan, dst.).
+final businessProvider = StreamProvider<Business>((ref) async* {
+  final business = await ref.watch(currentBusinessProvider.future);
+  yield* ref.watch(businessRepositoryProvider).watch(business.id);
+});
+
+final productRepositoryProvider = Provider(
+  (ref) => ProductRepository(
+    ref.watch(appDatabaseProvider),
+    ref.watch(stockRepositoryProvider),
+  ),
+);
+
+final productsProvider = StreamProvider<List<ProductView>>((ref) async* {
+  final business = await ref.watch(currentBusinessProvider.future);
+  yield* ref.watch(productRepositoryProvider).watchProducts(business.id);
+});
+
+final productProvider = StreamProvider.family<ProductView, String>(
+  (ref, id) => ref.watch(productRepositoryProvider).watchProduct(id),
+);
+
+final productionsProvider = StreamProvider.family<List<Production>, String>(
+  (ref, id) => ref.watch(productRepositoryProvider).watchProductions(id),
+);
+
+final orderRepositoryProvider = Provider(
+  (ref) => OrderRepository(
+    ref.watch(appDatabaseProvider),
+    ref.watch(stockRepositoryProvider),
+    ref.watch(productRepositoryProvider),
+  ),
+);
+
+final dayCloseRepositoryProvider = Provider(
+  (ref) => DayCloseRepository(
+    ref.watch(appDatabaseProvider),
+    ref.watch(productRepositoryProvider),
+  ),
+);
+
+/// Sinkron jadwal notifikasi; dimulai di `main`, tidak di test.
+final notificationSyncProvider = Provider((ref) {
+  final sync = NotificationSync(
+    ref.watch(appDatabaseProvider),
+    LocalNotifications.instance,
+  );
+  ref.onDispose(sync.dispose);
+  return sync;
+});
+
+/// Pesanan dengan jadwal di rentang `[from, to)`.
+final ordersInRangeProvider =
+    StreamProvider.family<List<OrderView>, (DateTime, DateTime)>((
+      ref,
+      range,
+    ) async* {
+      final business = await ref.watch(currentBusinessProvider.future);
+      yield* ref
+          .watch(orderRepositoryProvider)
+          .watchOrders(business.id, from: range.$1, to: range.$2);
+    });
+
+final orderProvider = StreamProvider.family<OrderView, String>(
+  (ref, id) => ref.watch(orderRepositoryProvider).watchOrder(id),
+);
+
+final channelsProvider = StreamProvider<List<SalesChannel>>((ref) async* {
+  final business = await ref.watch(currentBusinessProvider.future);
+  yield* ref.watch(orderRepositoryProvider).watchChannels(business.id);
+});
+
+final notificationSettingsProvider = StreamProvider<NotificationSetting>((
+  ref,
+) async* {
+  final business = await ref.watch(currentBusinessProvider.future);
+  yield* ref
+      .watch(businessRepositoryProvider)
+      .watchNotificationSettings(business.id);
+});
+
+/// Kebutuhan produksi untuk satu tanggal lokal (FR-5.5).
+final productionNeedsProvider =
+    StreamProvider.family<ProductionNeeds, DateTime>((ref, day) async* {
+      final business = await ref.watch(currentBusinessProvider.future);
+      yield* ref
+          .watch(orderRepositoryProvider)
+          .watchProductionNeeds(business.id, day);
+    });
+
+final expenseRepositoryProvider = Provider(
+  (ref) => ExpenseRepository(ref.watch(appDatabaseProvider)),
+);
+
+final reportRepositoryProvider = Provider(
+  (ref) => ReportRepository(ref.watch(appDatabaseProvider)),
+);
+
+/// Ringkasan untung/rugi satu tanggal lokal (FR-7.6).
+final dayReportProvider = StreamProvider.family<DayReport, DateTime>((
+  ref,
+  day,
+) async* {
+  final business = await ref.watch(currentBusinessProvider.future);
+  yield* ref.watch(reportRepositoryProvider).watchDay(business.id, day);
+});
+
+/// Laporan periode `[from, to)` (FR-7.5).
+final periodReportProvider =
+    StreamProvider.family<PeriodReport, (DateTime, DateTime)>((
+      ref,
+      range,
+    ) async* {
+      final business = await ref.watch(currentBusinessProvider.future);
+      yield* ref
+          .watch(reportRepositoryProvider)
+          .watchPeriod(business.id, range.$1, range.$2);
+    });
+
+final expensesProvider =
+    StreamProvider.family<List<ExpenseView>, (DateTime, DateTime)>((
+      ref,
+      range,
+    ) async* {
+      final business = await ref.watch(currentBusinessProvider.future);
+      yield* ref
+          .watch(expenseRepositoryProvider)
+          .watchExpenses(business.id, from: range.$1, to: range.$2);
+    });
+
+final expenseCategoriesProvider = StreamProvider<List<ExpenseCategory>>((
+  ref,
+) async* {
+  final business = await ref.watch(currentBusinessProvider.future);
+  yield* ref.watch(expenseRepositoryProvider).watchCategories(business.id);
+});
+
+/// Sisa menu ready stock untuk Tutup hari hari ini, ikut berubah saat stok
+/// menu berubah.
+final leftoversProvider = StreamProvider<List<Leftover>>((ref) async* {
+  final business = await ref.watch(currentBusinessProvider.future);
+  final db = ref.watch(appDatabaseProvider);
+  final repo = ref.watch(dayCloseRepositoryProvider);
+  yield await repo.leftovers(business.id, DateTime.now());
+  await for (final _ in db.tableUpdates(
+    TableUpdateQuery.onAllTables([db.products, db.productStockMovements]),
+  )) {
+    yield await repo.leftovers(business.id, DateTime.now());
+  }
+});
+
+final productCardProvider =
+    StreamProvider.family<List<ProductStockMovement>, String>(
+      (ref, id) => ref.watch(productRepositoryProvider).watchProductCard(id),
+    );
