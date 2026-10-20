@@ -227,7 +227,7 @@ class IngredientDetailScreen extends ConsumerWidget {
     final isPurchase = movement.refType == 'purchase_item';
     final reason = await showDialog<String>(
       context: context,
-      builder: (_) => _ReasonDialog(
+      builder: (_) => ReasonDialog(
         title: isPurchase ? 'Batalkan belanja ini?' : 'Batalkan mutasi ini?',
         message: isPurchase
             ? 'Seluruh item dalam belanja ini ikut dibatalkan. Harga '
@@ -587,67 +587,6 @@ class _QtyDialogState extends State<_QtyDialog> {
                   Navigator.pop(context, (_value!, note.isEmpty ? null : note));
                 },
           child: const Text('Simpan'),
-        ),
-      ],
-    );
-  }
-}
-
-class _ReasonDialog extends StatefulWidget {
-  const _ReasonDialog({required this.title, required this.message});
-
-  final String title;
-  final String message;
-
-  @override
-  State<_ReasonDialog> createState() => _ReasonDialogState();
-}
-
-class _ReasonDialogState extends State<_ReasonDialog> {
-  final _reason = TextEditingController();
-
-  @override
-  void dispose() {
-    _reason.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final reason = _reason.text.trim();
-    return AlertDialog(
-      title: Text(widget.title),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(widget.message),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _reason,
-            autofocus: true,
-            onChanged: (_) => setState(() {}),
-            decoration: const InputDecoration(
-              labelText: 'Alasan',
-              hintText: 'mis. salah ketik harga',
-            ),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Tidak'),
-        ),
-        FilledButton(
-          style: FilledButton.styleFrom(
-            minimumSize: const Size(0, 44),
-            backgroundColor: AppColors.danger,
-          ),
-          onPressed: reason.isEmpty
-              ? null
-              : () => Navigator.pop(context, reason),
-          child: const Text('Batalkan'),
         ),
       ],
     );

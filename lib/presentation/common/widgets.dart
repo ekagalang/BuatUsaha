@@ -156,3 +156,82 @@ class ChoicePill extends StatelessWidget {
     );
   }
 }
+
+/// Konfirmasi pembatalan transaksi dengan alasan wajib (FR-9.1).
+class ReasonDialog extends StatefulWidget {
+  const ReasonDialog({super.key, required this.title, required this.message});
+
+  final String title;
+  final String message;
+
+  @override
+  State<ReasonDialog> createState() => _ReasonDialogState();
+}
+
+class _ReasonDialogState extends State<ReasonDialog> {
+  final _reason = TextEditingController();
+
+  @override
+  void dispose() {
+    _reason.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final reason = _reason.text.trim();
+    return AlertDialog(
+      title: Text(widget.title),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(widget.message),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _reason,
+            autofocus: true,
+            onChanged: (_) => setState(() {}),
+            decoration: const InputDecoration(
+              labelText: 'Alasan',
+              hintText: 'mis. salah ketik harga',
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Tidak'),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(
+            minimumSize: const Size(0, 44),
+            backgroundColor: AppColors.danger,
+          ),
+          onPressed: reason.isEmpty
+              ? null
+              : () => Navigator.pop(context, reason),
+          child: const Text('Batalkan'),
+        ),
+      ],
+    );
+  }
+}
+
+/// Jalankan aksi lalu tampilkan hasilnya di snackbar.
+Future<bool> runWithSnack(
+  BuildContext context,
+  Future<void> Function() action,
+  String done,
+) async {
+  final messenger = ScaffoldMessenger.of(context);
+  try {
+    await action();
+    messenger.showSnackBar(SnackBar(content: Text(done)));
+    return true;
+  } catch (error) {
+    messenger.showSnackBar(SnackBar(content: Text('Gagal: $error')));
+    return false;
+  }
+}

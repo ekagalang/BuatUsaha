@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 
+import 'menu/menu_detail_screen.dart';
+import 'menu/menu_form_screen.dart';
+import 'menu/menu_screen.dart';
 import 'stock/ingredient_detail_screen.dart';
 import 'stock/ingredient_form_screen.dart';
 import 'stock/ingredients_screen.dart';
@@ -30,6 +33,31 @@ GoRouter buildRouter() {
   final rootKey = GlobalKey<NavigatorState>();
 
   GoRoute tabRoute(AppTab tab) => switch (tab.path) {
+    '/menu' => GoRoute(
+      path: tab.path,
+      builder: (context, state) => const MenuScreen(),
+      routes: [
+        GoRoute(
+          path: 'baru',
+          parentNavigatorKey: rootKey,
+          builder: (context, state) => const MenuFormScreen(),
+        ),
+        GoRoute(
+          path: ':id',
+          parentNavigatorKey: rootKey,
+          builder: (context, state) =>
+              MenuDetailScreen(id: state.pathParameters['id']!),
+          routes: [
+            GoRoute(
+              path: 'ubah',
+              parentNavigatorKey: rootKey,
+              builder: (context, state) =>
+                  MenuFormScreen(id: state.pathParameters['id']),
+            ),
+          ],
+        ),
+      ],
+    ),
     '/bahan' => GoRoute(
       path: tab.path,
       builder: (context, state) => const IngredientsScreen(),

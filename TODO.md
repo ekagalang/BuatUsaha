@@ -7,7 +7,7 @@ Checklist pengerjaan, disusun mengikuti roadmap di PRD bagian 12. Diperbarui set
 - **Desain:** [Design.md](Design.md)
 
 **Terakhir diperbarui:** 20 Oktober 2026
-**Posisi sekarang:** Sprint 1 (bahan & stok) selesai, tinggal dicoba di HP. Dari persiapan masih tersisa keystore, secrets CI, dan pengecekan run CI pertama. Berikutnya: Sprint 2 (menu & HPP).
+**Posisi sekarang:** Sprint 2 (menu & HPP) selesai di branch `dev`, belum dicoba di HP. Sprint 1 juga belum dicoba di HP. Dari persiapan masih tersisa keystore dan secrets CI. Berikutnya: Sprint 3 (pesanan & notifikasi).
 
 Tanda: `[x]` selesai · `[ ]` belum · "kalkulator ✓" = rumusnya sudah ada dan lulus test di `lib/domain/costing/`, tetapi penyimpanan ke database dan layarnya belum.
 
@@ -23,8 +23,10 @@ Tanda: `[x]` selesai · `[ ]` belum · "kalkulator ✓" = rumusnya sudah ada dan
 - [x] Signing release di Gradle (`android/key.properties`, contoh di `key.properties.example`) + desugaring untuk notifikasi; build APK release lokal lulus (arm64 18,1 MB)
 - [x] Workflow CI `.github/workflows/build-apk.yml`: analyze, test, build APK per ABI; ditandatangani kunci sendiri jika secrets diisi (lihat README)
 - [ ] Buat keystore `C:\Users\Kanggo L3-038\keys\hpp_app-upload.jks`, isi `android/key.properties`, simpan keystore dan sandinya di 2 tempat
-- [x] Push ke repo GitHub private `ekagalang/BuatUsaha` (branch `main`)
-- [ ] Cek run CI pertama di tab Actions (tanpa secrets, artefaknya `hpp-app-apk-debug-signed`)
+- [x] Push ke repo GitHub `ekagalang/BuatUsaha` (branch `main`, sekarang public)
+- [x] Run CI pertama lulus: analyze, test, build APK ±10 menit; artefak `hpp-app-apk-debug-signed` (29,8 MB)
+- [x] Naikkan versi action di workflow (checkout v7, setup-java v6, upload-artifact v7); teruji saat merge ke `main` atau run manual berikutnya
+- [x] Branch `dev` untuk pengerjaan harian; CI hanya berjalan di `main` atau manual (push ke `dev` terbukti tidak memicu CI)
 - [ ] Isi 4 secrets Android di GitHub setelah keystore dibuat (lihat README)
 
 ## Sprint 1 — Bahan dan stok (minggu 2–4)
@@ -47,15 +49,22 @@ Tanda: `[x]` selesai · `[ ]` belum · "kalkulator ✓" = rumusnya sudah ada dan
 
 ## Sprint 2 — Menu dan HPP (minggu 5–6)
 
-- [ ] Repository menu, resep, biaya lain, upah per jam pemilik (FR-2.1–2.3)
-- [ ] HPP otomatis + status lengkap/perkiraan/belum lengkap, dihitung ulang saat harga bahan atau upah berubah (FR-2.4, FR-2.8) — kalkulator ✓
-- [ ] Saran harga jual dan peringatan harga (FR-2.5, FR-2.6) — kalkulator ✓
-- [ ] Tambah bahan baru langsung dari form resep (FR-2.7)
-- [ ] Penjualan dengan HPP belum lengkap ditandai (FR-2.9)
-- [ ] Kapasitas "bisa jadi berapa pcs" dan kekurangan untuk target (FR-3.1–3.3) — kalkulator ✓
-- [ ] Nilai modal sisa bahan dan stok produk jadi, kerugian (FR-3.4, FR-3.5) — kalkulator ✓
-- [ ] Catat produksi, mode stok per menu, stok produk jadi, penjualan melebihi stok (FR-4.1–4.5, FR-4.9) — kalkulator ✓
-- [ ] Layar Menu, Detail menu, Ubah resep (mockup `Menu`, `DetailMenu`, `FormResep`)
+- [x] Repository menu, resep, biaya lain, upah per jam pemilik (FR-2.1–2.3) — `lib/data/repositories/product_repository.dart`
+- [x] HPP otomatis + status lengkap/perkiraan/belum lengkap, dihitung ulang saat harga bahan, resep, atau upah berubah (FR-2.4, FR-2.8) — `hpp_refresher.dart`
+- [x] Saran harga jual (markup target atau margin 30/40%, dibulatkan) dan peringatan harga di bawah HPP / di bawah target margin (FR-2.5, FR-2.6)
+- [x] Tambah bahan baru langsung dari form resep, dengan stok awal atau harga perkiraan (FR-2.7)
+- [x] Kapasitas "bisa jadi berapa pcs" + bahan pembatas, kekurangan dan perkiraan belanja untuk target (FR-3.1–3.3)
+- [x] Nilai stok produk jadi per menu (FR-3.4); nilai modal sisa bahan sudah di Sprint 1
+- [x] Catat produksi: jumlah resep desimal, pemakaian bahan aktual, HPP batch disimpan, ditolak jika stok bahan kurang; batalkan produksi mengembalikan bahan dan stok menu (FR-4.1, FR-4.2, FR-9.1)
+- [x] Mode stok per menu (ready stock / pre-order), stok produk jadi rata-rata tertimbang, stok awal produk jadi (FR-4.3–4.5)
+- [x] Layar Menu, Detail menu (HPP, saran harga, rincian, kapasitas, simulasi target, stok, riwayat produksi), Ubah resep dengan HPP langsung (mockup `Menu`, `DetailMenu`, `FormResep`)
+- [x] 12 test repository menu + 3 widget test layar menu; 80 test lulus
+- [ ] Penjualan dengan HPP belum lengkap ditandai (FR-2.9) — butuh penjualan di Sprint 3
+- [ ] Penjualan melebihi stok produk jadi (FR-4.9) — butuh penjualan di Sprint 3
+- [ ] Kerugian sisa produk jadi (FR-3.5) — dicatat lewat Tutup hari di Sprint 4
+- [ ] Pengaturan markup bawaan dan pembulatan harga (repository `setPricing` sudah ada; layarnya di Pengaturan, Sprint 4)
+- [x] Sprint 2 di-commit dan di-push ke `dev`
+- [ ] Coba layar Sprint 2 di HP (APK) dan catat masukan
 
 ## Sprint 3 — Pesanan dan notifikasi (minggu 7–8)
 

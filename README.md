@@ -40,7 +40,12 @@ Hasilnya ada di `build/app/outputs/flutter-apk/`. Untuk HP Android modern pakai 
 
 ## CI (GitHub Actions)
 
-`.github/workflows/build-apk.yml` menjalankan analyze, test, dan build APK setiap push ke `main` (atau manual lewat tab Actions). APK bisa diunduh dari bagian Artifacts di halaman run.
+`.github/workflows/build-apk.yml` menjalankan analyze, test, dan build APK. APK bisa diunduh dari bagian Artifacts di halaman run.
+
+Alur branch:
+
+- Pengerjaan harian di-commit dan di-push ke `dev`. Branch ini **tidak** memicu CI.
+- CI berjalan saat `dev` di-merge/di-push ke `main`, atau saat dijalankan manual lewat **Actions › Build APK › Run workflow** (branch bisa dipilih, termasuk `dev`).
 
 Agar APK dari CI ditandatangani dengan kunci sendiri, isi secrets di **Settings › Secrets and variables › Actions**:
 

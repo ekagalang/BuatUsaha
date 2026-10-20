@@ -6,6 +6,7 @@ import '../../domain/stock/ingredient_ledger.dart';
 import '../../domain/stock/units.dart';
 import '../db/app_database.dart';
 import '../db/decimal_convert.dart';
+import 'hpp_refresher.dart';
 
 const _purchaseItemRef = 'purchase_item';
 
@@ -401,6 +402,63 @@ class StockRepository {
     });
   }
 
+  // ------------------------------------------------- Dipakai modul lain
+
+  /// Bahan terpakai untuk satu produksi (mutasi `PRODUCTION`). Mengembalikan
+  /// biaya bahan dengan harga rata-rata pada tanggal produksi. Harus dipanggil
+  /// di dalam transaksi pemanggil.
+  Future<int> recordProductionUsage({
+    required String productionId,
+    required Map<String, Decimal> usage,
+    required DateTime at,
+  }) async {
+    final when = at.toUtc();
+    for (final MapEntry(key: ingredientId, value: qty) in usage.entries) {
+      if (qty <= Decimal.zero) continue;
+      await _insertMovement(
+        ingredientId,
+        type: MovementType.production,
+        qtyBase: -qty,
+        refType: 'production',
+        refId: productionId,
+        occurredAt: when,
+      );
+    }
+    await _recomputeAll(usage.keys);
+    final rows =
+        await (_db.select(_db.stockMovements)..where(
+              (t) =>
+                  t.refType.equals('production') &
+                  t.refId.equals(productionId) &
+                  t.reversalOfId.isNull(),
+            ))
+            .get();
+    return rows.fold<int>(0, (sum, r) => sum - r.value);
+  }
+
+  /// Membalik semua mutasi bahan dari satu sumber (mis. produksi yang
+  /// dibatalkan) lalu menghitung ulang bahan terkait.
+  Future<void> reverseByRef(String refType, String refId, String reason) async {
+    final rows =
+        await (_db.select(_db.stockMovements)..where(
+              (t) =>
+                  t.refType.equals(refType) &
+                  t.refId.equals(refId) &
+                  t.reversalOfId.isNull(),
+            ))
+            .get();
+    final ingredientIds = <String>{};
+    for (final row in rows) {
+      final reversed = await (_db.select(
+        _db.stockMovements,
+      )..where((t) => t.reversalOfId.equals(row.id))).getSingleOrNull();
+      if (reversed != null) continue;
+      await _insertReversal(row, reason);
+      ingredientIds.add(row.ingredientId);
+    }
+    await _recomputeAll(ingredientIds);
+  }
+
   // ----------------------------------------------------------- Internal
 
   Future<Ingredient> _recordIssueOrAdjustment(
@@ -692,6 +750,11 @@ class StockRepository {
         updatedAt: Value(_now()),
       ),
     );
+    final newAvg = avg == null ? null : dbl(avg);
+    if (ingredient.avgUnitCost != newAvg ||
+        ingredient.priceIsEstimate != result.priceIsEstimate) {
+      await refreshHppForIngredient(_db, ingredientId);
+    }
     return _ingredient(ingredientId);
   }
 
