@@ -7,7 +7,7 @@ Checklist pengerjaan, disusun mengikuti roadmap di PRD bagian 12. Diperbarui set
 - **Desain:** [Design.md](Design.md)
 
 **Terakhir diperbarui:** 20 Oktober 2026
-**Posisi sekarang:** Sprint 1 (bahan & stok) selesai, tinggal dicoba di HP. Dari persiapan masih tersisa keystore dan push ke GitHub. Berikutnya: Sprint 2 (menu & HPP).
+**Posisi sekarang:** Sprint 1 (bahan & stok) selesai, tinggal dicoba di HP. Dari persiapan masih tersisa keystore, secrets CI, dan pengecekan run CI pertama. Berikutnya: Sprint 2 (menu & HPP).
 
 Tanda: `[x]` selesai · `[ ]` belum · "kalkulator ✓" = rumusnya sudah ada dan lulus test di `lib/domain/costing/`, tetapi penyimpanan ke database dan layarnya belum.
 
@@ -23,7 +23,9 @@ Tanda: `[x]` selesai · `[ ]` belum · "kalkulator ✓" = rumusnya sudah ada dan
 - [x] Signing release di Gradle (`android/key.properties`, contoh di `key.properties.example`) + desugaring untuk notifikasi; build APK release lokal lulus (arm64 18,1 MB)
 - [x] Workflow CI `.github/workflows/build-apk.yml`: analyze, test, build APK per ABI; ditandatangani kunci sendiri jika secrets diisi (lihat README)
 - [ ] Buat keystore `C:\Users\Kanggo L3-038\keys\hpp_app-upload.jks`, isi `android/key.properties`, simpan keystore dan sandinya di 2 tempat
-- [ ] Push ke repo GitHub (private), isi 4 secrets Android, cek run CI pertama
+- [x] Push ke repo GitHub private `ekagalang/BuatUsaha` (branch `main`)
+- [ ] Cek run CI pertama di tab Actions (tanpa secrets, artefaknya `hpp-app-apk-debug-signed`)
+- [ ] Isi 4 secrets Android di GitHub setelah keystore dibuat (lihat README)
 
 ## Sprint 1 — Bahan dan stok (minggu 2–4)
 
@@ -40,7 +42,7 @@ Tanda: `[x]` selesai · `[ ]` belum · "kalkulator ✓" = rumusnya sudah ada dan
 - [x] Format Rupiah/angka/tanggal Indonesia, komponen umum, pemilih tanggal berbahasa Indonesia; 65 test lulus
 - [ ] Layar edit belanja (repository `replacePurchase` sudah ada; di UI saat ini batalkan lalu catat ulang)
 - [ ] Peringatan saat mengoreksi tanggal yang sudah Tutup hari (FR-9.6) — menunggu Tutup hari di Sprint 4
-- [x] Sprint 1 + signing release + CI di-commit ke `main` (belum di-push)
+- [x] Sprint 1 + signing release + CI di-commit dan di-push ke `main`
 - [ ] Coba layar Sprint 1 di HP (APK) dan catat masukan
 
 ## Sprint 2 — Menu dan HPP (minggu 5–6)
