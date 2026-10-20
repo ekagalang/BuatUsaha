@@ -1,0 +1,70 @@
+# Analyze, test, lalu build APK release per ABI.
+# APK ditandatangani dengan kunci sendiri jika secrets berikut diisi di
+# Settings › Secrets and variables › Actions:
+#   ANDROID_KEYSTORE_BASE64   isi file .jks dalam base64
+#   ANDROID_KEYSTORE_PASSWORD sandi keystore
+#   ANDROID_KEY_ALIAS         alias kunci (mis. upload)
+#   ANDROID_KEY_PASSWORD      sandi kunci (PKCS12: sama dengan sandi keystore)
+# Tanpa secrets, APK memakai kunci debug dan artefaknya diberi akhiran
+# "debug-signed": cukup untuk dicoba, jangan dipasang permanen.
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: build-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      HAS_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          channel: stable
+          cache: true
+
+      - name: Batasi memori Gradle sesuai runner CI
+        run: |
+          mkdir -p ~/.gradle
+          echo "org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g" >> ~/.gradle/gradle.properties
+
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+
+      - name: Pasang kunci tanda tangan dari secrets
+        if: env.HAS_KEYSTORE == 'true'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/upload.jks"
+          printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
+            "$RUNNER_TEMP/upload.jks" "$KEYSTORE_PASSWORD" "$KEY_ALIAS" "$KEY_PASSWORD" \
+            > android/key.properties
+
+      - name: Build APK release per ABI
+        run: flutter build apk --release --split-per-abi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.HAS_KEYSTORE == 'true' && 'hpp-app-apk' || 'hpp-app-apk-debug-signed' }}
+          path: build/app/outputs/flutter-apk/app-*-release.apk
+          retention-days: 14

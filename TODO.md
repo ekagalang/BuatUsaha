@@ -7,7 +7,7 @@ Checklist pengerjaan, disusun mengikuti roadmap di PRD bagian 12. Diperbarui set
 - **Desain:** [Design.md](Design.md)
 
 **Terakhir diperbarui:** 20 Oktober 2026
-**Posisi sekarang:** Persiapan hampir selesai. Berikutnya: Sprint 1 (bahan & stok).
+**Posisi sekarang:** Sprint 1 (bahan & stok) selesai, tinggal dicoba di HP. Dari persiapan masih tersisa keystore dan push ke GitHub. Berikutnya: Sprint 2 (menu & HPP).
 
 Tanda: `[x]` selesai · `[ ]` belum · "kalkulator ✓" = rumusnya sudah ada dan lulus test di `lib/domain/costing/`, tetapi penyimpanan ke database dan layarnya belum.
 
@@ -20,19 +20,28 @@ Tanda: `[x]` selesai · `[ ]` belum · "kalkulator ✓" = rumusnya sudah ada dan
 - [x] Kalkulator domain + 44 test lulus: rata-rata tertimbang, HPP + status, upah pemilik, saran harga, kapasitas, kekurangan bahan, nilai stok, stok produk jadi, hitung ulang buku mutasi, potongan channel, ringkasan harian, umur simpan
 - [x] Tema dari Design.md (`lib/presentation/theme.dart`), font Plus Jakarta Sans + Fraunces dibundel, navigasi 5 tab
 - [x] `git init` + commit pertama (branch `main`; keystore dan `key.properties` di-ignore)
-- [ ] Buat keystore tanda tangan APK, simpan keystore dan sandinya di 2 tempat
-- [ ] CI build APK (GitHub Actions, gratis)
+- [x] Signing release di Gradle (`android/key.properties`, contoh di `key.properties.example`) + desugaring untuk notifikasi; build APK release lokal lulus (arm64 18,1 MB)
+- [x] Workflow CI `.github/workflows/build-apk.yml`: analyze, test, build APK per ABI; ditandatangani kunci sendiri jika secrets diisi (lihat README)
+- [ ] Buat keystore `C:\Users\Kanggo L3-038\keys\hpp_app-upload.jks`, isi `android/key.properties`, simpan keystore dan sandinya di 2 tempat
+- [ ] Push ke repo GitHub (private), isi 4 secrets Android, cek run CI pertama
 
 ## Sprint 1 — Bahan dan stok (minggu 2–4)
 
-- [ ] Repository bahan + konversi satuan beli (FR-1.1, FR-1.2)
-- [ ] Simpan belanja: purchase + item + mutasi stok + harga rata-rata, dalam satu transaksi DB (FR-1.3) — kalkulator ✓
-- [ ] Stok awal dan harga perkiraan, mutasi `OPENING` (FR-1.7)
-- [ ] Penyesuaian stok, stock opname, bahan rusak (FR-1.4)
-- [ ] Kartu stok per bahan (FR-1.5)
-- [ ] Penanda stok minimum (FR-1.6)
-- [ ] Koreksi transaksi: batalkan dengan mutasi pembalik, edit = batalkan + catat ulang, hitung ulang dari tanggal transaksi (FR-9.1–9.3, FR-9.6) — kalkulator ✓
-- [ ] Layar Bahan dan Belanja bahan (mockup `Bahan`, `FormBelanja`)
+- [x] Repository bahan + konversi satuan beli bawaan dan khusus (FR-1.1, FR-1.2) — `lib/data/repositories/stock_repository.dart`
+- [x] Simpan belanja: purchase + item + mutasi stok + harga rata-rata, dalam satu transaksi DB (FR-1.3)
+- [x] Stok awal dan harga perkiraan, mutasi `OPENING`; perkiraan diganti belanja pertama (FR-1.7)
+- [x] Penyesuaian stok, stock opname (selisih terhadap saldo pada tanggalnya), bahan rusak (FR-1.4)
+- [x] Data kartu stok per bahan, termasuk baris dibatalkan dan pembaliknya (FR-1.5)
+- [x] Penanda stok minimum + reset `lowStockNotified` saat stok kembali normal (FR-1.6; notifikasinya di Sprint 3)
+- [x] Koreksi transaksi stok bahan: batalkan dengan mutasi pembalik, edit belanja = batalkan + catat ulang, hitung ulang seluruh buku mutasi termasuk belanja bertanggal mundur (FR-9.1–9.3)
+- [x] 16 test repository dengan database di memori
+- [x] Layar Bahan (nilai modal, saringan menipis/belum ada harga) dan Belanja bahan multi-item dengan pratinjau harga rata-rata (mockup `Bahan`, `FormBelanja`)
+- [x] Layar Bahan baru (stok awal / harga perkiraan) dan Detail bahan (penyesuaian, bahan rusak, opname, satuan beli khusus, stok minimum, kartu stok, pembatalan)
+- [x] Format Rupiah/angka/tanggal Indonesia, komponen umum, pemilih tanggal berbahasa Indonesia; 65 test lulus
+- [ ] Layar edit belanja (repository `replacePurchase` sudah ada; di UI saat ini batalkan lalu catat ulang)
+- [ ] Peringatan saat mengoreksi tanggal yang sudah Tutup hari (FR-9.6) — menunggu Tutup hari di Sprint 4
+- [x] Sprint 1 + signing release + CI di-commit ke `main` (belum di-push)
+- [ ] Coba layar Sprint 1 di HP (APK) dan catat masukan
 
 ## Sprint 2 — Menu dan HPP (minggu 5–6)
 
@@ -85,6 +94,11 @@ Tanda: `[x]` selesai · `[ ]` belum · "kalkulator ✓" = rumusnya sudah ada dan
 - [ ] Nota pesanan via WhatsApp/PDF, ekspor laporan PDF/CSV
 - [ ] Arus kas sederhana
 - [ ] Backup otomatis ke Google Drive, kunci PIN/biometrik
+
+## Catatan teknis untuk dipantau
+
+- [ ] Plugin `workmanager_android` masih memakai Kotlin Gradle Plugin; Flutter versi mendatang akan menolak build. Cek versi baru plugin sebelum upgrade Flutter.
+- [ ] Jika aplikasi crash di Android 12L ke atas setelah desugaring, tambahkan `androidx.window` (lihat README flutter_local_notifications).
 
 ## Fase 3 — opsional (minggu 19–26)
 

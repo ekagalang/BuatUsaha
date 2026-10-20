@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 
+import 'stock/ingredient_detail_screen.dart';
+import 'stock/ingredient_form_screen.dart';
+import 'stock/ingredients_screen.dart';
+import 'stock/purchase_form_screen.dart';
 import 'theme.dart';
 
 class AppTab {
@@ -20,26 +25,53 @@ const appTabs = [
   AppTab('/laporan', 'Laporan', Icons.bar_chart_outlined),
 ];
 
-GoRouter buildRouter() => GoRouter(
-  initialLocation: appTabs.first.path,
-  routes: [
-    StatefulShellRoute.indexedStack(
-      builder: (context, state, shell) => HomeShell(shell: shell),
-      branches: [
-        for (final tab in appTabs)
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: tab.path,
-                builder: (context, state) =>
-                    PlaceholderScreen(title: tab.label),
-              ),
-            ],
-          ),
+GoRouter buildRouter() {
+  // Form dan detail tampil penuh di atas navigasi bawah.
+  final rootKey = GlobalKey<NavigatorState>();
+
+  GoRoute tabRoute(AppTab tab) => switch (tab.path) {
+    '/bahan' => GoRoute(
+      path: tab.path,
+      builder: (context, state) => const IngredientsScreen(),
+      routes: [
+        GoRoute(
+          path: 'baru',
+          parentNavigatorKey: rootKey,
+          builder: (context, state) => const IngredientFormScreen(),
+        ),
+        GoRoute(
+          path: 'belanja',
+          parentNavigatorKey: rootKey,
+          builder: (context, state) => const PurchaseFormScreen(),
+        ),
+        GoRoute(
+          path: ':id',
+          parentNavigatorKey: rootKey,
+          builder: (context, state) =>
+              IngredientDetailScreen(id: state.pathParameters['id']!),
+        ),
       ],
     ),
-  ],
-);
+    _ => GoRoute(
+      path: tab.path,
+      builder: (context, state) => PlaceholderScreen(title: tab.label),
+    ),
+  };
+
+  return GoRouter(
+    navigatorKey: rootKey,
+    initialLocation: appTabs.first.path,
+    routes: [
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, shell) => HomeShell(shell: shell),
+        branches: [
+          for (final tab in appTabs)
+            StatefulShellBranch(routes: [tabRoute(tab)]),
+        ],
+      ),
+    ],
+  );
+}
 
 class HppApp extends StatefulWidget {
   const HppApp({super.key});
@@ -62,6 +94,9 @@ class _HppAppState extends State<HppApp> {
     return MaterialApp.router(
       title: 'HPP App',
       theme: buildAppTheme(),
+      locale: const Locale('id'),
+      supportedLocales: const [Locale('id')],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
       routerConfig: _router,
     );
   }

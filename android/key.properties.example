@@ -1,0 +1,7 @@
+# Salin file ini menjadi android/key.properties (sudah diabaikan git), lalu isi.
+# Pakai garis miring "/" pada path Windows; "\" dianggap karakter escape.
+# Keystore PKCS12 (bawaan keytool) memakai sandi yang sama untuk store dan key.
+storeFile=C:/Users/Kanggo L3-038/keys/hpp_app-upload.jks
+storePassword=
+keyAlias=upload
+keyPassword=

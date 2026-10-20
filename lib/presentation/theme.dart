@@ -210,7 +210,9 @@ ThemeData buildAppTheme() {
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
-        minimumSize: const Size.fromHeight(52),
+        // Lebar penuh di bilah bawah diatur pemanggil (SizedBox), agar tombol
+        // kecil di AppBar atau Row tidak meminta lebar tak terhingga.
+        minimumSize: const Size(64, 52),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
       ),

@@ -1,7 +1,23 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+// Kunci tanda tangan release dibaca dari android/key.properties (tidak masuk git;
+// contoh: android/key.properties.example). Tanpa file itu, build release memakai
+// kunci debug supaya tetap bisa dicoba, tetapi APK-nya jangan dipasang permanen:
+// update berikutnya yang memakai kunci asli tidak akan bisa menimpanya.
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+val hasReleaseKey = keystorePropertiesFile.exists()
+if (hasReleaseKey) {
+    FileInputStream(keystorePropertiesFile).use { keystoreProperties.load(it) }
+} else {
+    logger.warn("android/key.properties tidak ditemukan: APK release ditandatangani dengan kunci debug.")
 }
 
 android {
@@ -10,12 +26,14 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        // Wajib untuk flutter_local_notifications (jadwal notifikasi di Android lama).
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
+        // Jangan diubah setelah APK release pertama dipasang: id lain = aplikasi lain.
         applicationId = "com.hppapp.hpp_app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
@@ -29,13 +47,26 @@ android {
         versionName = flutter.versionName
     }
 
-    buildTypes {
-        release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+    signingConfigs {
+        if (hasReleaseKey) {
+            create("release") {
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
         }
     }
+
+    buildTypes {
+        release {
+            signingConfig = signingConfigs.getByName(if (hasReleaseKey) "release" else "debug")
+        }
+    }
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
 
 kotlin {
