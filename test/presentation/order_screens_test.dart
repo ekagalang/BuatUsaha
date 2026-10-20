@@ -13,7 +13,7 @@ import 'package:hpp_app/presentation/theme.dart';
 import '../support/seed.dart';
 
 Future<void> _pump(WidgetTester tester, AppDatabase db, Widget screen) async {
-  await tester.binding.setSurfaceSize(const Size(420, 2600));
+  await tester.binding.setSurfaceSize(const Size(360, 2600));
   addTearDown(() => tester.binding.setSurfaceSize(null));
   await tester.pumpWidget(
     ProviderScope(

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../data/db/app_database.dart';
+import '../../data/repositories/day_close_repository.dart';
 import '../theme.dart';
+import 'format.dart';
 
 enum StatusKind { success, warning, danger, neutral }
 
@@ -159,10 +162,18 @@ class ChoicePill extends StatelessWidget {
 
 /// Konfirmasi pembatalan transaksi dengan alasan wajib (FR-9.1).
 class ReasonDialog extends StatefulWidget {
-  const ReasonDialog({super.key, required this.title, required this.message});
+  const ReasonDialog({
+    super.key,
+    required this.title,
+    required this.message,
+    this.warning,
+  });
 
   final String title;
   final String message;
+
+  /// mis. peringatan tanggal yang sudah Tutup hari (FR-9.6).
+  final String? warning;
 
   @override
   State<ReasonDialog> createState() => _ReasonDialogState();
@@ -187,6 +198,10 @@ class _ReasonDialogState extends State<ReasonDialog> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(widget.message),
+          if (widget.warning != null) ...[
+            const SizedBox(height: 8),
+            InfoBox(widget.warning!),
+          ],
           const SizedBox(height: 12),
           TextField(
             controller: _reason,
@@ -290,4 +305,13 @@ class Segmented extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Koreksi pada tanggal yang sudah Tutup hari tetap boleh, tetapi ringkasan
+/// hari itu akan berubah (FR-9.6).
+String? closedDayWarning(Business? business, DateTime at) {
+  final last = business?.lastClosedOn;
+  if (last == null || dayKey(at).compareTo(last) > 0) return null;
+  return '${formatLongDate(at)} sudah Tutup hari; ringkasan hari itu akan '
+      'berubah.';
 }

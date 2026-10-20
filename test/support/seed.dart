@@ -1,4 +1,5 @@
 import 'package:decimal/decimal.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:hpp_app/data/db/app_database.dart';
 import 'package:hpp_app/data/repositories/business_repository.dart';
@@ -36,6 +37,10 @@ class Seed {
 
   Future<void> _init(DateTime at) async {
     businessId = (await business.ensureDefault()).id;
+    await business.updateBusiness(
+      businessId,
+      BusinessesCompanion(onboardedAt: Value(DateTime.utc(2026, 10, 1))),
+    );
     await business.setOwnerHourlyWage(businessId, 15000);
     Future<String> ingredient(
       String name,

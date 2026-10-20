@@ -233,6 +233,10 @@ class IngredientDetailScreen extends ConsumerWidget {
             ? 'Seluruh item dalam belanja ini ikut dibatalkan. Harga '
                   'rata-rata dan saldo dihitung ulang.'
             : 'Saldo dan harga rata-rata dihitung ulang tanpa mutasi ini.',
+        warning: closedDayWarning(
+          ref.read(businessProvider).value,
+          movement.occurredAt,
+        ),
       ),
     );
     if (reason == null || !context.mounted) return;

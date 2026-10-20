@@ -267,9 +267,10 @@ class _Detail extends ConsumerWidget {
   ) async {
     final reason = await showDialog<String>(
       context: context,
-      builder: (_) => const ReasonDialog(
+      builder: (_) => ReasonDialog(
         title: 'Batalkan pembayaran ini?',
         message: 'Sisa tagihan dan status bayar dihitung ulang.',
+        warning: closedDayWarning(ref.read(businessProvider).value, p.paidAt),
       ),
     );
     if (reason == null || !context.mounted) return;
@@ -307,9 +308,14 @@ class _Detail extends ConsumerWidget {
       context: context,
       builder: (_) => _CancelDialog(
         title: 'Batalkan pesanan selesai?',
-        message:
-            'Omzet pesanan ini dikeluarkan dari laporan tanggal selesainya. '
-            'Uang yang dikembalikan dicatat sebagai refund.',
+        message: [
+          'Omzet pesanan ini dikeluarkan dari laporan tanggal selesainya. '
+              'Uang yang dikembalikan dicatat sebagai refund.',
+          ?closedDayWarning(
+            ref.read(businessProvider).value,
+            view.order.completedAt!,
+          ),
+        ].join('\n\n'),
         paid: view.order.paidAmount,
         allowReturn: true,
       ),

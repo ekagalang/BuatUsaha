@@ -48,12 +48,23 @@ class AppDatabase extends _$AppDatabase {
             ),
       );
 
+  Future<void>? _closing;
+
+  /// Aman dipanggil berkali-kali, mis. saat restore lalu provider dibuang.
+  Future<void> closeOnce() => _closing ??= close();
+
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) => m.createAll(),
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        await m.addColumn(businesses, businesses.onboardedAt);
+        await m.addColumn(expenses, expenses.isMonthly);
+      }
+    },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
     },

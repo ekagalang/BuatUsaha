@@ -7,7 +7,7 @@ Checklist pengerjaan, disusun mengikuti roadmap di PRD bagian 12. Diperbarui set
 - **Desain:** [Design.md](Design.md)
 
 **Terakhir diperbarui:** 20 Oktober 2026
-**Posisi sekarang:** Sprint 3 (pesanan & notifikasi) selesai di branch `dev`; Sprint 1–3 belum dicoba di HP. Dari persiapan masih tersisa keystore dan secrets CI. Berikutnya: Sprint 4 (Tutup hari, laporan, Beranda, pengaturan, backup).
+**Posisi sekarang:** Sprint 1–4 (semua fitur MVP) selesai di branch `dev`, belum dicoba di HP. Sisa sebelum uji pakai: buat file keystore (release masih gagal karena `hpp_app-upload.jks` belum ada), isi secrets CI, opsional Firebase. Berikutnya: uji pakai sendiri di HP.
 
 Tanda: `[x]` selesai · `[ ]` belum · "kalkulator ✓" = rumusnya sudah ada dan lulus test di `lib/domain/costing/`, tetapi penyimpanan ke database dan layarnya belum.
 
@@ -43,7 +43,7 @@ Tanda: `[x]` selesai · `[ ]` belum · "kalkulator ✓" = rumusnya sudah ada dan
 - [x] Layar Bahan baru (stok awal / harga perkiraan) dan Detail bahan (penyesuaian, bahan rusak, opname, satuan beli khusus, stok minimum, kartu stok, pembatalan)
 - [x] Format Rupiah/angka/tanggal Indonesia, komponen umum, pemilih tanggal berbahasa Indonesia; 65 test lulus
 - [ ] Layar edit belanja (repository `replacePurchase` sudah ada; di UI saat ini batalkan lalu catat ulang)
-- [ ] Peringatan saat mengoreksi tanggal yang sudah Tutup hari (FR-9.6) — menunggu Tutup hari di Sprint 4
+- [x] Peringatan saat mengoreksi tanggal yang sudah Tutup hari (FR-9.6) — selesai di Sprint 4
 - [x] Sprint 1 + signing release + CI di-commit dan di-push ke `main`
 - [ ] Coba layar Sprint 1 di HP (APK) dan catat masukan
 
@@ -61,8 +61,8 @@ Tanda: `[x]` selesai · `[ ]` belum · "kalkulator ✓" = rumusnya sudah ada dan
 - [x] 12 test repository menu + 3 widget test layar menu; 80 test lulus
 - [x] Penjualan dengan HPP belum lengkap ditandai (FR-2.9) — selesai di Sprint 3
 - [x] Penjualan melebihi stok produk jadi (FR-4.9) — selesai di Sprint 3
-- [ ] Kerugian sisa produk jadi (FR-3.5) — dicatat lewat Tutup hari di Sprint 4
-- [ ] Pengaturan markup bawaan dan pembulatan harga (repository `setPricing` sudah ada; layarnya di Pengaturan, Sprint 4)
+- [x] Kerugian sisa produk jadi (FR-3.5) — selesai lewat Tutup hari di Sprint 4
+- [x] Pengaturan markup bawaan dan pembulatan harga — selesai di Pengaturan, Sprint 4
 - [x] Sprint 2 di-commit dan di-push ke `dev`
 - [ ] Coba layar Sprint 2 di HP (APK) dan catat masukan
 
@@ -84,22 +84,30 @@ Tanda: `[x]` selesai · `[ ]` belum · "kalkulator ✓" = rumusnya sudah ada dan
 - [x] Pengingat Tutup hari pukul 20.00 hanya jika ada sisa dan hari belum ditutup, menyebut jumlah yang lewat umur simpan (FR-6.9)
 - [x] Layar Pesanan (kalender bulanan + daftar Terlambat/Hari ini/Besok/7 hari, saringan status), Pesanan baru/ubah, Jual langsung, Detail pesanan (mockup `Pesanan`, `FormPesanan`)
 - [x] 11 test repository pesanan + 5 test penjadwal notifikasi + 3 widget test layar pesanan; 99 test lulus
-- [ ] Minta izin notifikasi dan alarm tepat dari layar (onboarding/Pengaturan, Sprint 4)
-- [ ] Panduan izin baterai/autostart untuk Xiaomi, Oppo, Vivo (di Pengaturan, Sprint 4)
+- [x] Minta izin notifikasi dan alarm tepat dari layar (onboarding dan Pengaturan, selesai di Sprint 4)
+- [x] Panduan izin baterai/autostart untuk Xiaomi, Oppo, Vivo (di Pengaturan, selesai di Sprint 4)
 - [ ] Daftar pesanan lama yang terpengaruh koreksi harga bahan + tawaran hitung ulang HPP (FR-9.5)
 - [ ] Uji notifikasi di HP sungguhan: tepat waktu ≤ 1 menit dengan alarm tepat, muncul setelah restart dan dalam mode pesawat
 
 ## Sprint 4 — Laporan dan persiapan pakai (minggu 9–11)
 
-- [ ] Tutup hari: disimpan/dibuang + alasan, umur simpan (FR-4.6–4.8, FR-4.10) — kalkulator ✓
-- [ ] Ringkasan untung/rugi harian per menu (FR-7.6) — kalkulator ✓
-- [ ] Laporan periode, per channel, pengeluaran (FR-7.1–7.5, FR-7.7, FR-7.8)
-- [ ] Beranda (mockup `Main`) dan Laporan harian (mockup `Laporan`)
-- [ ] Backup dan restore ke file (FR-8.3)
-- [ ] Pengaturan (FR-8.1, FR-8.2) dan onboarding (FR-8.4)
-- [ ] Desain layar yang belum ada (Design.md bagian 14)
-- [ ] Firebase Crashlytics
-- [ ] Gerbang: semua FR MVP lulus kriteria penerimaan
+- [x] Tutup hari: sisa menu ready stock disimpan/dibuang + alasan, kerugian = qty × HPP rata-rata stok, tanda "habis besok"/"lewat umur simpan" (umur dihitung seolah produksi terlama terjual dulu), terlewat = dianggap disimpan, bisa dibatalkan (FR-4.6–4.8, FR-4.10) — `day_close_repository.dart`
+- [x] Sisa menu jadi bisa dicatat dibuang kapan saja + kartu stok menu jadi di Detail menu (FR-4.8, PRD 7)
+- [x] Ringkasan untung/rugi harian per menu: dibuat, terjual, sisa disimpan/dibuang, omzet, potongan, HPP, rugi sisa, laba, menu yang paling menekan laba; pengeluaran bulanan tidak masuk harian (FR-7.6, FR-7.7) — `report_repository.dart`, contoh PRD (Rp102.950 / Rp82.950) lulus test
+- [x] Laporan periode hari/minggu/bulan/rentang: omzet, potongan, HPP, laba kotor + margin, rugi produk dan bahan, pengeluaran, laba bersih, tren harian, menu terlaris dan paling untung, per channel, ongkir terpisah (FR-7.1–7.5, FR-7.8)
+- [x] Pengeluaran operasional: kategori bawaan, tanda bulanan, pembatalan (FR-7.3, FR-7.4); skema v2 dengan migrasi (`expenses.is_monthly`, `businesses.onboarded_at`)
+- [x] Beranda: status hari ini, catat cepat (pesanan, penjualan, belanja, produksi, pengeluaran, Tutup hari), pesanan hari ini dan besok, laba bulan ini, nilai modal bahan dan menu jadi, perlu perhatian (mockup `Main`)
+- [x] Layar Laporan (mockup `Laporan`), Tutup hari (mockup `TutupHari`), Pengeluaran
+- [x] Backup ke satu file lewat share sheet dan restore dari file, data lama disimpan `.bak` (FR-8.3)
+- [x] Pengaturan: profil usaha, pembulatan, markup bawaan, upah per jam, mode stok bawaan, izin stok minus, notifikasi per jenis + jam ringkasan/Tutup hari + jam tenang, izin notifikasi dan alarm tepat, panduan baterai Xiaomi/Oppo/Vivo/Samsung, channel dan potongannya (FR-6.8, FR-8.1, FR-8.2)
+- [x] Onboarding 3 langkah: profil usaha → izin notifikasi → menu pertama (contoh brownies PRD yang bisa diedit, atau buat sendiri) (FR-8.4)
+- [x] Peringatan saat mengoreksi tanggal yang sudah Tutup hari (FR-9.6)
+- [x] Layar tanpa mockup (detail pesanan, kartu stok menu jadi, pengeluaran, pengaturan, onboarding) dibuat dengan komponen Design.md
+- [x] Firebase Crashlytics terpasang; aktif hanya jika `android/app/google-services.json` ada (lokal) atau secret `GOOGLE_SERVICES_JSON_BASE64` diisi (CI) — lihat README
+- [x] 108 test lulus (termasuk widget test di lebar layar 360 dp); build APK debug arm64 lulus
+- [ ] Buat project Firebase dan pasang `google-services.json` + secret CI (opsional, lihat README)
+- [ ] Mode gelap (Design.md: belum didesain)
+- [ ] Gerbang: semua FR MVP lulus kriteria penerimaan — dicek saat uji pakai di HP
 
 ## Uji pakai sendiri (minggu 12)
 

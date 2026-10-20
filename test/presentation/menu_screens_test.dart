@@ -155,7 +155,7 @@ void main() {
   ) async {
     final db = AppDatabase(NativeDatabase.memory());
     final id = (await tester.runAsync(() => _seed(db)))!;
-    await tester.binding.setSurfaceSize(const Size(420, 3000));
+    await tester.binding.setSurfaceSize(const Size(360, 3000));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await _pumpScreen(tester, db, MenuDetailScreen(id: id));
 
@@ -192,7 +192,7 @@ void main() {
   ) async {
     final db = AppDatabase(NativeDatabase.memory());
     final id = (await tester.runAsync(() => _seed(db)))!;
-    await tester.binding.setSurfaceSize(const Size(420, 2400));
+    await tester.binding.setSurfaceSize(const Size(360, 2400));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await _pumpScreen(tester, db, MenuFormScreen(id: id));
 

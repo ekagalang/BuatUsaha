@@ -10,6 +10,7 @@ import '../../data/repositories/product_repository.dart';
 import '../../domain/costing/costing.dart';
 import '../common/format.dart';
 import '../common/widgets.dart';
+import '../reports/day_close_screen.dart' show wasteReasonLabel;
 import '../theme.dart';
 import 'menu_labels.dart';
 
@@ -688,9 +689,51 @@ class _FinishedStock extends ConsumerWidget {
                         'terjual atau dibuang.',
               style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
             ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              children: [
+                if (view.stock > Decimal.zero)
+                  OutlinedButton(
+                    onPressed: () => _discard(context, ref),
+                    child: const Text('Catat dibuang'),
+                  ),
+                OutlinedButton(
+                  onPressed: () => showModalBottomSheet<void>(
+                    context: context,
+                    isScrollControlled: true,
+                    showDragHandle: true,
+                    builder: (_) => _ProductCard(product: product),
+                  ),
+                  child: const Text('Kartu stok'),
+                ),
+              ],
+            ),
           ],
         ),
       ),
+    );
+  }
+
+  /// Sisa yang disimpan bisa dicatat dibuang kapan saja (FR-4.8).
+  Future<void> _discard(BuildContext context, WidgetRef ref) async {
+    final result = await showDialog<(Decimal, WasteReason)>(
+      context: context,
+      builder: (_) => _DiscardDialog(max: view.stock),
+    );
+    if (result == null || !context.mounted) return;
+    final (qty, reason) = result;
+    await runWithSnack(
+      context,
+      () => ref
+          .read(productRepositoryProvider)
+          .issueProduct(
+            view.product.id,
+            type: ProductMovementType.waste,
+            qty: qty,
+            reason: reason,
+          ),
+      '${formatDecimal(qty)} pcs dicatat dibuang.',
     );
   }
 
@@ -853,11 +896,15 @@ class _ProductionHistory extends ConsumerWidget {
   Future<void> _void(BuildContext context, WidgetRef ref, Production p) async {
     final reason = await showDialog<String>(
       context: context,
-      builder: (_) => const ReasonDialog(
+      builder: (_) => ReasonDialog(
         title: 'Batalkan produksi ini?',
         message:
             'Bahan yang terpakai dikembalikan ke stok dan hasilnya dikeluarkan '
             'dari stok menu.',
+        warning: closedDayWarning(
+          ref.read(businessProvider).value,
+          p.producedAt,
+        ),
       ),
     );
     if (reason == null || !context.mounted) return;
@@ -1046,6 +1093,160 @@ class _ProductionSheetState extends State<_ProductionSheet> {
               child: const Text('Simpan produksi'),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DiscardDialog extends StatefulWidget {
+  const _DiscardDialog({required this.max});
+
+  final Decimal max;
+
+  @override
+  State<_DiscardDialog> createState() => _DiscardDialogState();
+}
+
+class _DiscardDialogState extends State<_DiscardDialog> {
+  final _qty = TextEditingController();
+  var _reason = WasteReason.expired;
+
+  @override
+  void dispose() {
+    _qty.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final qty = parseDecimalInput(_qty.text);
+    final valid = qty != null && qty > Decimal.zero && qty <= widget.max;
+    return AlertDialog(
+      title: const Text('Catat dibuang'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextField(
+            controller: _qty,
+            autofocus: true,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(
+              labelText: 'Jumlah',
+              suffixText: 'pcs',
+              helperText: 'Stok ${formatDecimal(widget.max)} pcs',
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final r in WasteReason.values)
+                ChoicePill(
+                  label: wasteReasonLabel(r),
+                  selected: _reason == r,
+                  onSelected: () => setState(() => _reason = r),
+                ),
+            ],
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Batal'),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
+          onPressed: valid
+              ? () => Navigator.pop(context, (qty, _reason))
+              : null,
+          child: const Text('Simpan'),
+        ),
+      ],
+    );
+  }
+}
+
+/// Kartu stok menu jadi: produksi, terjual, dibuang, penyesuaian (PRD 7).
+class _ProductCard extends ConsumerWidget {
+  const _ProductCard({required this.product});
+
+  final Product product;
+
+  static String _label(ProductStockMovement m) => switch (m.type) {
+    ProductMovementType.opening =>
+      m.refType == null ? 'Stok awal' : 'Masuk (koreksi pesanan)',
+    ProductMovementType.production => 'Produksi',
+    ProductMovementType.sale => 'Terjual',
+    ProductMovementType.waste =>
+      m.reason == null
+          ? 'Dibuang'
+          : 'Dibuang (${wasteReasonLabel(m.reason!).toLowerCase()})',
+    ProductMovementType.adjustment => 'Penyesuaian',
+  };
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final rows = ref.watch(productCardProvider(product.id)).value ?? const [];
+    final reversed = {
+      for (final r in rows)
+        if (r.reversalOfId != null) r.reversalOfId!,
+    };
+    return SizedBox(
+      height: MediaQuery.sizeOf(context).height * 0.7,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+            child: Text(
+              'Kartu stok ${product.name}',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+          ),
+          Expanded(
+            child: rows.isEmpty
+                ? const Center(
+                    child: Text(
+                      'Belum ada mutasi.',
+                      style: TextStyle(color: AppColors.textMuted),
+                    ),
+                  )
+                : ListView(
+                    children: [
+                      for (final m in rows) _row(m, reversed.contains(m.id)),
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _row(ProductStockMovement m, bool reversedLater) {
+    final isReversal = m.reversalOfId != null;
+    final qty = dec(m.qty);
+    return ListTile(
+      title: Text(
+        isReversal ? 'Pembatalan: ${_label(m).toLowerCase()}' : _label(m),
+        style: TextStyle(
+          decoration: reversedLater ? TextDecoration.lineThrough : null,
+        ),
+      ),
+      subtitle: Text(
+        '${formatShortDate(m.occurredAt)} ${formatTime(m.occurredAt)} · '
+        'saldo ${formatDecimal(dec(m.balanceAfter))}'
+        '${m.note == null ? '' : ' · ${m.note}'}',
+      ),
+      trailing: Text(
+        '${qty > Decimal.zero ? '+' : ''}${formatDecimal(qty)}',
+        style: TextStyle(
+          fontWeight: FontWeight.w700,
+          color: isReversal || reversedLater ? AppColors.textMuted : null,
         ),
       ),
     );

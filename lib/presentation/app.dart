@@ -5,12 +5,18 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 
 import '../services/local_notifications.dart';
+import 'home/home_screen.dart';
 import 'menu/menu_detail_screen.dart';
 import 'menu/menu_form_screen.dart';
 import 'menu/menu_screen.dart';
 import 'orders/order_detail_screen.dart';
 import 'orders/order_form_screen.dart';
 import 'orders/orders_screen.dart';
+import 'reports/day_close_screen.dart';
+import 'reports/expenses_screen.dart';
+import 'reports/reports_screen.dart';
+import 'settings/onboarding_screen.dart';
+import 'settings/settings_screen.dart';
 import 'stock/ingredient_detail_screen.dart';
 import 'stock/ingredient_form_screen.dart';
 import 'stock/ingredients_screen.dart';
@@ -120,9 +126,20 @@ GoRouter buildRouter() {
         ),
       ],
     ),
+    '/laporan' => GoRoute(
+      path: tab.path,
+      builder: (context, state) => const ReportsScreen(),
+      routes: [
+        GoRoute(
+          path: 'pengeluaran',
+          parentNavigatorKey: rootKey,
+          builder: (context, state) => const ExpensesScreen(),
+        ),
+      ],
+    ),
     _ => GoRoute(
       path: tab.path,
-      builder: (context, state) => PlaceholderScreen(title: tab.label),
+      builder: (context, state) => const HomeScreen(),
     ),
   };
 
@@ -136,6 +153,18 @@ GoRouter buildRouter() {
           for (final tab in appTabs)
             StatefulShellBranch(routes: [tabRoute(tab)]),
         ],
+      ),
+      GoRoute(
+        path: '/tutup-hari',
+        builder: (context, state) => const DayCloseScreen(),
+      ),
+      GoRoute(
+        path: '/pengaturan',
+        builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: '/onboarding',
+        builder: (context, state) => const OnboardingScreen(),
       ),
     ],
   );
@@ -225,25 +254,6 @@ class HomeShell extends StatelessWidget {
             for (final tab in appTabs)
               NavigationDestination(icon: Icon(tab.icon), label: tab.label),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class PlaceholderScreen extends StatelessWidget {
-  const PlaceholderScreen({super.key, required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: Center(
-        child: Text(
-          '$title — segera hadir',
-          style: Theme.of(context).textTheme.bodySmall,
         ),
       ),
     );

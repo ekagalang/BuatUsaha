@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -13,6 +15,7 @@ import 'services/local_notifications.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   LicenseRegistry.addLicense(_fontLicenses);
+  await _initCrashlytics();
   await LocalNotifications.instance.init();
   unawaited(registerBackgroundTasks().catchError((Object _) {}));
   final container = ProviderContainer();
@@ -20,6 +23,23 @@ Future<void> main() async {
   runApp(
     UncontrolledProviderScope(container: container, child: const HppApp()),
   );
+}
+
+/// Laporan crash ke Firebase Crashlytics (PRD 9.1), satu-satunya data yang
+/// keluar dari HP. Dilewati jika `google-services.json` belum dipasang.
+Future<void> _initCrashlytics() async {
+  try {
+    await Firebase.initializeApp();
+  } catch (_) {
+    return;
+  }
+  final crashlytics = FirebaseCrashlytics.instance;
+  await crashlytics.setCrashlyticsCollectionEnabled(!kDebugMode);
+  FlutterError.onError = crashlytics.recordFlutterFatalError;
+  PlatformDispatcher.instance.onError = (error, stack) {
+    crashlytics.recordError(error, stack, fatal: true);
+    return true;
+  };
 }
 
 /// Lisensi OFL font yang dibundel, tampil di halaman lisensi aplikasi.

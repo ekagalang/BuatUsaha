@@ -1,0 +1,860 @@
+import 'dart:io';
+
+import 'package:decimal/decimal.dart';
+import 'package:drift/drift.dart' show Value;
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+
+import '../../data/db/app_database.dart';
+import '../../data/db/decimal_convert.dart';
+import '../../data/providers.dart';
+import '../../services/backup_service.dart';
+import '../../services/local_notifications.dart';
+import '../common/format.dart';
+import '../common/widgets.dart';
+import '../menu/menu_labels.dart';
+import '../theme.dart';
+
+/// Pengaturan: profil usaha, harga, stok, notifikasi, channel, backup
+/// (FR-6.8, FR-8.1–8.3).
+class SettingsScreen extends ConsumerWidget {
+  const SettingsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final business = ref.watch(businessProvider).value;
+    final settings = ref.watch(notificationSettingsProvider).value;
+    return Scaffold(
+      appBar: AppBar(title: const Text('Pengaturan')),
+      body: business == null || settings == null
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+              children: [
+                _ProfileSection(business: business),
+                const SizedBox(height: 24),
+                _PricingSection(business: business),
+                const SizedBox(height: 24),
+                _StockSection(business: business),
+                const SizedBox(height: 24),
+                _NotificationSection(settings: settings),
+                const SizedBox(height: 24),
+                const _ChannelSection(),
+                const SizedBox(height: 24),
+                const _DataSection(),
+                const SizedBox(height: 24),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Lisensi dan font'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => showLicensePage(
+                    context: context,
+                    applicationName: 'HPP Usaha',
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+}
+
+Future<void> _update(
+  BuildContext context,
+  WidgetRef ref,
+  BusinessesCompanion changes, [
+  String done = 'Disimpan.',
+]) async {
+  final business = await ref.read(currentBusinessProvider.future);
+  if (!context.mounted) return;
+  await runWithSnack(
+    context,
+    () => ref
+        .read(businessRepositoryProvider)
+        .updateBusiness(business.id, changes),
+    done,
+  );
+}
+
+Future<void> _updateNotif(
+  WidgetRef ref,
+  NotificationSettingsCompanion changes,
+) async {
+  final business = await ref.read(currentBusinessProvider.future);
+  await ref
+      .read(businessRepositoryProvider)
+      .updateNotificationSettings(business.id, changes);
+}
+
+class _ProfileSection extends ConsumerStatefulWidget {
+  const _ProfileSection({required this.business});
+
+  final Business business;
+
+  @override
+  ConsumerState<_ProfileSection> createState() => _ProfileSectionState();
+}
+
+class _ProfileSectionState extends ConsumerState<_ProfileSection> {
+  late final _name = TextEditingController(text: widget.business.name);
+  late final _phone = TextEditingController(
+    text: widget.business.phoneWa ?? '',
+  );
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _phone.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SectionTitle('Profil usaha'),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _name,
+          textCapitalization: TextCapitalization.words,
+          decoration: const InputDecoration(labelText: 'Nama usaha'),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _phone,
+          keyboardType: TextInputType.phone,
+          decoration: const InputDecoration(labelText: 'No. WhatsApp usaha'),
+        ),
+        const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: () => _update(
+              context,
+              ref,
+              BusinessesCompanion(
+                name: Value(
+                  _name.text.trim().isEmpty ? 'Usaha saya' : _name.text.trim(),
+                ),
+                phoneWa: Value(
+                  _phone.text.trim().isEmpty ? null : _phone.text.trim(),
+                ),
+              ),
+              'Profil usaha disimpan.',
+            ),
+            child: const Text('Simpan profil'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PricingSection extends ConsumerStatefulWidget {
+  const _PricingSection({required this.business});
+
+  final Business business;
+
+  @override
+  ConsumerState<_PricingSection> createState() => _PricingSectionState();
+}
+
+class _PricingSectionState extends ConsumerState<_PricingSection> {
+  late final _markup = TextEditingController(
+    text: formatDecimal(dec(widget.business.defaultMarkupPct)),
+  );
+  late final _wage = TextEditingController(
+    text: widget.business.ownerHourlyWage?.toString() ?? '',
+  );
+
+  @override
+  void dispose() {
+    _markup.dispose();
+    _wage.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final markup = parseDecimalInput(_markup.text);
+    final wage = parseRupiahInput(_wage.text);
+    final business = widget.business;
+    await runWithSnack(context, () async {
+      final repo = ref.read(businessRepositoryProvider);
+      if (markup != null) {
+        await repo.setPricing(business.id, defaultMarkupPct: markup);
+      }
+      if (wage != business.ownerHourlyWage) {
+        await repo.setOwnerHourlyWage(business.id, wage);
+      }
+    }, 'Disimpan. HPP dan saran harga dihitung ulang.');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final rounding = widget.business.priceRounding;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SectionTitle('Harga dan HPP'),
+        const SizedBox(height: 8),
+        const Text(
+          'Pembulatan saran harga',
+          style: TextStyle(fontSize: 13, color: AppColors.textMuted),
+        ),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 8,
+          children: [
+            for (final r in const [100, 500, 1000])
+              ChoicePill(
+                label: formatRupiah(r),
+                selected: rounding == r,
+                onSelected: () => ref
+                    .read(businessRepositoryProvider)
+                    .setPricing(widget.business.id, priceRounding: r),
+              ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _markup,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'Markup bawaan',
+                  suffixText: '%',
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TextField(
+                controller: _wage,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Upah pemilik/jam',
+                  prefixText: 'Rp ',
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'Upah pemilik masuk HPP lewat jam kerja per resep; jangan dicatat '
+          'lagi sebagai pengeluaran.',
+          style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+        ),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(onPressed: _save, child: const Text('Simpan')),
+        ),
+      ],
+    );
+  }
+}
+
+class _StockSection extends ConsumerWidget {
+  const _StockSection({required this.business});
+
+  final Business business;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SectionTitle('Stok'),
+        const SizedBox(height: 8),
+        const Text(
+          'Mode stok bawaan untuk menu baru',
+          style: TextStyle(fontSize: 13, color: AppColors.textMuted),
+        ),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 8,
+          children: [
+            for (final m in StockDeductMode.values)
+              ChoicePill(
+                label: modeLabel(m),
+                selected: business.stockDeductMode == m,
+                onSelected: () => _update(
+                  context,
+                  ref,
+                  BusinessesCompanion(stockDeductMode: Value(m)),
+                ),
+              ),
+          ],
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          value: business.allowNegativeStock,
+          onChanged: (v) => _update(
+            context,
+            ref,
+            BusinessesCompanion(allowNegativeStock: Value(v)),
+          ),
+          title: const Text('Izinkan stok minus'),
+          subtitle: const Text(
+            'Produksi dan penjualan tetap bisa dicatat walau stok di aplikasi '
+            'kurang.',
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _NotificationSection extends ConsumerStatefulWidget {
+  const _NotificationSection({required this.settings});
+
+  final NotificationSetting settings;
+
+  @override
+  ConsumerState<_NotificationSection> createState() =>
+      _NotificationSectionState();
+}
+
+class _NotificationSectionState extends ConsumerState<_NotificationSection> {
+  late Future<(bool, bool)> _permissions = _check();
+
+  Future<(bool, bool)> _check() async => (
+    await LocalNotifications.instance.notificationsEnabled(),
+    await LocalNotifications.instance.canScheduleExact(),
+  );
+
+  Future<void> _pickTime(
+    String current,
+    NotificationSettingsCompanion Function(String) build,
+  ) async {
+    final parts = current.split(':');
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(
+        hour: int.parse(parts[0]),
+        minute: int.parse(parts[1]),
+      ),
+    );
+    if (picked == null) return;
+    final value =
+        '${picked.hour.toString().padLeft(2, '0')}:'
+        '${picked.minute.toString().padLeft(2, '0')}';
+    await _updateNotif(ref, build(value));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.settings;
+    final quiet = s.quietStart != null && s.quietEnd != null;
+    String clock(String? v) => v?.replaceAll(':', '.') ?? '—';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SectionTitle('Notifikasi'),
+        FutureBuilder<(bool, bool)>(
+          future: _permissions,
+          builder: (context, snap) {
+            final (enabled, exact) = snap.data ?? (true, true);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (!enabled) ...[
+                  const SizedBox(height: 8),
+                  const InfoBox(
+                    'Izin notifikasi belum diberikan; pengingat pesanan tidak '
+                    'akan muncul.',
+                    kind: StatusKind.danger,
+                  ),
+                  TextButton(
+                    onPressed: () async {
+                      await LocalNotifications.instance.requestPermission();
+                      setState(() => _permissions = _check());
+                    },
+                    child: const Text('Izinkan notifikasi'),
+                  ),
+                ],
+                if (!exact) ...[
+                  const SizedBox(height: 8),
+                  const InfoBox(
+                    'Alarm tepat belum diizinkan: pengingat bisa tertunda '
+                    'beberapa menit.',
+                  ),
+                  TextButton(
+                    onPressed: () async {
+                      await LocalNotifications.instance.requestExactAlarms();
+                      setState(() => _permissions = _check());
+                    },
+                    child: const Text('Izinkan alarm tepat'),
+                  ),
+                ],
+              ],
+            );
+          },
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          value: s.orderEnabled,
+          onChanged: (v) => _updateNotif(
+            ref,
+            NotificationSettingsCompanion(orderEnabled: Value(v)),
+          ),
+          title: const Text('Pengingat pesanan dan ringkasan harian'),
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          value: s.stockEnabled,
+          onChanged: (v) => _updateNotif(
+            ref,
+            NotificationSettingsCompanion(stockEnabled: Value(v)),
+          ),
+          title: const Text('Stok bahan menipis'),
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          value: s.paymentEnabled,
+          onChanged: (v) => _updateNotif(
+            ref,
+            NotificationSettingsCompanion(paymentEnabled: Value(v)),
+          ),
+          title: const Text('Pengingat pelunasan'),
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          value: s.dayCloseEnabled,
+          onChanged: (v) => _updateNotif(
+            ref,
+            NotificationSettingsCompanion(dayCloseEnabled: Value(v)),
+          ),
+          title: const Text('Pengingat Tutup hari'),
+        ),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Jam ringkasan harian'),
+          trailing: Text(clock(s.dailySummaryTime)),
+          onTap: () => _pickTime(
+            s.dailySummaryTime,
+            (v) => NotificationSettingsCompanion(dailySummaryTime: Value(v)),
+          ),
+        ),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Jam Tutup hari'),
+          trailing: Text(clock(s.dayCloseTime)),
+          onTap: () => _pickTime(
+            s.dayCloseTime,
+            (v) => NotificationSettingsCompanion(dayCloseTime: Value(v)),
+          ),
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          value: quiet,
+          onChanged: (v) => _updateNotif(
+            ref,
+            NotificationSettingsCompanion(
+              quietStart: Value(v ? '21:00' : null),
+              quietEnd: Value(v ? '06:00' : null),
+            ),
+          ),
+          title: const Text('Jam tenang'),
+          subtitle: Text(
+            quiet
+                ? '${clock(s.quietStart)}–${clock(s.quietEnd)}: pengingat '
+                      'digeser ke akhir jam tenang'
+                : 'Mati',
+          ),
+        ),
+        if (quiet)
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => _pickTime(
+                    s.quietStart!,
+                    (v) => NotificationSettingsCompanion(quietStart: Value(v)),
+                  ),
+                  child: Text('Mulai ${clock(s.quietStart)}'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => _pickTime(
+                    s.quietEnd!,
+                    (v) => NotificationSettingsCompanion(quietEnd: Value(v)),
+                  ),
+                  child: Text('Selesai ${clock(s.quietEnd)}'),
+                ),
+              ),
+            ],
+          ),
+        const ExpansionTile(
+          tilePadding: EdgeInsets.zero,
+          title: Text('Pengingat sering terlambat? (Xiaomi, Oppo, Vivo)'),
+          children: [BatteryGuide()],
+        ),
+      ],
+    );
+  }
+}
+
+/// Panduan mematikan optimasi baterai dan mengizinkan autostart (PRD 9.3).
+class BatteryGuide extends StatelessWidget {
+  const BatteryGuide({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    const steps = [
+      (
+        'Xiaomi / Redmi / POCO',
+        'Setelan › Aplikasi › Kelola aplikasi › HPP Usaha: nyalakan Mulai '
+            'otomatis, lalu Penghemat baterai › Tanpa batasan.',
+      ),
+      (
+        'Oppo / Realme',
+        'Setelan › Baterai › Pengelolaan baterai aplikasi › HPP Usaha: '
+            'izinkan aktivitas latar belakang dan mulai otomatis.',
+      ),
+      (
+        'Vivo',
+        'Setelan › Baterai › Konsumsi daya latar belakang tinggi: izinkan '
+            'HPP Usaha; i Manager › Manajer aplikasi › Mulai otomatis.',
+      ),
+      (
+        'Samsung',
+        'Setelan › Baterai › Batas penggunaan latar belakang: pastikan HPP '
+            'Usaha tidak masuk "Aplikasi tidur".',
+      ),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Beberapa HP mematikan alarm aplikasi untuk menghemat baterai. '
+          'Nama menunya bisa sedikit berbeda per versi.',
+          style: TextStyle(fontSize: 13, color: AppColors.textMuted),
+        ),
+        const SizedBox(height: 8),
+        for (final (brand, text) in steps)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: '$brand: ',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  TextSpan(text: text),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _ChannelSection extends ConsumerWidget {
+  const _ChannelSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final channels = ref.watch(channelsProvider).value ?? const [];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionTitle(
+          'Channel penjualan',
+          trailing: TextButton.icon(
+            onPressed: () => _edit(context, ref, null),
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('Tambah'),
+          ),
+        ),
+        const Text(
+          'Potongan dihitung dari total item tanpa ongkir dan bisa diubah per '
+          'pesanan. "Langsung" selalu tanpa potongan.',
+          style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+        ),
+        const SizedBox(height: 8),
+        Card(
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              for (final (i, c) in channels.indexed) ...[
+                if (i > 0) const Divider(height: 1),
+                ListTile(
+                  title: Text(
+                    c.name,
+                    style: TextStyle(
+                      color: c.isActive ? null : AppColors.textMuted,
+                    ),
+                  ),
+                  subtitle: Text(
+                    [
+                      'komisi ${formatDecimal(dec(c.commissionPct))}%',
+                      if (c.feePerOrder > 0)
+                        '+ ${formatRupiah(c.feePerOrder)}/transaksi',
+                      if (!c.isActive) 'nonaktif',
+                    ].join(' · '),
+                  ),
+                  trailing: const Icon(Icons.edit_outlined, size: 18),
+                  onTap: () => _edit(context, ref, c),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _edit(
+    BuildContext context,
+    WidgetRef ref,
+    SalesChannel? channel,
+  ) async {
+    final result = await showDialog<_ChannelResult>(
+      context: context,
+      builder: (_) => _ChannelDialog(channel: channel),
+    );
+    if (result == null || !context.mounted) return;
+    final business = await ref.read(currentBusinessProvider.future);
+    if (!context.mounted) return;
+    await runWithSnack(
+      context,
+      () => ref
+          .read(orderRepositoryProvider)
+          .saveChannel(
+            business.id,
+            id: channel?.id,
+            name: result.name,
+            commissionPct: result.pct,
+            feePerOrder: result.fee,
+            isActive: result.active,
+          ),
+      'Channel ${result.name} disimpan.',
+    );
+  }
+}
+
+class _ChannelResult {
+  const _ChannelResult(this.name, this.pct, this.fee, this.active);
+
+  final String name;
+  final Decimal pct;
+  final int fee;
+  final bool active;
+}
+
+class _ChannelDialog extends StatefulWidget {
+  const _ChannelDialog({required this.channel});
+
+  final SalesChannel? channel;
+
+  @override
+  State<_ChannelDialog> createState() => _ChannelDialogState();
+}
+
+class _ChannelDialogState extends State<_ChannelDialog> {
+  late final _name = TextEditingController(text: widget.channel?.name ?? '');
+  late final _pct = TextEditingController(
+    text: widget.channel == null
+        ? ''
+        : formatDecimal(dec(widget.channel!.commissionPct)),
+  );
+  late final _fee = TextEditingController(
+    text: (widget.channel?.feePerOrder ?? 0) > 0
+        ? '${widget.channel!.feePerOrder}'
+        : '',
+  );
+  late var _active = widget.channel?.isActive ?? true;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _pct.dispose();
+    _fee.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final valid = _name.text.trim().isNotEmpty;
+    return AlertDialog(
+      title: Text(widget.channel == null ? 'Channel baru' : 'Ubah channel'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(
+              controller: _name,
+              autofocus: widget.channel == null,
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(labelText: 'Nama channel'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _pct,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: const InputDecoration(
+                labelText: 'Komisi',
+                suffixText: '%',
+                hintText: 'mis. 20',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _fee,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Biaya per transaksi (opsional)',
+                prefixText: 'Rp ',
+              ),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              value: _active,
+              onChanged: (v) => setState(() => _active = v),
+              title: const Text('Aktif'),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Batal'),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
+          onPressed: valid
+              ? () => Navigator.pop(
+                  context,
+                  _ChannelResult(
+                    _name.text.trim(),
+                    parseDecimalInput(_pct.text) ?? Decimal.zero,
+                    parseRupiahInput(_fee.text) ?? 0,
+                    _active,
+                  ),
+                )
+              : null,
+          child: const Text('Simpan'),
+        ),
+      ],
+    );
+  }
+}
+
+class _DataSection extends ConsumerWidget {
+  const _DataSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SectionTitle('Data'),
+        const SizedBox(height: 4),
+        const Text(
+          'Semua data hanya ada di HP ini. Simpan backup secara berkala ke '
+          'Google Drive atau WhatsApp sendiri.',
+          style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: () => _export(context, ref),
+          icon: const Icon(Icons.upload_file),
+          label: const Text('Backup: bagikan file data'),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: () => _restore(context, ref),
+          icon: const Icon(Icons.restore),
+          label: const Text('Restore dari file backup'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _export(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final file = await BackupService.export(ref.read(appDatabaseProvider));
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path)],
+          subject: 'Backup HPP Usaha',
+          text: 'Backup data HPP Usaha ${formatLongDate(DateTime.now())}',
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Backup gagal: $e')));
+    }
+  }
+
+  Future<void> _restore(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final router = GoRouter.of(context);
+    try {
+      final picked = await FilePicker.pickFile(
+        dialogTitle: 'Pilih file backup',
+      );
+      if (picked == null) return;
+      final tmp = await getTemporaryDirectory();
+      final file = File('${tmp.path}${Platform.pathSeparator}restore.sqlite');
+      await file.writeAsBytes(await picked.readAsBytes(), flush: true);
+      final name = await BackupService.inspect(file);
+      if (!context.mounted) return;
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Ganti semua data?'),
+          content: Text(
+            'Data di HP ini akan diganti dengan backup "$name". Data sekarang '
+            'disimpan sebagai cadangan .bak di folder aplikasi.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(0, 44),
+                backgroundColor: AppColors.danger,
+              ),
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Ganti data'),
+            ),
+          ],
+        ),
+      );
+      if (ok != true) return;
+      await ref.read(notificationSyncProvider).dispose();
+      await ref.read(appDatabaseProvider).closeOnce();
+      await BackupService.replaceDatabase(file);
+      ref.invalidate(appDatabaseProvider);
+      ref.read(notificationSyncProvider).start();
+      router.go('/beranda');
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Data dipulihkan dari backup.')),
+      );
+    } on FormatException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Restore gagal: $e')));
+    }
+  }
+}

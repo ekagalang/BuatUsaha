@@ -7,6 +7,14 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Laporan crash ke Firebase Crashlytics (PRD 9.1) aktif hanya jika
+// android/app/google-services.json ada (tidak masuk git; lihat README).
+// Tanpa file itu aplikasi tetap jalan, hanya tanpa laporan crash.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+    apply(plugin = "com.google.firebase.crashlytics")
+}
+
 // Kunci tanda tangan release dibaca dari android/key.properties (tidak masuk git;
 // contoh: android/key.properties.example). Tanpa file itu, build release memakai
 // kunci debug supaya tetap bisa dicoba, tetapi APK-nya jangan dipasang permanen:
