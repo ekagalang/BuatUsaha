@@ -10,6 +10,7 @@ import '../../data/repositories/order_repository.dart';
 import '../../domain/costing/costing.dart';
 import '../../domain/orders/orders.dart';
 import '../common/format.dart';
+import '../common/rupiah_input.dart';
 import '../common/widgets.dart';
 import '../theme.dart';
 import 'order_form_screen.dart';
@@ -666,7 +667,9 @@ class _PaymentDialog extends StatefulWidget {
 }
 
 class _PaymentDialogState extends State<_PaymentDialog> {
-  late final _amount = TextEditingController(text: '${widget.remaining}');
+  late final _amount = TextEditingController(
+    text: formatRupiahDigits(widget.remaining),
+  );
   var _method = PaymentMethod.cash;
 
   @override
@@ -689,6 +692,7 @@ class _PaymentDialogState extends State<_PaymentDialog> {
             autofocus: true,
             keyboardType: TextInputType.number,
             onChanged: (_) => setState(() {}),
+            inputFormatters: const [RupiahInputFormatter()],
             decoration: InputDecoration(
               labelText: 'Jumlah',
               prefixText: 'Rp ',
@@ -755,7 +759,7 @@ class _CancelDialog extends StatefulWidget {
 class _CancelDialogState extends State<_CancelDialog> {
   final _reason = TextEditingController();
   late final _refund = TextEditingController(
-    text: widget.paid > 0 ? '${widget.paid}' : '',
+    text: formatRupiahDigits(widget.paid),
   );
   var _returnToStock = true;
 
@@ -789,6 +793,7 @@ class _CancelDialogState extends State<_CancelDialog> {
               TextField(
                 controller: _refund,
                 keyboardType: TextInputType.number,
+                inputFormatters: const [RupiahInputFormatter()],
                 decoration: InputDecoration(
                   labelText: 'Uang dikembalikan',
                   prefixText: 'Rp ',

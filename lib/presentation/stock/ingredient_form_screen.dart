@@ -8,6 +8,7 @@ import '../../domain/costing/money.dart';
 import '../../domain/enums.dart';
 import '../../domain/stock/units.dart';
 import '../common/format.dart';
+import '../common/rupiah_input.dart';
 import '../common/widgets.dart';
 import '../theme.dart';
 import 'labels.dart';
@@ -216,6 +217,7 @@ class _IngredientFormScreenState extends ConsumerState<IngredientFormScreen> {
                   controller: _price,
                   keyboardType: TextInputType.number,
                   onChanged: (_) => setState(() {}),
+                  inputFormatters: const [RupiahInputFormatter()],
                   decoration: const InputDecoration(
                     labelText: 'Harga beli',
                     prefixText: 'Rp ',

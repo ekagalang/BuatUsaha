@@ -203,7 +203,8 @@ class _EntryCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                StatusPill(shelfText, kind: shelfKind),
+                const SizedBox(width: 8),
+                Flexible(child: StatusPill(shelfText, kind: shelfKind)),
               ],
             ),
             Text(

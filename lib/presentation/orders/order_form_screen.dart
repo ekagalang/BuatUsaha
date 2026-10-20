@@ -11,6 +11,7 @@ import '../../data/repositories/product_repository.dart';
 import '../../domain/costing/costing.dart';
 import '../../domain/orders/orders.dart';
 import '../common/format.dart';
+import '../common/rupiah_input.dart';
 import '../common/widgets.dart';
 import '../menu/menu_labels.dart';
 import '../theme.dart';
@@ -18,7 +19,7 @@ import 'order_labels.dart';
 
 class _ItemRow {
   _ItemRow(this.productId, {this.qty = 1, required int price})
-    : price = TextEditingController(text: '$price');
+    : price = TextEditingController(text: formatRupiahDigits(price));
 
   final String productId;
   int qty;
@@ -125,10 +126,10 @@ class _OrderFormScreenState extends ConsumerState<OrderFormScreen> {
       _phone.text = view.customer?.phoneWa ?? '';
       _address.text = o.deliveryAddress ?? '';
       _note.text = o.note ?? '';
-      _discount.text = o.discount > 0 ? '${o.discount}' : '';
-      _shipping.text = o.shippingFee > 0 ? '${o.shippingFee}' : '';
+      _discount.text = formatRupiahDigits(o.discount);
+      _shipping.text = formatRupiahDigits(o.shippingFee);
       _channelId = o.channelId;
-      _fee.text = '${o.channelFee}';
+      _fee.text = formatRupiahDigits(o.channelFee);
       // Potongan yang sama dengan hitungan otomatis tetap ikut berubah.
       _feeEdited = o.channelFee != autoFee;
       _fulfillment = o.fulfillment;
@@ -384,7 +385,7 @@ class _OrderFormScreenState extends ConsumerState<OrderFormScreen> {
         .where((c) => c.isActive || c.id == _channelId)
         .toList();
     final byId = {for (final p in products) p.product.id: p};
-    if (!_feeEdited) _fee.text = '${_autoFee(channels)}';
+    if (!_feeEdited) _fee.text = formatRupiahDigits(_autoFee(channels));
     final fee = _feeValue(channels);
     final cogs = _items.fold(
       Decimal.zero,
@@ -524,6 +525,7 @@ class _OrderFormScreenState extends ConsumerState<OrderFormScreen> {
                   controller: _discount,
                   keyboardType: TextInputType.number,
                   onChanged: (_) => setState(() {}),
+                  inputFormatters: const [RupiahInputFormatter()],
                   decoration: const InputDecoration(
                     labelText: 'Diskon',
                     prefixText: 'Rp ',
@@ -537,6 +539,7 @@ class _OrderFormScreenState extends ConsumerState<OrderFormScreen> {
                     controller: _shipping,
                     keyboardType: TextInputType.number,
                     onChanged: (_) => setState(() {}),
+                    inputFormatters: const [RupiahInputFormatter()],
                     decoration: const InputDecoration(
                       labelText: 'Ongkir',
                       prefixText: 'Rp ',
@@ -552,6 +555,7 @@ class _OrderFormScreenState extends ConsumerState<OrderFormScreen> {
               controller: _fee,
               keyboardType: TextInputType.number,
               onChanged: (_) => setState(() => _feeEdited = true),
+              inputFormatters: const [RupiahInputFormatter()],
               decoration: InputDecoration(
                 labelText: 'Potongan channel',
                 prefixText: 'Rp ',
@@ -578,6 +582,7 @@ class _OrderFormScreenState extends ConsumerState<OrderFormScreen> {
               controller: _paid,
               keyboardType: TextInputType.number,
               onChanged: (_) => setState(() {}),
+              inputFormatters: const [RupiahInputFormatter()],
               decoration: const InputDecoration(
                 labelText: 'DP atau sudah dibayar (opsional)',
                 prefixText: 'Rp ',
@@ -813,6 +818,7 @@ class _OrderFormScreenState extends ConsumerState<OrderFormScreen> {
                     keyboardType: TextInputType.number,
                     textAlign: TextAlign.end,
                     onChanged: (_) => setState(() {}),
+                    inputFormatters: const [RupiahInputFormatter()],
                     decoration: const InputDecoration(
                       isDense: true,
                       prefixText: 'Rp ',

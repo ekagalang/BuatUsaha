@@ -11,6 +11,7 @@ import '../../data/repositories/stock_repository.dart';
 import '../../domain/costing/costing.dart';
 import '../../domain/stock/units.dart';
 import '../common/format.dart';
+import '../common/rupiah_input.dart';
 import '../common/widgets.dart';
 import '../theme.dart';
 import 'menu_labels.dart';
@@ -93,7 +94,7 @@ class _MenuFormScreenState extends ConsumerState<MenuFormScreen> {
       _yield.text = formatDecimal(input.yieldQty);
       _shelfLife.text = input.shelfLifeDays?.toString() ?? '';
       _category.text = input.category ?? '';
-      _price.text = input.sellingPrice > 0 ? '${input.sellingPrice}' : '';
+      _price.text = formatRupiahDigits(input.sellingPrice);
       _markup.text = input.targetMarkupPct == null
           ? ''
           : formatDecimal(input.targetMarkupPct!);
@@ -110,7 +111,7 @@ class _MenuFormScreenState extends ConsumerState<MenuFormScreen> {
           _costs.add(
             _CostRow(
               name: c.name,
-              amount: '${c.amount}',
+              amount: formatRupiahDigits(c.amount),
               costType: c.costType,
               basis: c.basis,
             ),
@@ -458,11 +459,13 @@ class _MenuFormScreenState extends ConsumerState<MenuFormScreen> {
                   children: [
                     Icon(Icons.add, size: 18, color: AppColors.primary),
                     SizedBox(width: 4),
-                    Text(
-                      'Tambah biaya',
-                      style: TextStyle(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w600,
+                    Flexible(
+                      child: Text(
+                        'Tambah biaya',
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ],
@@ -495,6 +498,7 @@ class _MenuFormScreenState extends ConsumerState<MenuFormScreen> {
                   controller: _price,
                   keyboardType: TextInputType.number,
                   onChanged: (_) => setState(() {}),
+                  inputFormatters: const [RupiahInputFormatter()],
                   decoration: const InputDecoration(
                     labelText: 'Harga jual per pcs',
                     prefixText: 'Rp ',
@@ -535,8 +539,9 @@ class _MenuFormScreenState extends ConsumerState<MenuFormScreen> {
                   ),
                 ),
                 TextButton(
-                  onPressed: () =>
-                      setState(() => _price.text = '${preview.suggested}'),
+                  onPressed: () => setState(
+                    () => _price.text = formatRupiahDigits(preview.suggested!),
+                  ),
                   child: const Text('Pakai'),
                 ),
               ],
@@ -557,15 +562,29 @@ class _MenuFormScreenState extends ConsumerState<MenuFormScreen> {
                 style: TextStyle(fontSize: 13, color: AppColors.textMuted),
               ),
             ),
-            Text(
-              hpp == null || _recipe.isEmpty
-                  ? '—'
-                  : formatRupiah(toRupiah(hpp.hppPerPcs)) +
-                        (preview.status == HppStatus.incomplete ? '+' : ''),
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            Flexible(
+              child: Wrap(
+                alignment: WrapAlignment.end,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  Text(
+                    hpp == null || _recipe.isEmpty
+                        ? '—'
+                        : formatRupiah(toRupiah(hpp.hppPerPcs)) +
+                              (preview.status == HppStatus.incomplete
+                                  ? '+'
+                                  : ''),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  StatusPill(statusLabel, kind: statusKind),
+                ],
+              ),
             ),
-            const SizedBox(width: 8),
-            StatusPill(statusLabel, kind: statusKind),
           ],
         ),
         child: FilledButton(
@@ -662,6 +681,7 @@ class _MenuFormScreenState extends ConsumerState<MenuFormScreen> {
                   keyboardType: TextInputType.number,
                   textAlign: TextAlign.end,
                   onChanged: (_) => setState(() {}),
+                  inputFormatters: const [RupiahInputFormatter()],
                   decoration: const InputDecoration(
                     isDense: true,
                     prefixText: 'Rp ',
@@ -680,19 +700,19 @@ class _MenuFormScreenState extends ConsumerState<MenuFormScreen> {
             ],
           ),
           const SizedBox(height: 8),
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
             children: [
               for (final (basis, label) in const [
                 (CostBasis.perBatch, 'per resep'),
                 (CostBasis.perPcs, 'per pcs'),
-              ]) ...[
+              ])
                 ChoicePill(
                   label: label,
                   selected: row.basis == basis,
                   onSelected: () => setState(() => row.basis = basis),
                 ),
-                const SizedBox(width: 8),
-              ],
             ],
           ),
         ],
@@ -1024,6 +1044,7 @@ class _NewIngredientSheetState extends ConsumerState<_NewIngredientSheet> {
                     controller: _price,
                     keyboardType: TextInputType.number,
                     onChanged: (_) => setState(() {}),
+                    inputFormatters: const [RupiahInputFormatter()],
                     decoration: const InputDecoration(
                       labelText: 'Harga beli',
                       prefixText: 'Rp ',
@@ -1077,7 +1098,7 @@ class _WageDialog extends StatefulWidget {
 
 class _WageDialogState extends State<_WageDialog> {
   late final _wage = TextEditingController(
-    text: widget.initial == null ? '' : '${widget.initial}',
+    text: formatRupiahDigits(widget.initial ?? 0),
   );
 
   @override
@@ -1105,6 +1126,7 @@ class _WageDialogState extends State<_WageDialog> {
             autofocus: true,
             keyboardType: TextInputType.number,
             onChanged: (_) => setState(() {}),
+            inputFormatters: const [RupiahInputFormatter()],
             decoration: const InputDecoration(
               labelText: 'Upah per jam',
               prefixText: 'Rp ',

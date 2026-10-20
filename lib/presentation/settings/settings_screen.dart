@@ -12,9 +12,11 @@ import 'package:share_plus/share_plus.dart';
 import '../../data/db/app_database.dart';
 import '../../data/db/decimal_convert.dart';
 import '../../data/providers.dart';
+import '../../services/auto_backup.dart';
 import '../../services/backup_service.dart';
 import '../../services/local_notifications.dart';
 import '../common/format.dart';
+import '../common/rupiah_input.dart';
 import '../common/widgets.dart';
 import '../menu/menu_labels.dart';
 import '../theme.dart';
@@ -168,7 +170,7 @@ class _PricingSectionState extends ConsumerState<_PricingSection> {
     text: formatDecimal(dec(widget.business.defaultMarkupPct)),
   );
   late final _wage = TextEditingController(
-    text: widget.business.ownerHourlyWage?.toString() ?? '',
+    text: formatRupiahDigits(widget.business.ownerHourlyWage ?? 0),
   );
 
   @override
@@ -239,6 +241,7 @@ class _PricingSectionState extends ConsumerState<_PricingSection> {
               child: TextField(
                 controller: _wage,
                 keyboardType: TextInputType.number,
+                inputFormatters: const [RupiahInputFormatter()],
                 decoration: const InputDecoration(
                   labelText: 'Upah pemilik/jam',
                   prefixText: 'Rp ',
@@ -673,7 +676,7 @@ class _ChannelDialogState extends State<_ChannelDialog> {
   );
   late final _fee = TextEditingController(
     text: (widget.channel?.feePerOrder ?? 0) > 0
-        ? '${widget.channel!.feePerOrder}'
+        ? formatRupiahDigits(widget.channel!.feePerOrder)
         : '',
   );
   late var _active = widget.channel?.isActive ?? true;
@@ -718,6 +721,7 @@ class _ChannelDialogState extends State<_ChannelDialog> {
             TextField(
               controller: _fee,
               keyboardType: TextInputType.number,
+              inputFormatters: const [RupiahInputFormatter()],
               decoration: const InputDecoration(
                 labelText: 'Biaya per transaksi (opsional)',
                 prefixText: 'Rp ',
@@ -757,38 +761,113 @@ class _ChannelDialogState extends State<_ChannelDialog> {
   }
 }
 
-class _DataSection extends ConsumerWidget {
+class _DataSection extends ConsumerStatefulWidget {
   const _DataSection();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_DataSection> createState() => _DataSectionState();
+}
+
+class _DataSectionState extends ConsumerState<_DataSection> {
+  late Future<List<File>> _autoBackups = AutoBackup.list();
+
+  @override
+  Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SectionTitle('Data'),
+        const SectionTitle(
+          'Backup otomatis di HP',
+          trailing: Text(
+            'Aktif',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppColors.success,
+            ),
+          ),
+        ),
         const SizedBox(height: 4),
         const Text(
-          'Semua data hanya ada di HP ini. Simpan backup secara berkala ke '
-          'Google Drive atau WhatsApp sendiri.',
-          style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+          'Sekali sehari saat aplikasi dibuka; 7 salinan terakhir disimpan. '
+          'Untuk memulihkan salah input besar.',
+          style: TextStyle(fontSize: 13, color: AppColors.textMuted),
         ),
         const SizedBox(height: 8),
-        OutlinedButton.icon(
-          onPressed: () => _export(context, ref),
-          icon: const Icon(Icons.upload_file),
-          label: const Text('Backup: bagikan file data'),
+        FutureBuilder<List<File>>(
+          future: _autoBackups,
+          builder: (context, snap) {
+            final files = snap.data ?? const <File>[];
+            if (files.isEmpty) {
+              return const Text(
+                'Belum ada backup otomatis; dibuat saat aplikasi dibuka.',
+                style: TextStyle(color: AppColors.textMuted),
+              );
+            }
+            return Card(
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                children: [
+                  for (final (i, f) in files.indexed) ...[
+                    if (i > 0) const Divider(height: 1),
+                    ListTile(
+                      title: Text(_label(f)),
+                      subtitle: Text(
+                        '${(f.lengthSync() / 1024).round()} KB · otomatis',
+                      ),
+                      trailing: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(0, 40),
+                        ),
+                        onPressed: () => _restoreFrom(f, _label(f)),
+                        child: const Text('Pulihkan'),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 24),
+        const SectionTitle('Backup ke file'),
+        const SizedBox(height: 4),
+        const Text(
+          'Simpan ke Google Drive atau WhatsApp sendiri, untuk pindah HP atau '
+          'jika HP hilang.',
+          style: TextStyle(fontSize: 13, color: AppColors.textMuted),
         ),
         const SizedBox(height: 8),
-        OutlinedButton.icon(
-          onPressed: () => _restore(context, ref),
-          icon: const Icon(Icons.restore),
-          label: const Text('Restore dari file backup'),
+        OutlinedButton(
+          onPressed: _export,
+          child: const Text('Bagikan file backup'),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton(
+          style: OutlinedButton.styleFrom(
+            side: const BorderSide(color: AppColors.border),
+            foregroundColor: AppColors.text,
+          ),
+          onPressed: _pickAndRestore,
+          child: const Text('Pulihkan dari file'),
         ),
       ],
     );
   }
 
-  Future<void> _export(BuildContext context, WidgetRef ref) async {
+  String _label(File f) {
+    final date = AutoBackup.dateOf(f);
+    if (date == null) return f.uri.pathSegments.last;
+    final today = DateUtils.dateOnly(DateTime.now());
+    final diff = today.difference(date).inDays;
+    return switch (diff) {
+      0 => 'Hari ini',
+      1 => 'Kemarin',
+      _ => formatLongDate(date).split(' ').take(3).join(' '),
+    };
+  }
+
+  Future<void> _export() async {
     final messenger = ScaffoldMessenger.of(context);
     try {
       final file = await BackupService.export(ref.read(appDatabaseProvider));
@@ -804,9 +883,8 @@ class _DataSection extends ConsumerWidget {
     }
   }
 
-  Future<void> _restore(BuildContext context, WidgetRef ref) async {
+  Future<void> _pickAndRestore() async {
     final messenger = ScaffoldMessenger.of(context);
-    final router = GoRouter.of(context);
     try {
       final picked = await FilePicker.pickFile(
         dialogTitle: 'Pilih file backup',
@@ -815,14 +893,25 @@ class _DataSection extends ConsumerWidget {
       final tmp = await getTemporaryDirectory();
       final file = File('${tmp.path}${Platform.pathSeparator}restore.sqlite');
       await file.writeAsBytes(await picked.readAsBytes(), flush: true);
+      await _restoreFrom(file, null);
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Restore gagal: $e')));
+    }
+  }
+
+  Future<void> _restoreFrom(File file, String? when) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final router = GoRouter.of(context);
+    try {
       final name = await BackupService.inspect(file);
-      if (!context.mounted) return;
+      if (!mounted) return;
       final ok = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('Ganti semua data?'),
           content: Text(
-            'Data di HP ini akan diganti dengan backup "$name". Data sekarang '
+            'Data di HP ini akan diganti dengan backup "$name"'
+            '${when == null ? '' : ' (${when.toLowerCase()})'}. Data sekarang '
             'disimpan sebagai cadangan .bak di folder aplikasi.',
           ),
           actions: [
@@ -851,6 +940,7 @@ class _DataSection extends ConsumerWidget {
       messenger.showSnackBar(
         const SnackBar(content: Text('Data dipulihkan dari backup.')),
       );
+      if (mounted) setState(() => _autoBackups = AutoBackup.list());
     } on FormatException catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(e.message)));
     } catch (e) {

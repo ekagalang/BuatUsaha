@@ -35,6 +35,7 @@ class StatusPill extends StatelessWidget {
       ),
       child: Text(
         label,
+        textAlign: TextAlign.center,
         style: TextStyle(
           color: foreground,
           fontSize: 12,
@@ -89,7 +90,10 @@ class SectionTitle extends StatelessWidget {
         Expanded(
           child: Text(text, style: Theme.of(context).textTheme.titleMedium),
         ),
-        ?trailing,
+        if (trailing != null) ...[
+          const SizedBox(width: 8),
+          Flexible(child: trailing!),
+        ],
       ],
     );
   }

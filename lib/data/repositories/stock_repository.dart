@@ -6,6 +6,7 @@ import '../../domain/stock/ingredient_ledger.dart';
 import '../../domain/stock/units.dart';
 import '../db/app_database.dart';
 import '../db/decimal_convert.dart';
+import 'cost_cascade.dart';
 import 'hpp_refresher.dart';
 
 const _purchaseItemRef = 'purchase_item';
@@ -453,6 +454,47 @@ class StockRepository {
     return rows.fold<int>(0, (sum, r) => sum - r.value);
   }
 
+  /// Isi belanja tersimpan sebagai input form, untuk layar ubah belanja
+  /// (FR-9.2).
+  Future<PurchaseInput> loadPurchase(String purchaseId) async {
+    final purchase = await (_db.select(
+      _db.purchases,
+    )..where((t) => t.id.equals(purchaseId))).getSingle();
+    final items =
+        await (_db.select(_db.purchaseItems)
+              ..where((t) => t.purchaseId.equals(purchaseId))
+              ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
+            .get();
+    return PurchaseInput(
+      purchasedAt: purchase.purchasedAt,
+      supplierId: purchase.supplierId,
+      note: purchase.note,
+      lines: [
+        for (final i in items)
+          PurchaseLineInput(
+            ingredientId: i.ingredientId,
+            qty: dec(i.qty),
+            unitName: i.unitName,
+            factorToBase: dec(i.factorToBase),
+            totalPrice: i.totalPrice,
+          ),
+      ],
+    );
+  }
+
+  /// Harga per satuan yang dipakai [movement] saat dicatat dulu, sebelum ada
+  /// koreksi sesudahnya: buku mutasi diputar ulang hanya dengan baris yang
+  /// sudah ada pada waktu itu (FR-9.5).
+  Future<Decimal> unitCostAsRecorded(StockMovement movement) async {
+    final rows = (await _ledgerRows(movement.ingredientId))
+        .where((r) => !r.createdAt.isAfter(movement.createdAt))
+        .toList();
+    final index = rows.indexWhere((r) => r.id == movement.id);
+    if (index < 0) return dec(movement.unitCost);
+    final result = replayIngredientLedger([for (final r in rows) _toLedger(r)]);
+    return result.rows[index].unitCost;
+  }
+
   /// Membalik semua mutasi bahan dari satu sumber (mis. produksi yang
   /// dibatalkan) lalu menghitung ulang bahan terkait.
   Future<void> reverseByRef(String refType, String refId, String reason) async {
@@ -722,6 +764,8 @@ class StockRepository {
   Future<Ingredient> _recompute(String ingredientId) async {
     final rows = await _ledgerRows(ingredientId);
     final result = replayIngredientLedger([for (final r in rows) _toLedger(r)]);
+    // Produksi yang biaya bahannya berubah karena koreksi harga (FR-9.5).
+    final productions = <String>{};
     for (var i = 0; i < rows.length; i++) {
       final row = rows[i];
       final res = result.rows[i];
@@ -735,6 +779,9 @@ class StockRepository {
         continue;
       }
       final unitCost = dbl(res.unitCost);
+      if (row.refType == 'production' && row.value != res.value) {
+        productions.add(row.refId!);
+      }
       if (row.unitCost != unitCost ||
           row.value != res.value ||
           row.balanceAfter != balance ||
@@ -771,6 +818,9 @@ class StockRepository {
     if (ingredient.avgUnitCost != newAvg ||
         ingredient.priceIsEstimate != result.priceIsEstimate) {
       await refreshHppForIngredient(_db, ingredientId);
+    }
+    if (productions.isNotEmpty) {
+      await refreshProductionCosts(_db, productions);
     }
     return _ingredient(ingredientId);
   }

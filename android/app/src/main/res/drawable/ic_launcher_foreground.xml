@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ikon cupcake (mockup IkonSplash), di dalam zona aman 66 dp ikon adaptif. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:translateX="21"
+        android:translateY="21"
+        android:scaleX="2.75"
+        android:scaleY="2.75">
+        <path
+            android:fillColor="#B8865B"
+            android:pathData="M7.2,13.2h9.6l-1.5,7.1a1,1 0,0 1,-1 0.8H9.7a1,1 0,0 1,-1 -0.8z" />
+        <path
+            android:strokeColor="#6B3E26"
+            android:strokeWidth="0.7"
+            android:strokeLineCap="round"
+            android:pathData="M10.4,13.6l0.4,7.2M13.6,13.6l-0.4,7.2" />
+        <path
+            android:fillColor="#6B3E26"
+            android:pathData="M5.6,13.4a2.4,2.4 0,0 1,1.2 -4.5A4.4,4.4 0,0 1,12 5.6a4.4,4.4 0,0 1,5.2 3.3a2.4,2.4 0,0 1,1.2 4.5z" />
+        <path
+            android:fillColor="#B3261E"
+            android:pathData="M10.7,4.2a1.3,1.3 0,1 0,2.6 0a1.3,1.3 0,1 0,-2.6 0z" />
+    </group>
+</vector>

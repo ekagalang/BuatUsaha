@@ -10,6 +10,7 @@ import 'repositories/day_close_repository.dart';
 import 'repositories/expense_repository.dart';
 import 'repositories/order_repository.dart';
 import 'repositories/product_repository.dart';
+import 'repositories/purchase_preview.dart';
 import 'repositories/report_repository.dart';
 import 'repositories/stock_repository.dart';
 
@@ -196,3 +197,19 @@ final productCardProvider =
     StreamProvider.family<List<ProductStockMovement>, String>(
       (ref, id) => ref.watch(productRepositoryProvider).watchProductCard(id),
     );
+
+/// Pesanan selesai yang HPP-nya berubah karena koreksi harga bahan (FR-9.5).
+final costCorrectionsProvider = StreamProvider<List<OrderCorrection>>((
+  ref,
+) async* {
+  final business = await ref.watch(currentBusinessProvider.future);
+  yield* ref.watch(orderRepositoryProvider).watchCostCorrections(business.id);
+});
+
+final purchasePreviewerProvider = Provider(
+  (ref) => PurchasePreviewer(
+    ref.watch(appDatabaseProvider),
+    ref.watch(stockRepositoryProvider),
+    ref.watch(orderRepositoryProvider),
+  ),
+);

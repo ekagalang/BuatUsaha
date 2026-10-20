@@ -5,6 +5,7 @@ import '../../data/db/app_database.dart';
 import '../../data/providers.dart';
 import '../../data/repositories/expense_repository.dart';
 import '../common/format.dart';
+import '../common/rupiah_input.dart';
 import '../common/widgets.dart';
 import '../theme.dart';
 
@@ -277,6 +278,7 @@ class _ExpenseSheetState extends ConsumerState<ExpenseSheet> {
               controller: _amount,
               autofocus: true,
               keyboardType: TextInputType.number,
+              inputFormatters: const [RupiahInputFormatter()],
               decoration: const InputDecoration(
                 labelText: 'Nominal',
                 prefixText: 'Rp ',

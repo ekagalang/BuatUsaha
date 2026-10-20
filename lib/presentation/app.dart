@@ -9,6 +9,7 @@ import 'home/home_screen.dart';
 import 'menu/menu_detail_screen.dart';
 import 'menu/menu_form_screen.dart';
 import 'menu/menu_screen.dart';
+import 'orders/cost_correction_screen.dart';
 import 'orders/order_detail_screen.dart';
 import 'orders/order_form_screen.dart';
 import 'orders/orders_screen.dart';
@@ -64,6 +65,11 @@ GoRouter buildRouter() {
           builder: (context, state) => const OrderFormScreen(direct: true),
         ),
         GoRoute(
+          path: 'koreksi-hpp',
+          parentNavigatorKey: rootKey,
+          builder: (context, state) => const CostCorrectionScreen(),
+        ),
+        GoRoute(
           path: ':id',
           parentNavigatorKey: rootKey,
           builder: (context, state) =>
@@ -117,6 +123,15 @@ GoRouter buildRouter() {
           path: 'belanja',
           parentNavigatorKey: rootKey,
           builder: (context, state) => const PurchaseFormScreen(),
+          routes: [
+            GoRoute(
+              path: ':purchaseId',
+              parentNavigatorKey: rootKey,
+              builder: (context, state) => PurchaseFormScreen(
+                purchaseId: state.pathParameters['purchaseId'],
+              ),
+            ),
+          ],
         ),
         GoRoute(
           path: ':id',

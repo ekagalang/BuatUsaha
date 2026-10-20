@@ -147,7 +147,7 @@ void main() {
     expect(find.text('Harga dan HPP'), findsOneWidget);
     expect(find.text('Notifikasi'), findsOneWidget);
     expect(find.text('GoFood'), findsOneWidget);
-    expect(find.text('Backup: bagikan file data'), findsOneWidget);
+    expect(find.text('Bagikan file backup'), findsOneWidget);
 
     await tester.tap(find.text('Izinkan stok minus'));
     await _settle(tester);

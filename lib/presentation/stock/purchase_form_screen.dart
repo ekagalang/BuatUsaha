@@ -1,18 +1,27 @@
+import 'dart:async';
+
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/providers.dart';
+import '../../data/repositories/purchase_preview.dart';
 import '../../data/repositories/stock_repository.dart';
 import '../../domain/costing/money.dart';
 import '../../domain/stock/units.dart';
 import '../common/format.dart';
+import '../common/rupiah_input.dart';
 import '../common/widgets.dart';
 import '../theme.dart';
 
 class _Line {
+  _Line();
+
   String? ingredientId;
+
+  /// Harga per satuan dasar di belanja lama (mode ubah).
+  Decimal? originalUnitCost;
   List<UnitOption> units = const [];
   UnitOption? unit;
   final qty = TextEditingController(text: '1');
@@ -24,9 +33,14 @@ class _Line {
   }
 }
 
-/// Belanja bahan multi-item (FR-1.3, mockup `FormBelanja`).
+/// Belanja bahan multi-item (FR-1.3, mockup `FormBelanja`); dengan
+/// [purchaseId] menjadi layar ubah belanja = batalkan + catat ulang (FR-9.2,
+/// mockup `UbahBelanja`).
 class PurchaseFormScreen extends ConsumerStatefulWidget {
-  const PurchaseFormScreen({super.key});
+  const PurchaseFormScreen({super.key, this.purchaseId});
+
+  /// `null` = belanja baru.
+  final String? purchaseId;
 
   @override
   ConsumerState<PurchaseFormScreen> createState() => _PurchaseFormScreenState();
@@ -37,14 +51,122 @@ class _PurchaseFormScreenState extends ConsumerState<PurchaseFormScreen> {
   final _lines = [_Line()];
   var _date = DateUtils.dateOnly(DateTime.now());
   var _saving = false;
+  late bool _loading = widget.purchaseId != null;
+
+  /// Jam belanja lama dipertahankan saat diubah.
+  DateTime? _originalAt;
+  Timer? _debounce;
+  Future<PurchaseEditPreview>? _preview;
+
+  bool get _editing => widget.purchaseId != null;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_editing) _load(widget.purchaseId!);
+  }
+
+  Future<void> _load(String id) async {
+    final repo = ref.read(stockRepositoryProvider);
+    final input = await repo.loadPurchase(id);
+    final lines = <_Line>[];
+    for (final l in input.lines) {
+      final units = await repo.unitOptions(l.ingredientId);
+      final line = _Line()
+        ..ingredientId = l.ingredientId
+        ..units = units
+        ..unit = units.firstWhere(
+          (u) => u.name == l.unitName,
+          orElse: () =>
+              UnitOption(name: l.unitName, factorToBase: l.factorToBase),
+        )
+        ..originalUnitCost = divide(rupiah(l.totalPrice), l.qtyBase);
+      line.qty.text = formatDecimal(l.qty, maxDecimals: 3);
+      line.price.text = formatRupiahDigits(l.totalPrice);
+      lines.add(line);
+    }
+    if (!mounted) return;
+    setState(() {
+      for (final old in _lines) {
+        old.dispose();
+      }
+      _lines
+        ..clear()
+        ..addAll(lines);
+      _originalAt = input.purchasedAt.toLocal();
+      _date = DateUtils.dateOnly(_originalAt!);
+      _note.text = input.note ?? '';
+      _loading = false;
+    });
+    _schedulePreview();
+  }
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _note.dispose();
     for (final line in _lines) {
       line.dispose();
     }
     super.dispose();
+  }
+
+  void _changed() {
+    setState(() {});
+    if (_editing) _schedulePreview();
+  }
+
+  void _schedulePreview() {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () async {
+      final input = _input();
+      if (input == null || !mounted) return;
+      final business = await ref.read(currentBusinessProvider.future);
+      if (!mounted) return;
+      setState(() {
+        _preview = ref
+            .read(purchasePreviewerProvider)
+            .preview(business.id, widget.purchaseId!, input);
+      });
+    });
+  }
+
+  /// `null` jika ada item yang belum lengkap.
+  PurchaseInput? _input() {
+    final lines = <PurchaseLineInput>[];
+    for (final line in _lines) {
+      final qty = parseDecimalInput(line.qty.text);
+      final price = parseRupiahInput(line.price.text);
+      final unit = line.unit;
+      if (line.ingredientId == null ||
+          unit == null ||
+          qty == null ||
+          qty <= Decimal.zero ||
+          price == null) {
+        return null;
+      }
+      lines.add(
+        PurchaseLineInput(
+          ingredientId: line.ingredientId!,
+          qty: qty,
+          unitName: unit.name,
+          factorToBase: unit.factorToBase,
+          totalPrice: price,
+        ),
+      );
+    }
+    final time = _originalAt ?? DateTime.now();
+    return PurchaseInput(
+      purchasedAt: DateTime(
+        _date.year,
+        _date.month,
+        _date.day,
+        time.hour,
+        time.minute,
+      ),
+      lines: lines,
+      note: _note.text.trim().isEmpty ? null : _note.text.trim(),
+    );
   }
 
   int get _total => _lines.fold(
@@ -81,57 +203,34 @@ class _PurchaseFormScreenState extends ConsumerState<PurchaseFormScreen> {
 
   Future<void> _save() async {
     final messenger = ScaffoldMessenger.of(context);
-    final lines = <PurchaseLineInput>[];
-    for (final line in _lines) {
-      final qty = parseDecimalInput(line.qty.text);
-      final price = parseRupiahInput(line.price.text);
-      final unit = line.unit;
-      if (line.ingredientId == null ||
-          unit == null ||
-          qty == null ||
-          qty <= Decimal.zero ||
-          price == null) {
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text('Lengkapi bahan, jumlah, dan total harga tiap item.'),
-          ),
-        );
-        return;
-      }
-      lines.add(
-        PurchaseLineInput(
-          ingredientId: line.ingredientId!,
-          qty: qty,
-          unitName: unit.name,
-          factorToBase: unit.factorToBase,
-          totalPrice: price,
+    final input = _input();
+    if (input == null) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Lengkapi bahan, jumlah, dan total harga tiap item.'),
         ),
       );
+      return;
     }
     setState(() => _saving = true);
     try {
-      final now = DateTime.now();
-      final business = await ref.read(currentBusinessProvider.future);
-      await ref
-          .read(stockRepositoryProvider)
-          .recordPurchase(
-            business.id,
-            PurchaseInput(
-              purchasedAt: DateTime(
-                _date.year,
-                _date.month,
-                _date.day,
-                now.hour,
-                now.minute,
-              ),
-              lines: lines,
-              note: _note.text.trim().isEmpty ? null : _note.text.trim(),
-            ),
-          );
+      final repo = ref.read(stockRepositoryProvider);
+      if (_editing) {
+        await repo.replacePurchase(widget.purchaseId!, input, reason: 'Diubah');
+      } else {
+        final business = await ref.read(currentBusinessProvider.future);
+        await repo.recordPurchase(business.id, input);
+      }
       if (!mounted) return;
-      context.pop();
+      await Navigator.of(context).maybePop();
       messenger.showSnackBar(
-        SnackBar(content: Text('Belanja ${formatRupiah(_total)} disimpan.')),
+        SnackBar(
+          content: Text(
+            _editing
+                ? 'Belanja diubah; harga rata-rata dan HPP dihitung ulang.'
+                : 'Belanja ${formatRupiah(_total)} disimpan.',
+          ),
+        ),
       );
     } catch (error) {
       messenger.showSnackBar(
@@ -143,15 +242,38 @@ class _PurchaseFormScreenState extends ConsumerState<PurchaseFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final title = _editing ? 'Ubah belanja' : 'Belanja bahan';
+    if (_loading) {
+      return Scaffold(
+        appBar: AppBar(title: Text(title)),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
     final ingredients = ref.watch(ingredientsProvider).value ?? const [];
     final byId = {for (final v in ingredients) v.ingredient.id: v};
+    final closed = _editing
+        ? closedDayWarning(ref.watch(businessProvider).value, _date)
+        : null;
     return Scaffold(
-      appBar: AppBar(title: const Text('Belanja bahan')),
+      appBar: AppBar(title: Text(title)),
       body: ingredients.isEmpty
           ? _NoIngredients(onAdd: () => context.push('/bahan/baru'))
           : ListView(
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
               children: [
+                if (_editing) ...[
+                  const InfoBox(
+                    'Belanja lama tetap terlihat di kartu stok sebagai '
+                    'Dibatalkan, lalu diganti versi ini. Harga rata-rata '
+                    'dihitung ulang sejak tanggal belanja.',
+                    kind: StatusKind.neutral,
+                  ),
+                  if (closed != null) ...[
+                    const SizedBox(height: 8),
+                    InfoBox(closed),
+                  ],
+                  const SizedBox(height: 16),
+                ],
                 InkWell(
                   onTap: _pickDate,
                   borderRadius: BorderRadius.circular(12),
@@ -178,13 +300,15 @@ class _PurchaseFormScreenState extends ConsumerState<PurchaseFormScreen> {
                     line: line,
                     ingredients: ingredients,
                     view: byId[line.ingredientId],
+                    editing: _editing,
                     onIngredient: (id) => _pickIngredient(line, id),
-                    onChanged: () => setState(() {}),
+                    onChanged: _changed,
                     onRemove: _lines.length == 1
                         ? null
-                        : () => setState(() {
+                        : () {
                             _lines.removeAt(i).dispose();
-                          }),
+                            _changed();
+                          },
                   ),
                   const SizedBox(height: 12),
                 ],
@@ -201,6 +325,10 @@ class _PurchaseFormScreenState extends ConsumerState<PurchaseFormScreen> {
                   onPressed: () => context.push('/bahan/baru'),
                   child: const Text('Bahan belum ada di daftar? Tambah bahan'),
                 ),
+                if (_editing && _preview != null) ...[
+                  const SizedBox(height: 8),
+                  _EditImpact(preview: _preview!),
+                ],
               ],
             ),
       bottomNavigationBar: ingredients.isEmpty
@@ -225,7 +353,13 @@ class _PurchaseFormScreenState extends ConsumerState<PurchaseFormScreen> {
               ),
               child: FilledButton(
                 onPressed: _saving ? null : _save,
-                child: Text(_saving ? 'Menyimpan…' : 'Simpan belanja'),
+                child: Text(
+                  _saving
+                      ? 'Menyimpan…'
+                      : _editing
+                      ? 'Simpan perubahan'
+                      : 'Simpan belanja',
+                ),
               ),
             ),
     );
@@ -237,6 +371,7 @@ class _LineCard extends StatelessWidget {
     required this.line,
     required this.ingredients,
     required this.view,
+    required this.editing,
     required this.onIngredient,
     required this.onChanged,
     required this.onRemove,
@@ -245,6 +380,7 @@ class _LineCard extends StatelessWidget {
   final _Line line;
   final List<IngredientView> ingredients;
   final IngredientView? view;
+  final bool editing;
   final ValueChanged<String> onIngredient;
   final VoidCallback onChanged;
   final VoidCallback? onRemove;
@@ -332,20 +468,127 @@ class _LineCard extends StatelessWidget {
               controller: line.price,
               keyboardType: TextInputType.number,
               onChanged: (_) => onChanged(),
+              inputFormatters: const [RupiahInputFormatter()],
               decoration: const InputDecoration(
                 labelText: 'Total harga',
                 prefixText: 'Rp ',
               ),
             ),
-            if (view != null && line.unit != null) ...[
+            if (view != null && line.unit != null && !editing) ...[
               const SizedBox(height: 10),
               _Preview(line: line, view: view!),
             ],
+            if (view != null && line.unit != null && editing)
+              _unitPriceNote(view!),
           ],
         ),
       ),
     );
   }
+}
+
+extension on _LineCard {
+  /// "Rp14/g · sebelumnya Rp140/g" di layar ubah belanja.
+  Widget _unitPriceNote(IngredientView view) {
+    final base = view.ingredient.baseUnit.code;
+    final qty = parseDecimalInput(line.qty.text);
+    final price = parseRupiahInput(line.price.text);
+    final now = qty == null || qty <= Decimal.zero || price == null
+        ? null
+        : divide(rupiah(price), qty * line.unit!.factorToBase);
+    final before = line.originalUnitCost;
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Text(
+        [
+          if (now != null) formatUnitPrice(now, base),
+          if (before != null) 'sebelumnya ${formatUnitPrice(before, base)}',
+        ].join(' · '),
+        style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+      ),
+    );
+  }
+}
+
+/// Dampak ubah belanja sebelum disimpan (mockup `UbahBelanja`).
+class _EditImpact extends StatelessWidget {
+  const _EditImpact({required this.preview});
+
+  final Future<PurchaseEditPreview> preview;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<PurchaseEditPreview>(
+      future: preview,
+      builder: (context, snap) {
+        final p = snap.data;
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SectionTitle('Setelah disimpan'),
+                const SizedBox(height: 8),
+                if (p == null)
+                  Text(
+                    snap.hasError
+                        ? 'Dampak belum bisa dihitung: ${snap.error}'
+                        : 'Menghitung dampak…',
+                    style: const TextStyle(color: AppColors.textMuted),
+                  )
+                else ...[
+                  for (final a in p.ingredients)
+                    _impactRow(
+                      'Harga rata-rata ${a.name.toLowerCase()}',
+                      '${formatUnitPrice(a.before, a.unit)} → '
+                          '${formatUnitPrice(a.after, a.unit)}',
+                    ),
+                  for (final m in p.menus)
+                    _impactRow(
+                      'HPP ${m.name.toLowerCase()} per pcs',
+                      '${formatRupiah(toRupiah(m.before))} → '
+                          '${formatRupiah(toRupiah(m.after))}',
+                    ),
+                  if (p.ordersAffected > 0) ...[
+                    const SizedBox(height: 8),
+                    InfoBox(
+                      '${p.ordersAffected} pesanan selesai masih memakai HPP '
+                      'lama. Tinjau dan hitung ulang lewat Beranda › Perlu '
+                      'perhatian.',
+                    ),
+                  ],
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _impactRow(String label, String value) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 3),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(color: AppColors.textMuted),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _Preview extends StatelessWidget {

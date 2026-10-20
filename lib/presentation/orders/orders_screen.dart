@@ -54,9 +54,10 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
       appBar: AppBar(
         title: const Text('Pesanan'),
         actions: [
-          TextButton(
+          IconButton(
+            tooltip: 'Jual langsung',
             onPressed: () => context.push('/pesanan/jual'),
-            child: const Text('Jual langsung'),
+            icon: const Icon(Icons.sell_outlined),
           ),
           Padding(
             padding: const EdgeInsets.only(right: 12),
@@ -485,11 +486,15 @@ class _NeedsCard extends ConsumerWidget {
                 child: Row(
                   children: [
                     Expanded(child: Text(p.product.name)),
-                    Text(
-                      p.toMake > Decimal.zero
-                          ? 'pesan ${p.orderedQty} · buat ${formatDecimal(p.toMake)}'
-                          : 'pesan ${p.orderedQty} · stok cukup',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        p.toMake > Decimal.zero
+                            ? 'pesan ${p.orderedQty} · buat ${formatDecimal(p.toMake)}'
+                            : 'pesan ${p.orderedQty} · stok cukup',
+                        textAlign: TextAlign.end,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
                     ),
                   ],
                 ),

@@ -7,7 +7,7 @@ Checklist pengerjaan, disusun mengikuti roadmap di PRD bagian 12. Diperbarui set
 - **Desain:** [Design.md](Design.md)
 
 **Terakhir diperbarui:** 20 Oktober 2026
-**Posisi sekarang:** Sprint 1–4 (semua fitur MVP) selesai di branch `dev`, belum dicoba di HP. Sisa sebelum uji pakai: buat file keystore (release masih gagal karena `hpp_app-upload.jks` belum ada), isi secrets CI, opsional Firebase. Berikutnya: uji pakai sendiri di HP.
+**Posisi sekarang:** MVP selesai dan dipasang di HP (APK release kunci sendiri; CI dengan secrets terverifikasi). Perbaikan setelah MVP selesai di `dev`. Berikutnya: konfirmasi PRD Firebase + setup project Firebase oleh pengguna, lalu fase 2a (akun & sinkron); uji pakai sendiri berjalan.
 
 Tanda: `[x]` selesai · `[ ]` belum · "kalkulator ✓" = rumusnya sudah ada dan lulus test di `lib/domain/costing/`, tetapi penyimpanan ke database dan layarnya belum.
 
@@ -22,12 +22,14 @@ Tanda: `[x]` selesai · `[ ]` belum · "kalkulator ✓" = rumusnya sudah ada dan
 - [x] `git init` + commit pertama (branch `main`; keystore dan `key.properties` di-ignore)
 - [x] Signing release di Gradle (`android/key.properties`, contoh di `key.properties.example`) + desugaring untuk notifikasi; build APK release lokal lulus (arm64 18,1 MB)
 - [x] Workflow CI `.github/workflows/build-apk.yml`: analyze, test, build APK per ABI; ditandatangani kunci sendiri jika secrets diisi (lihat README)
-- [ ] Buat keystore `C:\Users\Kanggo L3-038\keys\hpp_app-upload.jks`, isi `android/key.properties`, simpan keystore dan sandinya di 2 tempat
+- [x] Buat keystore `C:\Users\Kanggo L3-038\keys\hpp_app-upload.jks` (PKCS12, alias `upload`, SHA-256 9B:2A:B9:D4:…:1C:93:E4) dari sandi di `android/key.properties`; APK release lokal ditandatangani kunci ini (20 Okt 2026)
+- [x] Simpan cadangan keystore dan sandinya di 2 tempat terpisah (dilakukan pengguna, 20 Okt 2026)
 - [x] Push ke repo GitHub `ekagalang/BuatUsaha` (branch `main`, sekarang public)
 - [x] Run CI pertama lulus: analyze, test, build APK ±10 menit; artefak `hpp-app-apk-debug-signed` (29,8 MB)
 - [x] Naikkan versi action di workflow (checkout v7, setup-java v6, upload-artifact v7); teruji saat merge ke `main` atau run manual berikutnya
 - [x] Branch `dev` untuk pengerjaan harian; CI hanya berjalan di `main` atau manual (push ke `dev` terbukti tidak memicu CI)
-- [ ] Isi 4 secrets Android di GitHub setelah keystore dibuat (lihat README)
+- [x] Isi 4 secrets Android di GitHub (dilakukan pengguna, 20 Okt 2026)
+- [x] Verifikasi secrets: run manual Build APK di `dev` (20 Okt 2026, 15.07 WIB) lulus, langkah tanda tangan sukses, artefak `hpp-app-apk`
 
 ## Sprint 1 — Bahan dan stok (minggu 2–4)
 
@@ -42,7 +44,7 @@ Tanda: `[x]` selesai · `[ ]` belum · "kalkulator ✓" = rumusnya sudah ada dan
 - [x] Layar Bahan (nilai modal, saringan menipis/belum ada harga) dan Belanja bahan multi-item dengan pratinjau harga rata-rata (mockup `Bahan`, `FormBelanja`)
 - [x] Layar Bahan baru (stok awal / harga perkiraan) dan Detail bahan (penyesuaian, bahan rusak, opname, satuan beli khusus, stok minimum, kartu stok, pembatalan)
 - [x] Format Rupiah/angka/tanggal Indonesia, komponen umum, pemilih tanggal berbahasa Indonesia; 65 test lulus
-- [ ] Layar edit belanja (repository `replacePurchase` sudah ada; di UI saat ini batalkan lalu catat ulang)
+- [x] Layar ubah belanja: tombol "Ubah belanja" di kartu stok, form terisi, pratinjau dampak sebelum disimpan (selesai 20 Okt 2026)
 - [x] Peringatan saat mengoreksi tanggal yang sudah Tutup hari (FR-9.6) — selesai di Sprint 4
 - [x] Sprint 1 + signing release + CI di-commit dan di-push ke `main`
 - [ ] Coba layar Sprint 1 di HP (APK) dan catat masukan
@@ -86,7 +88,7 @@ Tanda: `[x]` selesai · `[ ]` belum · "kalkulator ✓" = rumusnya sudah ada dan
 - [x] 11 test repository pesanan + 5 test penjadwal notifikasi + 3 widget test layar pesanan; 99 test lulus
 - [x] Minta izin notifikasi dan alarm tepat dari layar (onboarding dan Pengaturan, selesai di Sprint 4)
 - [x] Panduan izin baterai/autostart untuk Xiaomi, Oppo, Vivo (di Pengaturan, selesai di Sprint 4)
-- [ ] Daftar pesanan lama yang terpengaruh koreksi harga bahan + tawaran hitung ulang HPP (FR-9.5)
+- [x] Koreksi harga bahan menghitung ulang biaya produksi dan stok menu jadi; layar "Koreksi HPP pesanan" + tanda di Beranda untuk menghitung ulang pesanan lama (FR-9.5, selesai 20 Okt 2026)
 - [ ] Uji notifikasi di HP sungguhan: tepat waktu ≤ 1 menit dengan alarm tepat, muncul setelah restart dan dalam mode pesawat
 
 ## Sprint 4 — Laporan dan persiapan pakai (minggu 9–11)
@@ -109,9 +111,33 @@ Tanda: `[x]` selesai · `[ ]` belum · "kalkulator ✓" = rumusnya sudah ada dan
 - [ ] Mode gelap (Design.md: belum didesain)
 - [ ] Gerbang: semua FR MVP lulus kriteria penerimaan — dicek saat uji pakai di HP
 
+## Perbaikan setelah MVP (20 Okt 2026)
+
+Desain di-acc lewat mockup baris "Perbaikan, akun & sinkron" di canvas.
+
+- [x] FR-9.5: biaya produksi, HPP stok menu, dan HPP terjual dihitung ulang setelah koreksi harga bahan (`cost_cascade.dart`, `OrderRepository.costCorrections`, layar `cost_correction_screen.dart`); 4 test termasuk kriteria PRD 5.9
+- [x] Ubah belanja dengan pratinjau dampak (harga rata-rata, HPP menu, jumlah pesanan terdampak) tanpa menyimpan (`purchase_preview.dart`)
+- [x] Detail bahan: bagian "Dipakai di menu" (takaran per resep, bisa jadi berapa pcs, biaya per resep)
+- [x] Kolom nominal Rupiah memakai titik ribuan saat mengetik (17 kolom, `rupiah_input.dart`)
+- [x] Ikon aplikasi adaptif (cupcake) dan layar pembuka krem; di Android 12+ layar pembuka sistem hanya menampilkan ikon, tanpa teks nama aplikasi
+- [x] Backup otomatis harian di HP, 7 terakhir, bisa dipulihkan dari Pengaturan › Data
+- [x] Uji huruf 130% di lebar 360 dp untuk 14 layar; 9 tempat teks terpotong diperbaiki
+- [x] 132 test lulus
+- [x] Di-commit ke `dev` (belum di-push)
+- [ ] Ikon PNG lama (mipmap) untuk Android 7.x masih logo Flutter; Android 8+ memakai ikon baru
+
+## Fase 2a — Akun & sinkron Firebase
+
+- [x] PRD/ERD diperbarui: bagian 5.10 (FR-10.x), 11.5, dan perubahan bagian 1, 4, 8, 9, 12, 13, 14 (20 Okt 2026)
+- [x] Mockup Pengaturan akun & sinkron di-acc
+- [ ] Pengguna mengonfirmasi PRD final untuk Firebase
+- [ ] Pengguna membuat project Firebase: aplikasi Android `com.hppapp.hpp_app`, sidik jari SHA-1 kunci release + debug, aktifkan Authentication › Google dan Cloud Firestore; `google-services.json` di `android/app/` dan secret CI `GOOGLE_SERVICES_JSON_BASE64`
+- [ ] Login Google (FR-10.1), sinkron outbox/tarik per tabel (FR-10.2–10.4), gabung/ganti data saat login pertama (FR-10.5, 10.6), status sinkron dan keluar akun (FR-10.7, 10.8), Security Rules (FR-10.9)
+
 ## Uji pakai sendiri (minggu 12)
 
-- [ ] Build APK release dengan keystore sendiri, pasang di HP
+- [x] Build APK release dengan keystore sendiri (arm64 24,8 MB, armeabi-v7a 22,6 MB, x86_64 26,3 MB)
+- [x] Pasang APK release di HP (dilakukan pengguna, 20 Okt 2026)
 - [ ] Catat paralel dengan cara lama selama 1 minggu
 - [ ] Gerbang: selisih laba ≤ Rp1.000/hari dan tanpa crash → dipakai penuh mulai minggu 13
 

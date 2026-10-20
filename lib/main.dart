@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'data/providers.dart';
 import 'presentation/app.dart';
+import 'services/auto_backup.dart';
 import 'services/background_tasks.dart';
 import 'services/local_notifications.dart';
 
@@ -20,6 +21,10 @@ Future<void> main() async {
   unawaited(registerBackgroundTasks().catchError((Object _) {}));
   final container = ProviderContainer();
   container.read(notificationSyncProvider).start();
+  unawaited(
+    AutoBackup.runIfDue(container.read(appDatabaseProvider))
+        .then((_) {}, onError: (Object _) {}),
+  );
   runApp(
     UncontrolledProviderScope(container: container, child: const HppApp()),
   );

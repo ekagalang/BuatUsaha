@@ -219,7 +219,9 @@ class _QuickActions extends ConsumerWidget {
       physics: const NeverScrollableScrollPhysics(),
       mainAxisSpacing: 8,
       crossAxisSpacing: 8,
-      childAspectRatio: 1.15,
+      // Lebih tinggi saat huruf sistem diperbesar.
+      childAspectRatio: (1.15 / MediaQuery.textScalerOf(context).scale(1))
+          .clamp(0.6, 1.15),
       children: [
         for (final (label, icon, onTap) in actions)
           Material(
@@ -423,7 +425,14 @@ class _Attention extends ConsumerWidget {
             .value ??
         const <OrderView>[];
     final now = DateTime.now();
+    final corrections = ref.watch(costCorrectionsProvider).value ?? const [];
     final items = <(String, String, String)>[
+      if (corrections.isNotEmpty)
+        (
+          '${corrections.length} pesanan lama memakai HPP sebelum koreksi',
+          'Harga bahan dikoreksi; tinjau dan hitung ulang labanya',
+          '/pesanan/koreksi-hpp',
+        ),
       for (final i in ingredients.where((i) => i.isLow))
         (
           '${i.ingredient.name} menipis',

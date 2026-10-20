@@ -2,9 +2,9 @@ import 'package:decimal/decimal.dart';
 import 'package:drift/drift.dart';
 
 import '../../domain/costing/costing.dart';
-import '../../domain/stock/product_ledger.dart';
 import '../db/app_database.dart';
 import '../db/decimal_convert.dart';
+import 'cost_cascade.dart';
 import 'hpp_refresher.dart';
 import 'stock_repository.dart';
 
@@ -650,51 +650,8 @@ class ProductRepository {
               ))
           .id;
 
-  Future<void> _recomputeProductStock(String productId) async {
-    final rows = await (_db.select(
-      _db.productStockMovements,
-    )..where((t) => t.productId.equals(productId))).get();
-    rows.sort((a, b) {
-      final byTime = a.occurredAt.compareTo(b.occurredAt);
-      if (byTime != 0) return byTime;
-      final byCreated = a.createdAt.compareTo(b.createdAt);
-      return byCreated != 0 ? byCreated : a.id.compareTo(b.id);
-    });
-    final result = replayProductLedger([
-      for (final r in rows)
-        ProductLedgerMovement(
-          id: r.id,
-          type: r.type,
-          qty: dec(r.qty),
-          unitCost: dec(r.unitCost),
-          reversalOfId: r.reversalOfId,
-        ),
-    ]);
-    for (var i = 0; i < rows.length; i++) {
-      final res = result.rows[i];
-      await (_db.update(
-        _db.productStockMovements,
-      )..where((t) => t.id.equals(rows[i].id))).write(
-        ProductStockMovementsCompanion(
-          unitCost: res.cancelled
-              ? const Value.absent()
-              : Value(dbl(res.unitCost)),
-          value: res.cancelled ? const Value.absent() : Value(res.value),
-          balanceAfter: Value(dbl(res.balanceAfter)),
-          avgCostAfter: Value(dbl(res.avgCostAfter)),
-        ),
-      );
-    }
-    await (_db.update(
-      _db.products,
-    )..where((t) => t.id.equals(productId))).write(
-      ProductsCompanion(
-        currentStock: Value(dbl(result.stock)),
-        stockUnitCost: Value(dbl(result.avgUnitCost)),
-        updatedAt: Value(_now()),
-      ),
-    );
-  }
+  Future<void> _recomputeProductStock(String productId) =>
+      recomputeProductStock(_db, productId);
 
   Future<Product> _product(String id) =>
       (_db.select(_db.products)..where((t) => t.id.equals(id))).getSingle();
