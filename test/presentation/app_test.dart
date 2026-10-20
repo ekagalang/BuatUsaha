@@ -3,9 +3,9 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hpp_app/data/db/app_database.dart';
-import 'package:hpp_app/data/providers.dart';
-import 'package:hpp_app/presentation/app.dart';
+import 'package:buat_usaha/data/db/app_database.dart';
+import 'package:buat_usaha/data/providers.dart';
+import 'package:buat_usaha/presentation/app.dart';
 
 Future<void> _settle(WidgetTester tester) async {
   for (var i = 0; i < 8; i++) {

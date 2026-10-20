@@ -1,4 +1,4 @@
-# hpp_app
+# BuatUsaha
 
 Aplikasi Android pribadi untuk menghitung HPP, mencatat stok bahan, laba harian per menu, dan jadwal pesanan. Berjalan offline; biaya Rp0.
 
@@ -62,14 +62,14 @@ Membuat base64 dari keystore di PowerShell:
 [Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\Users\<nama>\keys\hpp_app-upload.jks")) | Set-Clipboard
 ```
 
-Tanpa secrets, artefak CI bernama `hpp-app-apk-debug-signed`.
+Tanpa secrets, artefak CI bernama `buatusaha-apk-debug-signed`.
 
 ## Laporan crash (Firebase Crashlytics, opsional)
 
 Aplikasi tetap jalan tanpa ini; Crashlytics hanya aktif jika `android/app/google-services.json` ada. File itu tidak masuk git karena repo ini public.
 
 1. Buka [console.firebase.google.com](https://console.firebase.google.com), **Add project** (Google Analytics boleh dimatikan; paket Spark gratis).
-2. Di project itu pilih **Add app › Android**, isi package name `com.hppapp.hpp_app`, lalu unduh `google-services.json`.
+2. Di project itu pilih **Add app › Android**, isi package name `com.ekagalang.buatusaha`, lalu unduh `google-services.json`.
 3. Taruh file itu di `android/app/google-services.json` untuk build lokal.
 4. Di menu **Crashlytics**, klik **Get started**. Laporan pertama muncul setelah aplikasi release dibuka sekali, crash, lalu dibuka lagi.
 5. Untuk CI, simpan isinya sebagai secret `GOOGLE_SERVICES_JSON_BASE64`:
@@ -83,3 +83,13 @@ Laporan crash tidak dikirim dari build debug.
 ## Backup data
 
 Data hanya ada di HP. **Pengaturan › Data › Backup** membagikan satu file `.sqlite` (simpan ke Google Drive atau WhatsApp sendiri); **Restore** memulihkannya dan menyimpan data lama sebagai `.bak` di folder aplikasi.
+
+## Pindah dari aplikasi lama "HPP Usaha"
+
+ID aplikasi berganti dari `com.hppapp.hpp_app` menjadi `com.ekagalang.buatusaha` (20 Okt 2026), jadi Android memasang BuatUsaha sebagai aplikasi baru di samping yang lama:
+
+1. Di aplikasi lama: **Pengaturan › Data › Backup: bagikan file data**, simpan filenya ke Google Drive atau WhatsApp sendiri.
+2. Pasang APK BuatUsaha, pilih **Lewati, ke Beranda** di onboarding, lalu **Pengaturan › Data › Pulihkan dari file** dan pilih file tadi.
+3. Setelah datanya lengkap, hapus aplikasi lama supaya pengingatnya tidak muncul dua kali.
+
+Kunci tanda tangan tetap sama (`hpp_app-upload.jks`), jadi sidik jari SHA-1 untuk Firebase tidak berubah.

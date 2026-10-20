@@ -75,6 +75,6 @@ jobs:
 
       - uses: actions/upload-artifact@v7
         with:
-          name: ${{ env.HAS_KEYSTORE == 'true' && 'hpp-app-apk' || 'hpp-app-apk-debug-signed' }}
+          name: ${{ env.HAS_KEYSTORE == 'true' && 'buatusaha-apk' || 'buatusaha-apk-debug-signed' }}
           path: build/app/outputs/flutter-apk/app-*-release.apk
           retention-days: 14

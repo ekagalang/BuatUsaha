@@ -29,7 +29,7 @@ if (hasReleaseKey) {
 }
 
 android {
-    namespace = "com.hppapp.hpp_app"
+    namespace = "com.ekagalang.buatusaha"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -42,7 +42,7 @@ android {
 
     defaultConfig {
         // Jangan diubah setelah APK release pertama dipasang: id lain = aplikasi lain.
-        applicationId = "com.hppapp.hpp_app"
+        applicationId = "com.ekagalang.buatusaha"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

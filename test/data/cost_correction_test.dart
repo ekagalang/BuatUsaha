@@ -1,9 +1,9 @@
 import 'package:decimal/decimal.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hpp_app/data/db/app_database.dart';
-import 'package:hpp_app/data/repositories/order_repository.dart';
-import 'package:hpp_app/data/repositories/purchase_preview.dart';
-import 'package:hpp_app/data/repositories/stock_repository.dart';
+import 'package:buat_usaha/data/db/app_database.dart';
+import 'package:buat_usaha/data/repositories/order_repository.dart';
+import 'package:buat_usaha/data/repositories/purchase_preview.dart';
+import 'package:buat_usaha/data/repositories/stock_repository.dart';
 
 import '../support/seed.dart';
 

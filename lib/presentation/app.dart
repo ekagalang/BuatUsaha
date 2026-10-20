@@ -236,7 +236,7 @@ class _HppAppState extends State<HppApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: 'HPP Usaha',
+      title: 'BuatUsaha',
       theme: buildAppTheme(),
       locale: const Locale('id'),
       supportedLocales: const [Locale('id')],

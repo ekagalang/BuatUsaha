@@ -1,7 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hpp_app/presentation/common/format.dart';
-import 'package:hpp_app/presentation/common/rupiah_input.dart';
+import 'package:buat_usaha/presentation/common/format.dart';
+import 'package:buat_usaha/presentation/common/rupiah_input.dart';
 
 TextEditingValue _type(String old, String typed, {int? cursor}) =>
     const RupiahInputFormatter().formatEditUpdate(

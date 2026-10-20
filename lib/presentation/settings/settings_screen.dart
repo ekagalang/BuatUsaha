@@ -55,7 +55,7 @@ class SettingsScreen extends ConsumerWidget {
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => showLicensePage(
                     context: context,
-                    applicationName: 'HPP Usaha',
+                    applicationName: 'BuatUsaha',
                   ),
                 ),
               ],
@@ -517,18 +517,18 @@ class BatteryGuide extends StatelessWidget {
     const steps = [
       (
         'Xiaomi / Redmi / POCO',
-        'Setelan › Aplikasi › Kelola aplikasi › HPP Usaha: nyalakan Mulai '
+        'Setelan › Aplikasi › Kelola aplikasi › BuatUsaha: nyalakan Mulai '
             'otomatis, lalu Penghemat baterai › Tanpa batasan.',
       ),
       (
         'Oppo / Realme',
-        'Setelan › Baterai › Pengelolaan baterai aplikasi › HPP Usaha: '
+        'Setelan › Baterai › Pengelolaan baterai aplikasi › BuatUsaha: '
             'izinkan aktivitas latar belakang dan mulai otomatis.',
       ),
       (
         'Vivo',
         'Setelan › Baterai › Konsumsi daya latar belakang tinggi: izinkan '
-            'HPP Usaha; i Manager › Manajer aplikasi › Mulai otomatis.',
+            'BuatUsaha; i Manager › Manajer aplikasi › Mulai otomatis.',
       ),
       (
         'Samsung',
@@ -874,8 +874,8 @@ class _DataSectionState extends ConsumerState<_DataSection> {
       await SharePlus.instance.share(
         ShareParams(
           files: [XFile(file.path)],
-          subject: 'Backup HPP Usaha',
-          text: 'Backup data HPP Usaha ${formatLongDate(DateTime.now())}',
+          subject: 'Backup BuatUsaha',
+          text: 'Backup data BuatUsaha ${formatLongDate(DateTime.now())}',
         ),
       );
     } catch (e) {

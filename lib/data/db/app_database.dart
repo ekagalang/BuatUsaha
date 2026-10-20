@@ -43,7 +43,7 @@ class AppDatabase extends _$AppDatabase {
     : super(
         executor ??
             driftDatabase(
-              name: 'hpp_app',
+              name: 'buat_usaha',
               native: const DriftNativeOptions(shareAcrossIsolates: true),
             ),
       );

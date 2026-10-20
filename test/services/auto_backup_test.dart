@@ -1,8 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hpp_app/services/auto_backup.dart';
-import 'package:hpp_app/services/backup_service.dart';
+import 'package:buat_usaha/services/auto_backup.dart';
+import 'package:buat_usaha/services/backup_service.dart';
 
 import '../support/seed.dart';
 

@@ -1,4 +1,4 @@
-# TODO — Aplikasi HPP & Pencatatan Usaha
+# TODO — BuatUsaha (aplikasi HPP & pencatatan usaha)
 
 Checklist pengerjaan, disusun mengikuti roadmap di PRD bagian 12. Diperbarui setiap ada pekerjaan yang selesai.
 
@@ -126,12 +126,22 @@ Desain di-acc lewat mockup baris "Perbaikan, akun & sinkron" di canvas.
 - [x] Di-commit ke `dev` (belum di-push)
 - [ ] Ikon PNG lama (mipmap) untuk Android 7.x masih logo Flutter; Android 8+ memakai ikon baru
 
+## Ganti nama jadi BuatUsaha (20 Okt 2026)
+
+- [x] Nama aplikasi "BuatUsaha" (label Android, judul aplikasi, teks backup dan panduan baterai)
+- [x] Paket Dart `hpp_app` → `buat_usaha`; ID Android dan namespace `com.hppapp.hpp_app` → `com.ekagalang.buatusaha`; bundle iOS ikut
+- [x] File database `buat_usaha.sqlite`, file backup `buatusaha-backup-…`, artefak CI `buatusaha-apk`
+- [x] PRD, mockup, README (termasuk cara pindah data dari aplikasi lama), TODO diperbarui
+- [x] Folder proyek dipindah ke `Music\ME\App\BuatUsaha` (folder `App` untuk semua proyek aplikasi)
+- [x] Di-commit dan di-push ke `dev`
+- [ ] Pengguna memindahkan data dari aplikasi lama (lihat README) lalu menghapus aplikasi lama
+
 ## Fase 2a — Akun & sinkron Firebase
 
 - [x] PRD/ERD diperbarui: bagian 5.10 (FR-10.x), 11.5, dan perubahan bagian 1, 4, 8, 9, 12, 13, 14 (20 Okt 2026)
 - [x] Mockup Pengaturan akun & sinkron di-acc
-- [ ] Pengguna mengonfirmasi PRD final untuk Firebase
-- [ ] Pengguna membuat project Firebase: aplikasi Android `com.hppapp.hpp_app`, sidik jari SHA-1 kunci release + debug, aktifkan Authentication › Google dan Cloud Firestore; `google-services.json` di `android/app/` dan secret CI `GOOGLE_SERVICES_JSON_BASE64`
+- [x] Pengguna mengonfirmasi PRD final untuk Firebase (20 Okt 2026)
+- [ ] Pengguna membuat project Firebase: aplikasi Android `com.ekagalang.buatusaha`, sidik jari SHA-1 kunci release + debug, aktifkan Authentication › Google dan Cloud Firestore; `google-services.json` di `android/app/` dan secret CI `GOOGLE_SERVICES_JSON_BASE64`
 - [ ] Login Google (FR-10.1), sinkron outbox/tarik per tabel (FR-10.2–10.4), gabung/ganti data saat login pertama (FR-10.5, 10.6), status sinkron dan keluar akun (FR-10.7, 10.8), Security Rules (FR-10.9)
 
 ## Uji pakai sendiri (minggu 12)

@@ -1,5 +1,5 @@
-name: hpp_app
-description: "A new Flutter project."
+name: buat_usaha
+description: "BuatUsaha: HPP, stok bahan, pesanan, dan untung-rugi harian untuk usaha rumahan."
 publish_to: 'none'
 version: 0.1.0+1
 

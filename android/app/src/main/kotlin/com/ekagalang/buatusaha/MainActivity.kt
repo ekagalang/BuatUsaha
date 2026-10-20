@@ -1,4 +1,4 @@
-package com.hppapp.hpp_app
+package com.ekagalang.buatusaha
 
 import io.flutter.embedding.android.FlutterActivity
 

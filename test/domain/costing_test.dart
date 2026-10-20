@@ -1,7 +1,7 @@
 import 'package:decimal/decimal.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hpp_app/domain/costing/costing.dart';
-import 'package:hpp_app/domain/enums.dart';
+import 'package:buat_usaha/domain/costing/costing.dart';
+import 'package:buat_usaha/domain/enums.dart';
 
 Decimal d(String value) => Decimal.parse(value);
 

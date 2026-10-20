@@ -3,8 +3,8 @@ import 'dart:io';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hpp_app/data/db/app_database.dart';
-import 'package:hpp_app/data/repositories/business_repository.dart';
+import 'package:buat_usaha/data/db/app_database.dart';
+import 'package:buat_usaha/data/repositories/business_repository.dart';
 
 void main() {
   late AppDatabase db;

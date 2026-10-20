@@ -5,10 +5,10 @@ import 'package:path_provider/path_provider.dart';
 
 import '../data/db/app_database.dart';
 
-/// File SQLite yang dipakai aplikasi (lihat `driftDatabase(name: 'hpp_app')`).
+/// File SQLite yang dipakai aplikasi (lihat `driftDatabase(name: 'buat_usaha')`).
 Future<File> databaseFile() async {
   final dir = await getApplicationDocumentsDirectory();
-  return File('${dir.path}${Platform.pathSeparator}hpp_app.sqlite');
+  return File('${dir.path}${Platform.pathSeparator}buat_usaha.sqlite');
 }
 
 String _two(int n) => n.toString().padLeft(2, '0');
@@ -23,7 +23,7 @@ class BackupService {
     final dir = into ?? await getTemporaryDirectory();
     final now = DateTime.now();
     final name =
-        'hpp-backup-${now.year}${_two(now.month)}${_two(now.day)}-'
+        'buatusaha-backup-${now.year}${_two(now.month)}${_two(now.day)}-'
         '${_two(now.hour)}${_two(now.minute)}.sqlite';
     final file = File('${dir.path}${Platform.pathSeparator}$name');
     if (file.existsSync()) file.deleteSync();
@@ -36,7 +36,7 @@ class BackupService {
   static Future<String> inspect(File file) async {
     final header = await file.openRead(0, 16).first;
     if (String.fromCharCodes(header.take(15)) != 'SQLite format 3') {
-      throw const FormatException('File ini bukan backup HPP Usaha.');
+      throw const FormatException('File ini bukan backup BuatUsaha.');
     }
     // Buka salinan supaya file asli tidak ikut dimigrasi.
     final copy = await file.copy('${file.path}.check');
@@ -52,7 +52,7 @@ class BackupService {
     } on FormatException {
       rethrow;
     } catch (_) {
-      throw const FormatException('File ini bukan backup HPP Usaha.');
+      throw const FormatException('File ini bukan backup BuatUsaha.');
     } finally {
       await db.close();
       if (copy.existsSync()) copy.deleteSync();

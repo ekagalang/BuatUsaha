@@ -1,11 +1,11 @@
 import 'package:decimal/decimal.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hpp_app/data/db/app_database.dart';
-import 'package:hpp_app/data/repositories/business_repository.dart';
-import 'package:hpp_app/data/repositories/product_repository.dart';
-import 'package:hpp_app/data/repositories/stock_repository.dart';
-import 'package:hpp_app/domain/costing/pricing.dart';
+import 'package:buat_usaha/data/db/app_database.dart';
+import 'package:buat_usaha/data/repositories/business_repository.dart';
+import 'package:buat_usaha/data/repositories/product_repository.dart';
+import 'package:buat_usaha/data/repositories/stock_repository.dart';
+import 'package:buat_usaha/domain/costing/pricing.dart';
 
 Decimal d(String value) => Decimal.parse(value);
 
