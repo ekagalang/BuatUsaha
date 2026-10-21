@@ -46,6 +46,7 @@ class ExpenseRepository {
     required DateTime spentAt,
     bool isMonthly = false,
     String? note,
+    String? cashAccountId,
   }) async {
     if (amount <= 0) throw ArgumentError.value(amount, 'amount', 'harus > 0');
     final row = await _db
@@ -58,6 +59,7 @@ class ExpenseRepository {
             spentAt: spentAt.toUtc(),
             isMonthly: Value(isMonthly),
             note: Value(note),
+            cashAccountId: Value(cashAccountId),
           ),
         );
     return row.id;

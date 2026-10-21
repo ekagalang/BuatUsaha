@@ -33,6 +33,11 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
       appBar: AppBar(
         title: const Text('Menu'),
         actions: [
+          IconButton(
+            tooltip: 'Simulasi harga',
+            icon: const Icon(Icons.calculate_outlined),
+            onPressed: () => context.push('/menu/simulasi'),
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: FilledButton.icon(

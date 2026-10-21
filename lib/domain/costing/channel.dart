@@ -34,3 +34,33 @@ List<int> allocateProportionally(int amount, List<int> weights) {
   }
   return shares;
 }
+
+/// Saran harga channel supaya laba per pcs sama dengan jual langsung
+/// (FR-14.2): (harga langsung + biaya per pesanan ÷ rata-rata pcs per
+/// pesanan) ÷ (1 − komisi), dibulatkan ke atas ke kelipatan [rounding].
+/// `null` bila komisi ≥ 100%.
+int? suggestChannelPrice({
+  required int directPrice,
+  required Decimal commissionPct,
+  int feePerOrder = 0,
+  required Decimal avgPcsPerOrder,
+  int rounding = 500,
+}) {
+  if (commissionPct >= hundred || avgPcsPerOrder <= Decimal.zero) return null;
+  final base =
+      rupiah(directPrice) + divide(rupiah(feePerOrder), avgPcsPerOrder);
+  return ceilToStep(divide(base * hundred, hundred - commissionPct), rounding);
+}
+
+/// Potongan channel per pcs pada harga [price]: komisi + biaya per pesanan
+/// dibagi rata-rata pcs per pesanan.
+Decimal channelFeePerPcs({
+  required int price,
+  required Decimal commissionPct,
+  int feePerOrder = 0,
+  required Decimal avgPcsPerOrder,
+}) =>
+    divide(rupiah(price) * commissionPct, hundred) +
+    (avgPcsPerOrder <= Decimal.zero
+        ? Decimal.zero
+        : divide(rupiah(feePerOrder), avgPcsPerOrder));

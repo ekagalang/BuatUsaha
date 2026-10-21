@@ -10,6 +10,8 @@ import '../services/sync_controller.dart';
 import '../services/update_controller.dart';
 import 'auth/login_screen.dart';
 import 'auth/prepare_screen.dart';
+import 'cash/cash_accounts_screen.dart';
+import 'cash/cash_screen.dart';
 import 'common/brand_marks.dart';
 import 'documents/document_screens.dart';
 import 'home/home_screen.dart';
@@ -17,6 +19,7 @@ import 'motion.dart';
 import 'menu/menu_detail_screen.dart';
 import 'menu/menu_form_screen.dart';
 import 'menu/menu_screen.dart';
+import 'menu/price_simulation_screen.dart';
 import 'orders/cost_correction_screen.dart';
 import 'orders/order_detail_screen.dart';
 import 'orders/order_form_screen.dart';
@@ -111,6 +114,11 @@ GoRouter buildRouter({Listenable? refresh, GoRouterRedirect? redirect}) {
           builder: (context, state) => const MenuFormScreen(),
         ),
         GoRoute(
+          path: 'simulasi',
+          parentNavigatorKey: rootKey,
+          builder: (context, state) => const PriceSimulationScreen(),
+        ),
+        GoRoute(
           path: ':id',
           parentNavigatorKey: rootKey,
           builder: (context, state) =>
@@ -178,6 +186,18 @@ GoRouter buildRouter({Listenable? refresh, GoRouterRedirect? redirect}) {
           path: 'pdf',
           parentNavigatorKey: rootKey,
           builder: (context, state) => reportPdfRoute(state),
+        ),
+        GoRoute(
+          path: 'kas',
+          parentNavigatorKey: rootKey,
+          builder: (context, state) => const CashScreen(),
+          routes: [
+            GoRoute(
+              path: 'akun',
+              parentNavigatorKey: rootKey,
+              builder: (context, state) => const CashAccountsScreen(),
+            ),
+          ],
         ),
       ],
     ),

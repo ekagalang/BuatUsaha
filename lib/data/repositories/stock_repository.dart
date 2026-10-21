@@ -38,12 +38,16 @@ class PurchaseInput {
     required this.lines,
     this.supplierId,
     this.note,
+    this.cashAccountId,
   });
 
   final DateTime purchasedAt;
   final List<PurchaseLineInput> lines;
   final String? supplierId;
   final String? note;
+
+  /// Dibayar dari akun kas ini (FR-15.2); `null` = Tunai.
+  final String? cashAccountId;
 }
 
 /// Bahan beserta angka turunan untuk daftar Bahan.
@@ -469,6 +473,7 @@ class StockRepository {
       purchasedAt: purchase.purchasedAt,
       supplierId: purchase.supplierId,
       note: purchase.note,
+      cashAccountId: purchase.cashAccountId,
       lines: [
         for (final i in items)
           PurchaseLineInput(
@@ -567,6 +572,7 @@ class StockRepository {
             purchasedAt: when,
             totalAmount: input.lines.fold(0, (sum, l) => sum + l.totalPrice),
             note: Value(input.note),
+            cashAccountId: Value(input.cashAccountId),
           ),
         );
     final ingredientIds = <String>{};

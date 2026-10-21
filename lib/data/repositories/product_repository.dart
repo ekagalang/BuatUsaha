@@ -214,7 +214,7 @@ class ProductRepository {
             ),
           );
       await _writeChildren(product.id, input);
-      await refreshProductHpp(_db, product.id);
+      await refreshProductHpp(_db, product.id, cause: HppChangeCause.created);
       return product.id;
     });
   }
@@ -238,7 +238,7 @@ class ProductRepository {
         ),
       );
       await _replaceChildren(id, input);
-      await refreshProductHpp(_db, id);
+      await refreshProductHpp(_db, id, cause: HppChangeCause.recipe);
     });
   }
 

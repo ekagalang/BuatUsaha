@@ -96,4 +96,7 @@ class Expenses extends Table with EntityColumns, VoidColumns {
   /// laporan bulanan (FR-7.7). Skema v2.
   BoolColumn get isMonthly => boolean().withDefault(const Constant(false))();
   TextColumn get note => text().nullable()();
+
+  /// Dibayar dari akun kas ini (FR-15.2); kosong = Tunai. Skema v6.
+  TextColumn get cashAccountId => text().nullable()();
 }

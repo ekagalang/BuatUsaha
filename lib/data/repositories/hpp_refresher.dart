@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:decimal/decimal.dart';
 import 'package:drift/drift.dart';
 
@@ -113,11 +115,21 @@ Future<ProductCosting> loadProductCosting(
   );
 }
 
-/// Perbarui cache HPP di `products` dan nominal upah pemilik (FR-2.4).
+const _quietHistory = #buatUsahaQuietHppHistory;
+
+/// Jalankan [body] tanpa mencatat riwayat HPP, mis. saat menerapkan data
+/// tarikan: riwayatnya sudah dicatat HP yang mengubah (FR-14.3).
+Future<T> withoutHppHistory<T>(Future<T> Function() body) =>
+    runZoned(body, zoneValues: {_quietHistory: true});
+
+/// Perbarui cache HPP di `products` dan nominal upah pemilik (FR-2.4). Bila
+/// HPP per pcs berubah dan [cause] diisi, perubahannya dicatat (FR-14.3).
 Future<ProductCosting> refreshProductHpp(
   AppDatabase db,
-  String productId,
-) async {
+  String productId, {
+  HppChangeCause? cause,
+  String? note,
+}) async {
   final product = await (db.select(
     db.products,
   )..where((t) => t.id.equals(productId))).getSingle();
@@ -139,6 +151,24 @@ Future<ProductCosting> refreshProductHpp(
       ),
     );
   }
+  if (cause != null &&
+      product.hppPerPcs != hpp &&
+      Zone.current[_quietHistory] != true) {
+    await db
+        .into(db.productHppHistory)
+        .insert(
+          ProductHppHistoryCompanion.insert(
+            productId: productId,
+            hppPerPcs: hpp,
+            previousHpp: Value(
+              cause == HppChangeCause.created ? null : product.hppPerPcs,
+            ),
+            cause: cause,
+            note: Value(note),
+            changedAt: DateTime.now().toUtc(),
+          ),
+        );
+  }
   return costing;
 }
 
@@ -151,17 +181,30 @@ Future<void> refreshHppForIngredient(
   final items = await (db.select(
     db.recipeItems,
   )..where((t) => t.ingredientId.equals(ingredientId))).get();
+  if (items.isEmpty) return;
+  final ingredient = await (db.select(
+    db.ingredients,
+  )..where((t) => t.id.equals(ingredientId))).getSingleOrNull();
   for (final productId in {for (final i in items) i.productId}) {
-    await refreshProductHpp(db, productId);
+    await refreshProductHpp(
+      db,
+      productId,
+      cause: HppChangeCause.ingredientPrice,
+      note: ingredient?.name,
+    );
   }
 }
 
 /// Upah per jam berubah → semua menu usaha dihitung ulang.
-Future<void> refreshAllHpp(AppDatabase db, String businessId) async {
+Future<void> refreshAllHpp(
+  AppDatabase db,
+  String businessId, {
+  HppChangeCause? cause,
+}) async {
   final products = await (db.select(
     db.products,
   )..where((t) => t.businessId.equals(businessId))).get();
   for (final p in products) {
-    await refreshProductHpp(db, p.id);
+    await refreshProductHpp(db, p.id, cause: cause);
   }
 }

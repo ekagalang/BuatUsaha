@@ -100,6 +100,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         title: const Text('Laporan'),
         actions: [
           IconButton(
+            tooltip: 'Kas',
+            icon: const Icon(Icons.account_balance_wallet_outlined),
+            onPressed: () => context.push('/laporan/kas'),
+          ),
+          IconButton(
             tooltip: 'Ekspor',
             icon: const Icon(Icons.file_download_outlined),
             onPressed: () => showReportExportSheet(

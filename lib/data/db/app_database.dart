@@ -3,8 +3,10 @@ import 'package:drift_flutter/drift_flutter.dart';
 
 import '../../domain/enums.dart';
 import 'tables/business_tables.dart';
+import 'tables/cash_tables.dart';
 import 'tables/common.dart';
 import 'tables/order_tables.dart';
+import 'tables/pricing_tables.dart';
 import 'tables/product_tables.dart';
 import 'tables/shopping_tables.dart';
 import 'tables/stock_tables.dart';
@@ -40,6 +42,10 @@ part 'app_database.g.dart';
     Expenses,
     ShoppingLists,
     ShoppingListItems,
+    ProductChannelPrices,
+    ProductHppHistory,
+    CashAccounts,
+    CashEntries,
     SyncOutbox,
     SyncState,
   ],
@@ -61,7 +67,7 @@ class AppDatabase extends _$AppDatabase {
   Future<void> closeOnce() => _closing ??= close();
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -87,6 +93,17 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(businesses, businesses.receiptNote);
         await m.addColumn(businesses, businesses.logoData);
         await m.addColumn(businesses, businesses.receiptSize);
+      }
+      if (from < 6) {
+        await m.createTable(productChannelPrices);
+        await m.createTable(productHppHistory);
+        await m.createIndex(productHppHistoryProductTime);
+        await m.createTable(cashAccounts);
+        await m.createTable(cashEntries);
+        await m.createIndex(cashEntriesBusinessTime);
+        await m.addColumn(payments, payments.cashAccountId);
+        await m.addColumn(purchases, purchases.cashAccountId);
+        await m.addColumn(expenses, expenses.cashAccountId);
       }
     },
     beforeOpen: (details) async {

@@ -39,8 +39,13 @@ class CacheRebuilder {
   final StockRepository _stock;
   late final OrderRepository _orders;
 
+  /// Riwayat HPP tidak dicatat di sini; sudah dicatat HP asalnya (FR-14.3).
   Future<void> rebuild(PulledChanges changes) async {
     if (changes.isEmpty) return;
+    await withoutHppHistory(() => _rebuild(changes));
+  }
+
+  Future<void> _rebuild(PulledChanges changes) async {
     final all = changes.everything;
 
     // 1. Bahan: saldo dan harga rata-rata; ikut memperbarui HPP menu dan

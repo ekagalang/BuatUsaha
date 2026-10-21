@@ -252,3 +252,14 @@ Dibuat langsung tanpa mockup atas pilihan pengguna (S3, 21 Okt 2026); dicek dari
 - Teks nota WhatsApp: tebal dengan `*`, satu baris per item, baris kosong antar bagian.
 - Lembar pilihan (Nota di Detail pesanan, Ekspor di Laporan): bottom sheet `background` dengan ListTile ikon garis; pilihan yang tidak bisa dipakai tampil nonaktif dengan alasannya.
 - Pratinjau PDF: AppBar dengan tombol Bagikan dan Cetak, halaman di atas latar `surfaceMuted`.
+
+## 17. Harga channel, riwayat HPP, simulasi, dan kas
+
+Dibuat langsung tanpa mockup atas pilihan pengguna (S4 + S5, 21 Okt 2026); memakai komponen yang sudah ada.
+
+- Detail menu, setelah Saran harga jual: kartu **Harga per channel** (baris: nama channel, harga atau "harga utama" abu-abu, keterangan "potongan RpX · laba RpY/pcs", chevron) lalu kartu **Riwayat HPP** (grafik garis `primary` tinggi 140 dp dengan titik kecil, lalu daftar perubahan: tanggal kecil abu-abu, "Rp4.835 → Rp5.120" tebal, sebab di bawahnya; naik = `danger`, turun = `success`).
+- Dialog harga channel: `showAppDialog`, kolom Rupiah, teks saran di bawahnya, tombol Samakan dengan harga utama (teks), Batal, Simpan.
+- Simulasi harga: layar penuh; Segmented Persen / Harga baru; daftar bahan terpilih sebagai kartu dengan kolom isian dan tombol hapus; tombol Tambah bahan (lembar cari); hasil sebagai kartu per menu: nama, "HPP Rp4.835 → Rp5.300 (+Rp465)", "Laba/pcs Rp3.165 → Rp2.700", "Saran harga Rp8.500"; InfoBox netral "Simulasi tidak menyimpan apa pun".
+- Layar Kas: kartu hero total saldo (gaya `_StatusHero` Laporan), baris akun (nama, jenis, saldo); pemilih bulan seperti Laporan; ringkasan masuk/keluar/bersih; kartu penjelasan laba vs kas; daftar mutasi per hari (masuk `success`, keluar `danger`). Tombol bawah **Catat kas**; AppBar **Atur akun**.
+- Lembar Catat kas: Segmented 4 jenis (Modal masuk, Ambil pribadi, Pindah, Koreksi saldo), ChoicePill akun (dan akun tujuan untuk Pindah), nominal, tanggal, catatan.
+- Form Belanja dan Pengeluaran: baris ChoicePill "Dibayar dari" (akun aktif), bawaan Tunai.

@@ -7,6 +7,7 @@ import '../../data/db/app_database.dart';
 import '../../data/db/decimal_convert.dart';
 import '../../data/providers.dart';
 import '../../data/repositories/order_repository.dart';
+import '../../data/repositories/pricing_repository.dart';
 import '../../data/repositories/product_repository.dart';
 import '../../domain/costing/costing.dart';
 import '../../domain/orders/orders.dart';
@@ -235,7 +236,29 @@ class _OrderFormScreenState extends ConsumerState<OrderFormScreen> {
           ],
   );
 
+  ChannelPrices get _channelPrices =>
+      ref.read(channelPricesProvider).value ?? const {};
+
+  /// Ganti channel: harga item yang belum diubah sendiri ikut harga channel
+  /// baru (FR-14.1).
+  void _selectChannel(String? channelId, List<ProductView> products) {
+    final byId = {for (final p in products) p.product.id: p.product};
+    final prices = _channelPrices;
+    for (final row in _items) {
+      final product = byId[row.productId];
+      if (product == null) continue;
+      if (row.unitPrice == priceFor(product, _channelId, prices)) {
+        row.price.text = formatRupiahDigits(
+          priceFor(product, channelId, prices),
+        );
+      }
+    }
+    _channelId = channelId;
+    _feeEdited = false;
+  }
+
   Future<void> _addItem(List<ProductView> products) async {
+    final prices = _channelPrices;
     final used = {for (final i in _items) i.productId};
     final picked = await showModalBottomSheet<ProductView>(
       context: context,
@@ -252,7 +275,7 @@ class _OrderFormScreenState extends ConsumerState<OrderFormScreen> {
                       ListTile(
                         title: Text(p.product.name),
                         subtitle: Text(
-                          '${formatRupiah(p.product.sellingPrice)}/pcs · '
+                          '${formatRupiah(priceFor(p.product, _channelId, prices))}/pcs · '
                           '${modeLabel(p.mode).toLowerCase()}'
                           '${p.isReadyStock ? ' · stok ${formatDecimal(p.stock)}' : ''}',
                         ),
@@ -265,7 +288,10 @@ class _OrderFormScreenState extends ConsumerState<OrderFormScreen> {
     if (picked == null) return;
     setState(
       () => _items.add(
-        _ItemRow(picked.product.id, price: picked.product.sellingPrice),
+        _ItemRow(
+          picked.product.id,
+          price: priceFor(picked.product, _channelId, prices),
+        ),
       ),
     );
   }
@@ -382,6 +408,8 @@ class _OrderFormScreenState extends ConsumerState<OrderFormScreen> {
       );
     }
     final products = ref.watch(productsProvider).value ?? const [];
+    // Dimuat sejak awal supaya harga channel siap saat item ditambah.
+    ref.watch(channelPricesProvider);
     final channels = (ref.watch(channelsProvider).value ?? const [])
         .where((c) => c.isActive || c.id == _channelId)
         .toList();
@@ -428,10 +456,8 @@ class _OrderFormScreenState extends ConsumerState<OrderFormScreen> {
               ChoicePill(
                 label: 'Langsung',
                 selected: _channelId == null,
-                onSelected: () => setState(() {
-                  _channelId = null;
-                  _feeEdited = false;
-                }),
+                onSelected: () =>
+                    setState(() => _selectChannel(null, products)),
               ),
               for (final c in channels)
                 ChoicePill(
@@ -439,10 +465,8 @@ class _OrderFormScreenState extends ConsumerState<OrderFormScreen> {
                       ? '${c.name} · ${formatDecimal(dec(c.commissionPct))}%'
                       : c.name,
                   selected: _channelId == c.id,
-                  onSelected: () => setState(() {
-                    _channelId = c.id;
-                    _feeEdited = false;
-                  }),
+                  onSelected: () =>
+                      setState(() => _selectChannel(c.id, products)),
                 ),
             ],
           ),

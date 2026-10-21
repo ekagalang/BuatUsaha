@@ -210,3 +210,37 @@ enum ReceiptSize implements CodedEnum {
   @override
   final String code;
 }
+
+/// Sebab HPP per pcs berubah (FR-14.3).
+enum HppChangeCause implements CodedEnum {
+  created('CREATED'),
+  recipe('RECIPE'),
+  ingredientPrice('INGREDIENT_PRICE'),
+  wage('WAGE');
+
+  const HppChangeCause(this.code);
+  @override
+  final String code;
+}
+
+enum CashAccountKind implements CodedEnum {
+  cash('CASH'),
+  bank('BANK'),
+  ewallet('EWALLET');
+
+  const CashAccountKind(this.code);
+  @override
+  final String code;
+}
+
+/// Catatan kas manual (FR-15.3).
+enum CashEntryKind implements CodedEnum {
+  capitalIn('CAPITAL_IN'),
+  ownerDraw('OWNER_DRAW'),
+  transfer('TRANSFER'),
+  adjustment('ADJUSTMENT');
+
+  const CashEntryKind(this.code);
+  @override
+  final String code;
+}

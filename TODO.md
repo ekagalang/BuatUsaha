@@ -236,10 +236,21 @@ Rincian FR-11 sampai FR-19 ada di PRD tab "Rencana fase 2b". Setiap sprint: rinc
   - [x] Test: 10 (teks nota, wa.me, PDF dua ukuran, logo, CSV, PDF laporan, lembar nota, pengaturan, lembar ekspor); 208 tes lulus
   - [x] Versi 1.2.0 dan CHANGELOG
   - [x] Build APK lokal 1.2.0 (build 13)
-  - [ ] Commit + push ke dev, rilis 1.2.0 (pengguna)
+  - [x] Commit + push ke dev (17830b6)
   - [ ] Coba di HP: kirim nota ke WhatsApp, cetak struk 58 mm lewat aplikasi printer thermal, buka CSV di Excel/Sheets (pengguna)
-- [ ] **S4 Harga dan HPP:** harga per channel + saran harga, riwayat HPP dengan grafik, simulasi kenaikan harga bahan (FR-14.x)
-- [ ] **S5 Arus kas:** akun kas, kas otomatis dari pembayaran/belanja/pengeluaran, entri manual, laporan kas (FR-15.x)
+- [ ] **S4 Harga dan HPP + S5 Arus kas** (FR-14.x, FR-15.x), dikerjakan bersama, rilis 1.3.0:
+  - [x] Dirinci di PRD ("Rincian S4", "Rincian S5"); tanpa mockup atas pilihan pengguna (21 Okt 2026), catatan tampilan di Design.md bagian 17
+  - [x] Skema v6: `product_channel_prices`, `product_hpp_history`, `cash_accounts`, `cash_entries`, `cash_account_id` di `payments`/`purchases`/`expenses`; ikut sinkron, akun kas dilebur saat gabung data
+  - [x] Harga per channel di Detail menu (saran harga, laba per pcs) dan dipakai otomatis di form pesanan
+  - [x] Riwayat HPP (sebab: menu dibuat, resep, harga bahan, upah) dengan grafik; tidak dicatat ulang saat data ditarik
+  - [x] Simulasi harga bahan (Menu › Simulasi harga): HPP, laba, saran harga baru per menu
+  - [x] Akun kas bawaan (Tunai, Bank, QRIS/e-wallet), pilihan akun di Belanja dan Pengeluaran, pembayaran masuk sesuai cara bayar
+  - [x] Layar Kas (Laporan › Kas): saldo per akun, masuk/keluar bulan, laba vs kas, mutasi; Catat kas (modal, prive, pindah, koreksi); Atur akun
+  - [x] Test: 10 data, 5 layar (termasuk huruf 130%), 1 sinkron dua HP + peleburan akun; 224 tes lulus
+  - [x] Versi 1.3.0 dan CHANGELOG
+  - [x] Build APK lokal 1.3.0 (build 14)
+  - [ ] Commit + push ke dev, rilis 1.3.0 (pengguna)
+  - [ ] Coba di HP: harga GoFood, simulasi, isi saldo awal akun kas lalu cocokkan dengan uang sebenarnya (pengguna)
 - [ ] **S6 Sub-resep dan paket/hampers** (FR-16.x)
 - [ ] **S7 Siap komersial:** Kebijakan privasi dan Ketentuan layanan di GitHub Pages, Hapus akun dan semua data, halaman cara hapus akun (FR-17.x)
 - [ ] **S8 Mode gelap dan kunci PIN/sidik jari** (FR-18.x)

@@ -7,6 +7,7 @@ import '../../domain/costing/costing.dart';
 import '../../domain/orders/orders.dart';
 import '../db/app_database.dart';
 import '../db/decimal_convert.dart';
+import 'cash_repository.dart';
 import 'product_repository.dart';
 import 'stock_repository.dart';
 
@@ -643,6 +644,7 @@ class OrderRepository {
               kind: kind,
               paidAt: (paidAt ?? _now()).toUtc(),
               note: Value(note),
+              cashAccountId: Value(await _cashAccountFor(orderId, method)),
             ),
           );
       await _refreshPayment(orderId);
@@ -1369,7 +1371,7 @@ class OrderRepository {
     String orderId,
     int amount,
     PaymentMethod method,
-  ) => _db
+  ) async => _db
       .into(_db.payments)
       .insert(
         PaymentsCompanion.insert(
@@ -1378,8 +1380,17 @@ class OrderRepository {
           method: method,
           kind: PaymentKind.refund,
           paidAt: _now(),
+          cashAccountId: Value(await _cashAccountFor(orderId, method)),
         ),
       );
+
+  /// Akun kas penerima pembayaran pesanan (FR-15.2).
+  Future<String> _cashAccountFor(String orderId, PaymentMethod method) async {
+    final order = await (_db.select(
+      _db.orders,
+    )..where((t) => t.id.equals(orderId))).getSingle();
+    return CashRepository(_db).accountFor(order.businessId, method);
+  }
 
   /// Untuk sinkron: cache pembayaran dihitung ulang setelah pesanan atau
   /// pembayarannya ditarik dari HP lain (FR-10.3).

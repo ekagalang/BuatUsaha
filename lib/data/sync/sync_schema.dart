@@ -5,6 +5,7 @@ import 'package:drift/drift.dart';
 const syncedTables = [
   'businesses',
   'notification_settings',
+  'cash_accounts',
   'expense_categories',
   'suppliers',
   'ingredients',
@@ -12,8 +13,10 @@ const syncedTables = [
   'products',
   'recipe_items',
   'product_costs',
+  'product_hpp_history',
   'customers',
   'sales_channels',
+  'product_channel_prices',
   'purchases',
   'purchase_items',
   'shopping_lists',
@@ -26,6 +29,7 @@ const syncedTables = [
   'stock_movements',
   'product_stock_movements',
   'expenses',
+  'cash_entries',
 ];
 
 /// Kolom cache per tabel: dihitung ulang dari buku mutasi di tiap HP, jadi
@@ -69,6 +73,7 @@ const uniqueKeys = <String, List<String>>{
   'ingredient_units': ['ingredient_id', 'unit_name'],
   'recipe_items': ['product_id', 'ingredient_id'],
   'orders': ['business_id', 'order_no'],
+  'product_channel_prices': ['product_id', 'channel_id'],
 };
 
 /// Waktu sekarang dalam milidetik epoch, dihitung di SQLite.

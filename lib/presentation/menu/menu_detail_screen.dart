@@ -14,6 +14,7 @@ import '../motion.dart';
 import '../reports/day_close_screen.dart' show wasteReasonLabel;
 import '../theme.dart';
 import 'menu_labels.dart';
+import 'menu_pricing_cards.dart';
 
 /// Detail menu: HPP, saran harga, rincian, kapasitas, simulasi target, stok
 /// produk jadi, dan riwayat produksi (mockup `DetailMenu`).
@@ -82,7 +83,11 @@ class _Detail extends ConsumerWidget {
             _PriceSuggestion(view: view),
           ],
           const SizedBox(height: 20),
+          ChannelPricesCard(product: product),
+          const SizedBox(height: 20),
           _Breakdown(view: view),
+          const SizedBox(height: 20),
+          HppHistoryCard(productId: product.id),
           if (view.capacity != null) ...[
             const SizedBox(height: 20),
             _Capacity(view: view),

@@ -3,6 +3,7 @@ import 'package:drift/drift.dart';
 
 import '../db/app_database.dart';
 import '../db/decimal_convert.dart';
+import 'cash_repository.dart';
 import 'hpp_refresher.dart';
 
 class BusinessRepository {
@@ -38,6 +39,7 @@ class BusinessRepository {
   /// "Langsung" tidak disimpan (channel kosong). Potongan channel diisi
   /// sendiri di Pengaturan karena besarnya beda per mitra.
   Future<void> _seedLists(String businessId) async {
+    await CashRepository(_db).ensureDefaults(businessId);
     final hasChannel =
         await (_db.select(_db.salesChannels)
               ..where((t) => t.businessId.equals(businessId))
@@ -128,7 +130,7 @@ class BusinessRepository {
           updatedAt: Value(DateTime.now().toUtc()),
         ),
       );
-      await refreshAllHpp(_db, businessId);
+      await refreshAllHpp(_db, businessId, cause: HppChangeCause.wage);
     });
   }
 

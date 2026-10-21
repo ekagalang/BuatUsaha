@@ -337,7 +337,7 @@ class SyncEngine {
   }
 
   Future<void> _mergeBusiness(String from, {required String into}) async {
-    Future<void> dedupe(String table, String child, String column) async {
+    Future<void> dedupe(String table, List<(String, String)> refs) async {
       final mine = await _db
           .customSelect(
             'SELECT id, name FROM $table WHERE business_id = ?',
@@ -357,16 +357,29 @@ class SyncEngine {
             .getSingleOrNull();
         if (same == null) continue;
         final id = row.read<String>('id');
-        await _db.customStatement(
-          'UPDATE $child SET $column = ? WHERE $column = ?',
-          [same.read<String>('id'), id],
-        );
+        for (final (child, column) in refs) {
+          await _db.customStatement(
+            'UPDATE $child SET $column = ? WHERE $column = ?',
+            [same.read<String>('id'), id],
+          );
+        }
         await _db.customStatement('DELETE FROM $table WHERE id = ?', [id]);
       }
     }
 
-    await dedupe('sales_channels', 'orders', 'channel_id');
-    await dedupe('expense_categories', 'expenses', 'category_id');
+    await dedupe('sales_channels', [
+      ('orders', 'channel_id'),
+      ('product_channel_prices', 'channel_id'),
+    ]);
+    await dedupe('expense_categories', [('expenses', 'category_id')]);
+    // Akun kas bawaan dibuat di tiap HP; yang bernama sama dilebur (FR-15.1).
+    await dedupe('cash_accounts', [
+      ('payments', 'cash_account_id'),
+      ('purchases', 'cash_account_id'),
+      ('expenses', 'cash_account_id'),
+      ('cash_entries', 'account_id'),
+      ('cash_entries', 'to_account_id'),
+    ]);
 
     final settings = await _db
         .customSelect(

@@ -174,7 +174,7 @@ void main() {
   ) async {
     final db = AppDatabase(NativeDatabase.memory());
     final id = (await tester.runAsync(() => _seed(db)))!;
-    await tester.binding.setSurfaceSize(const Size(360, 3000));
+    await tester.binding.setSurfaceSize(const Size(360, 4200));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await _pumpScreen(tester, db, MenuDetailScreen(id: id));
 
@@ -192,6 +192,10 @@ void main() {
     expect(find.text('Bisa jadi 30 pcs'), findsOneWidget);
     expect(find.text('Cokelat (pembatas)'), findsOneWidget);
     expect(find.text('Belum ada produksi.'), findsOneWidget);
+    expect(find.text('Harga per channel'), findsOneWidget);
+    expect(find.text('GoFood'), findsOneWidget);
+    expect(find.text('Riwayat HPP'), findsOneWidget);
+    expect(find.text('Menu dibuat'), findsOneWidget);
     expect(find.text('Catat produksi'), findsOneWidget);
 
     // Target 40 pcs: cokelat kurang 100 g × Rp150.

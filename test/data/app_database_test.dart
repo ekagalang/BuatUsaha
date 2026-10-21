@@ -22,7 +22,7 @@ void main() {
     return rows.map((row) => row.read<String>('name')).toList();
   }
 
-  test('membuat 21 tabel MVP + 2 tabel sinkron + 2 tabel belanja', () async {
+  test('membuat 21 tabel MVP + 2 tabel sinkron + 2 tabel belanja + 4 tabel harga dan kas', () async {
     expect(
       await namesOf('table'),
       unorderedEquals([
@@ -51,6 +51,10 @@ void main() {
         'sync_state',
         'shopping_lists',
         'shopping_list_items',
+        'product_channel_prices',
+        'product_hpp_history',
+        'cash_accounts',
+        'cash_entries',
       ]),
     );
   });
@@ -241,7 +245,7 @@ void main() {
   });
 
   test(
-    'migrasi skema v1 ke v5 menambah kolom dan tabel tanpa menghapus data',
+    'migrasi skema v1 ke v6 menambah kolom dan tabel tanpa menghapus data',
     () async {
       final dir = Directory.systemTemp.createTempSync('hpp_migrasi');
       final file = File('${dir.path}/app.sqlite');
@@ -280,6 +284,17 @@ void main() {
       ]) {
         await old.customStatement('ALTER TABLE businesses DROP COLUMN $c');
       }
+      for (final t in [
+        'cash_entries',
+        'cash_accounts',
+        'product_hpp_history',
+        'product_channel_prices',
+      ]) {
+        await old.customStatement('DROP TABLE $t');
+      }
+      for (final t in ['payments', 'purchases', 'expenses']) {
+        await old.customStatement('ALTER TABLE $t DROP COLUMN cash_account_id');
+      }
       await old.customStatement('PRAGMA user_version = 1');
       await old.close();
 
@@ -292,6 +307,9 @@ void main() {
       expect(business.paymentInfo, isNull);
       expect(await old.select(old.syncOutbox).get(), isEmpty);
       expect(await old.select(old.shoppingLists).get(), isEmpty);
+      // Akun kas bawaan dibuat lagi saat usaha dibuka.
+      await BusinessRepository(old).ensureDefault();
+      expect(await old.select(old.cashAccounts).get(), hasLength(3));
       final columns = await old
           .customSelect("SELECT name FROM pragma_table_info('expenses')")
           .get();

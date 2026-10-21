@@ -3,7 +3,9 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:buat_usaha/data/db/app_database.dart';
 import 'package:buat_usaha/data/repositories/business_repository.dart';
+import 'package:buat_usaha/data/repositories/cash_repository.dart';
 import 'package:buat_usaha/data/repositories/order_repository.dart';
+import 'package:buat_usaha/data/repositories/pricing_repository.dart';
 import 'package:buat_usaha/data/repositories/product_repository.dart';
 import 'package:buat_usaha/data/repositories/shopping_repository.dart';
 import 'package:buat_usaha/data/repositories/stock_repository.dart';
@@ -338,6 +340,8 @@ void main() {
     // Channel bawaan bernama sama dipakai bersama.
     expect(await c.count('sales_channels'), 7);
     expect(await c.count('expense_categories'), 6);
+    // Akun kas bawaan bernama sama dilebur.
+    expect(await c.count('cash_accounts'), 3);
     expect(await c.count('notification_settings'), 1);
     expect((await c.allOrders()).map((o) => o.orderNo).toSet(), {
       'PO-261225-001',
@@ -436,4 +440,39 @@ void main() {
     expect(await a.engine.pendingCount(), 0);
     expect((await b.ingredient(seed.ids['telur']!)).name, 'Telur ayam');
   });
+
+  test(
+    'harga channel, riwayat HPP, dan kas ikut tersinkron (S4, S5)',
+    () async {
+      final (a, b, seed) = await twoLinkedPhones();
+      final mitra = await seed.channel('Mitra 20%', '20');
+      await PricingRepository(
+        a.db,
+        a.products,
+      ).setChannelPrice(seed.brownies, mitra, price: 10000);
+      await a.business.setOwnerHourlyWage(seed.businessId, 20000);
+      await CashRepository(a.db).addEntry(
+        seed.businessId,
+        kind: CashEntryKind.capitalIn,
+        accountId: '${seed.businessId}-tunai',
+        amount: 50000,
+        occurredAt: DateTime(2026, 10, 1),
+      );
+      await a.engine.sync(uid);
+      await b.engine.sync(uid);
+
+      final prices = await PricingRepository(
+        b.db,
+        b.products,
+      ).watchChannelPrices(seed.businessId).first;
+      expect(prices[seed.brownies], {mitra: 10000});
+      // Dicatat sekali oleh HP A, tidak dicatat ulang saat ditarik HP B.
+      expect(await a.count('product_hpp_history'), 2);
+      expect(await b.count('product_hpp_history'), 2);
+      expect(await b.count('cash_accounts'), 3);
+      final balances = await CashRepository(b.db)
+          .balancesAt(seed.businessId, DateTime(2027));
+      expect(balances.first.balance, 50000);
+    },
+  );
 }

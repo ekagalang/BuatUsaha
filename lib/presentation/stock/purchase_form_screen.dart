@@ -13,6 +13,7 @@ import '../../domain/costing/money.dart';
 import '../../domain/stock/units.dart';
 import '../common/format.dart';
 import '../common/rupiah_input.dart';
+import '../cash/cash_account_picker.dart';
 import '../common/widgets.dart';
 import '../theme.dart';
 
@@ -65,6 +66,7 @@ class _PurchaseFormScreenState extends ConsumerState<PurchaseFormScreen> {
   late bool _loading =
       widget.purchaseId != null || widget.fromShoppingList != null;
   var _fromListCount = 0;
+  String? _cashAccountId;
 
   /// Jam belanja lama dipertahankan saat diubah.
   DateTime? _originalAt;
@@ -153,6 +155,7 @@ class _PurchaseFormScreenState extends ConsumerState<PurchaseFormScreen> {
       _originalAt = input.purchasedAt.toLocal();
       _date = DateUtils.dateOnly(_originalAt!);
       _note.text = input.note ?? '';
+      _cashAccountId = input.cashAccountId;
       _loading = false;
     });
     _schedulePreview();
@@ -223,6 +226,7 @@ class _PurchaseFormScreenState extends ConsumerState<PurchaseFormScreen> {
       ),
       lines: lines,
       note: _note.text.trim().isEmpty ? null : _note.text.trim(),
+      cashAccountId: _cashAccountId,
     );
   }
 
@@ -364,6 +368,14 @@ class _PurchaseFormScreenState extends ConsumerState<PurchaseFormScreen> {
                   decoration: const InputDecoration(
                     labelText: 'Toko atau catatan (opsional)',
                   ),
+                ),
+                const SizedBox(height: 12),
+                CashAccountPicker(
+                  value: _cashAccountId,
+                  onChanged: (id) {
+                    _cashAccountId = id;
+                    _changed();
+                  },
                 ),
                 const SizedBox(height: 20),
                 const SectionTitle('Item belanja'),

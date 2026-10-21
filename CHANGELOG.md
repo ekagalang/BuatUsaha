@@ -2,6 +2,16 @@
 
 Satu bagian per versi, terbaru di atas. Judul bagian `## <versi> (<tanggal>)` dipakai CI sebagai catatan GitHub Release, dan poin-poinnya tampil di dialog "Versi baru tersedia" di aplikasi.
 
+## 1.3.0 (2026-10-21)
+
+- Harga jual per channel (GoFood, GrabFood, dll.) dengan saran harga supaya laba sama dengan jual langsung
+- Pesanan lewat channel otomatis memakai harga channel
+- Riwayat HPP per menu dengan grafik dan sebab perubahannya
+- Simulasi kenaikan harga bahan: HPP, laba, dan saran harga baru per menu
+- Kas: saldo Tunai, Bank, QRIS/e-wallet dari pembayaran, belanja, dan pengeluaran
+- Catat modal masuk, ambil pribadi, pindah akun, dan koreksi saldo
+- Laporan kas bulanan dan penjelasan kenapa laba beda dengan kas
+
 ## 1.2.0 (2026-10-21)
 
 - Nota pesanan: kirim ke WhatsApp pelanggan, bagikan teks, atau PDF ukuran A6/struk 58 mm
