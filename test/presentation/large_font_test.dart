@@ -7,6 +7,8 @@ import 'package:buat_usaha/data/providers.dart';
 import 'package:buat_usaha/data/repositories/day_close_repository.dart';
 import 'package:buat_usaha/data/repositories/order_repository.dart';
 import 'package:buat_usaha/data/repositories/stock_repository.dart';
+import 'package:buat_usaha/presentation/auth/login_screen.dart';
+import 'package:buat_usaha/presentation/auth/prepare_screen.dart';
 import 'package:buat_usaha/presentation/home/home_screen.dart';
 import 'package:buat_usaha/presentation/menu/menu_detail_screen.dart';
 import 'package:buat_usaha/presentation/menu/menu_form_screen.dart';
@@ -129,6 +131,8 @@ void main() {
     'Ubah belanja': (i) => PurchaseFormScreen(purchaseId: i.purchase),
     'Koreksi HPP': (_) => const CostCorrectionScreen(),
     'Pengaturan': (_) => const SettingsScreen(),
+    'Masuk': (_) => const LoginScreen(),
+    'Menyiapkan': (_) => const PrepareScreen(),
   };
 
   for (final MapEntry(key: name, value: build) in screens.entries) {

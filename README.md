@@ -66,7 +66,7 @@ Tanpa secrets, artefak CI bernama `buatusaha-apk-debug-signed`.
 
 ## Firebase: akun Google, sinkron, laporan crash
 
-Semua fitur Firebase hanya aktif jika `android/app/google-services.json` ada. Tanpa file itu aplikasi tetap jalan penuh dalam mode lokal dan tombol **Masuk dengan Google** tidak aktif. File itu tidak masuk git karena repo ini public. Semuanya memakai paket Spark (gratis).
+Masuk dengan Google **wajib** saat aplikasi pertama dibuka, jadi `android/app/google-services.json` harus ada di setiap build yang dipasang. Tanpa file itu aplikasi berhenti di layar Masuk dengan pesan "belum tersambung ke Firebase" (APK dari CI tanpa secret `GOOGLE_SERVICES_JSON_BASE64` juga begitu). File itu tidak masuk git karena repo ini public. Semuanya memakai paket Spark (gratis).
 
 1. Buka [console.firebase.google.com](https://console.firebase.google.com), **Add project** (Google Analytics boleh dimatikan).
 2. **Add app › Android**, package name `com.ekagalang.buatusaha`. Di **Project settings › Your apps** tambahkan dua sidik jari SHA-1: kunci release `F5:A3:09:EF:29:9D:4D:82:8E:CE:12:43:6B:36:6C:0B:A8:26:A0:D0` dan kunci debug (`./gradlew signingReport` di folder `android`). Setelah itu unduh `google-services.json` dan taruh di `android/app/`.
@@ -83,7 +83,9 @@ Jika `google-services.json` diunduh ulang (mis. setelah menambah SHA-1), ganti j
 
 ### Cara kerja sinkron
 
-- **Pengaturan › Akun dan sinkron › Masuk dengan Google.** Data tetap tersimpan di HP; salinannya ada di Firestore `users/{uid}/{tabel}/{id}`, hanya bisa dibuka akun itu sendiri.
+- **Layar Masuk → Masuk dengan Google.** Akun baru otomatis terdaftar. Masuk pertama kali butuh internet; setelah itu sesi tersimpan dan aplikasi bisa dibuka tanpa internet. Data tetap tersimpan di HP; salinannya ada di Firestore `users/{uid}/{tabel}/{id}`, hanya bisa dibuka akun itu sendiri.
+- Setelah masuk, layar **Menyiapkan** mengunduh data akun (HP baru), mengunggah data HP (pengguna versi lama tanpa akun), menanyakan gabung/ganti bila keduanya berisi data, atau langsung ke onboarding untuk akun baru.
+- **Pengaturan › Akun dan sinkron › Keluar dari akun**: perubahan yang tertunda dikirim dulu, lalu data usaha dan backup otomatis dihapus dari HP dan aplikasi kembali ke layar Masuk. Data di akun tetap ada.
 - Perubahan dikirim ±15 detik setelah tersimpan. Perubahan dari HP lain ditarik saat aplikasi dibuka, kembali dari latar, tiap 30 menit selama dibuka, dan tiap 6 jam di latar belakang. Tanpa internet perubahan menunggu di antrean, lalu dicoba lagi otomatis.
 - Konflik per baris: perubahan terbaru menang. Stok, harga rata-rata, HPP, dan sisa tagihan dihitung ulang di tiap HP dari buku mutasinya.
 - Login pertama: akun kosong → data HP diunggah; HP kosong → data akun diunduh; keduanya berisi data → pilih **Gabungkan keduanya** atau **Pakai data akun** (data HP dicadangkan dulu ke backup otomatis hari ini).

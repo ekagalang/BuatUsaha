@@ -160,6 +160,24 @@ Desain di-acc lewat mockup baris "Perbaikan, akun & sinkron" di canvas.
 - [ ] Login dari onboarding (FR-10.1 menyebut onboarding; belum ada desainnya)
 - [ ] Uji di HP dengan Firebase sungguhan: login, unggah, HP kedua unduh, offline lalu online
 
+## Masuk wajib dengan Google (disetujui 21 Okt 2026)
+
+Login tidak lagi opsional: aplikasi dibuka → layar Masuk dulu, terasa seperti aplikasi komersial.
+
+- [x] PRD diperbarui sebagai usulan: FR-10.1 (masuk wajib, tanpa mode lokal), FR-10.8 (keluar akun menghapus data dan backup otomatis dari HP), FR-10.12 (layar Masuk), FR-10.13 (menyiapkan data), FR-8.4 (onboarding hanya untuk akun baru), catatan sebelum dikomersialkan
+- [x] Mockup baris "Masuk wajib dengan Google": `Masuk`, `Menyiapkan`, `AlurMasuk`; `AkunData` diperbarui (kartu belum masuk dihapus, dialog keluar akun baru)
+- [x] Pengguna meng-acc PRD dan mockup, termasuk keluar akun menghapus data dari HP (21 Okt 2026)
+- [x] Gerbang masuk di router (`accountGate`): layar pembuka → Masuk → Menyiapkan → aplikasi; lokasi tujuan dari notifikasi dibawa lewat layar pembuka
+- [x] Layar Masuk (`auth/login_screen.dart`) sesuai mockup: ikon cupcake dan logo Google digambar dari path SVG (`common/brand_marks.dart`), pesan gagal (tanpa internet, dibatalkan, belum tersambung Firebase); tautan Ketentuan/Kebijakan masih snackbar
+- [x] Layar Menyiapkan (`auth/prepare_screen.dart`): unduh/unggah dengan progres "x dari y data", dialog Gabungkan / Pakai data akun / Batal dan keluar, akun baru langsung ke onboarding, pulihkan backup → isi akun diganti
+- [x] Keluar akun: kirim perubahan dulu, peringatan bila masih ada yang belum terkirim, hapus data usaha + backup otomatis + `.bak`, kembali ke Masuk
+- [x] Pengaturan › Akun dan sinkron hanya menampilkan akun yang masuk; restore backup menandai isi akun untuk diganti
+- [x] 159 test lulus (alur masuk lengkap lewat aplikasi, keluar akun, huruf 130% untuk layar Masuk dan Menyiapkan)
+- [x] Build APK release lulus (arm64 25,9 MB)
+- [x] Di-commit dan di-push ke `dev` (21 Okt 2026)
+- [ ] Uji di HP: pasang APK baru, masuk dengan Google, data HP terunggah, keluar lalu masuk lagi
+- [ ] Sebelum dikomersialkan: Kebijakan privasi dan Ketentuan layanan, menu Hapus akun dan semua data, paket Blaze bila kuota terlewati
+
 ## Uji pakai sendiri (minggu 12)
 
 - [x] Build APK release dengan keystore sendiri (arm64 24,8 MB, armeabi-v7a 22,6 MB, x86_64 26,3 MB)

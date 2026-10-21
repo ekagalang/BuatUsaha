@@ -46,12 +46,17 @@ abstract class RemoteStore {
   Future<void> write(String uid, List<RemoteWrite> writes);
 
   /// Dokumen [table] yang ditulis setelah [since] (semua jika `null`),
-  /// urut waktu server.
+  /// urut waktu server. [onPage] dipanggil tiap satu halaman dokumen
+  /// tertarik, dengan jumlah dokumennya (untuk progres unduh).
   Future<List<RemoteDoc>> changedSince(
     String uid,
     String table,
-    DateTime? since,
-  );
+    DateTime? since, {
+    void Function(int count)? onPage,
+  });
+
+  /// Jumlah semua dokumen baris di akun, untuk progres unduh.
+  Future<int> countAll(String uid);
 
   /// Id usaha yang tersimpan di akun; kosong = akun belum berisi data.
   Future<List<String>> businessIds(String uid);

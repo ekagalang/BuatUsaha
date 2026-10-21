@@ -15,7 +15,6 @@ import '../../data/providers.dart';
 import '../../services/auto_backup.dart';
 import '../../services/backup_service.dart';
 import '../../services/local_notifications.dart';
-import '../../services/sync_controller.dart';
 import '../common/format.dart';
 import '../common/rupiah_input.dart';
 import '../common/widgets.dart';
@@ -909,7 +908,6 @@ class _DataSectionState extends ConsumerState<_DataSection> {
     try {
       final name = await BackupService.inspect(file);
       if (!mounted) return;
-      final signedIn = ref.read(syncControllerProvider).user != null;
       final ok = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
@@ -917,8 +915,8 @@ class _DataSectionState extends ConsumerState<_DataSection> {
           content: Text(
             'Data di HP ini akan diganti dengan backup "$name"'
             '${when == null ? '' : ' (${when.toLowerCase()})'}. Data sekarang '
-            'disimpan sebagai cadangan .bak di folder aplikasi.'
-            '${signedIn ? ' Isi akun Google juga diganti dengan backup ini.' : ''}',
+            'disimpan sebagai cadangan .bak di folder aplikasi. Isi akun '
+            'Google juga diganti dengan backup ini.',
           ),
           actions: [
             TextButton(
@@ -937,7 +935,8 @@ class _DataSectionState extends ConsumerState<_DataSection> {
         ),
       );
       if (ok != true) return;
-      // Dilepas dari akun dulu, supaya sinkron tidak menimpanya lagi.
+      // Dilepas dari akun dan ditandai: layar Menyiapkan lalu mengganti isi
+      // akun dengan backup ini (FR-10.11), supaya sinkron tidak menimpanya.
       final restored = await BackupService.detached(file);
       await ref.read(notificationSyncProvider).dispose();
       await ref.read(appDatabaseProvider).closeOnce();
@@ -945,9 +944,7 @@ class _DataSectionState extends ConsumerState<_DataSection> {
       restored.deleteSync();
       ref.invalidate(appDatabaseProvider);
       ref.read(notificationSyncProvider).start();
-      final sync = ref.read(syncControllerProvider.notifier);
       router.go('/beranda');
-      await sync.afterRestore();
       messenger.showSnackBar(
         const SnackBar(content: Text('Data dipulihkan dari backup.')),
       );

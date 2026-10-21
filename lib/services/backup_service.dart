@@ -4,6 +4,7 @@ import 'package:drift/native.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../data/db/app_database.dart';
+import '../data/sync/sync_engine.dart';
 
 /// File SQLite yang dipakai aplikasi (lihat `driftDatabase(name: 'buat_usaha')`).
 Future<File> databaseFile() async {
@@ -60,8 +61,9 @@ class BackupService {
   }
 
   /// Salinan [backup] yang dilepas dari akun: uid pemilik, antrean kirim,
-  /// dan batas tarik dihapus. Tanpa ini sinkron berikutnya akan menimpa
-  /// data yang baru dipulihkan dengan isi akun.
+  /// dan batas tarik dihapus, lalu ditandai supaya isi akun diganti isi
+  /// backup ini saat layar Menyiapkan berjalan (FR-10.11). Tanpa ini
+  /// sinkron berikutnya akan menimpa data yang baru dipulihkan.
   static Future<File> detached(File backup) async {
     final copy = await backup.copy('${backup.path}.restore');
     final db = AppDatabase(NativeDatabase(copy));
@@ -69,10 +71,18 @@ class BackupService {
       await db.customStatement('UPDATE businesses SET owner_uid = NULL');
       await db.delete(db.syncOutbox).go();
       await db.delete(db.syncState).go();
+      await SyncEngine.markOverwrite(db);
     } finally {
       await db.close();
     }
     return copy;
+  }
+
+  /// Keluar akun (FR-10.8): salinan `.bak` dari pemulihan terakhir dihapus.
+  static Future<void> deleteLeftovers({File? target}) async {
+    final db = target ?? await databaseFile();
+    final bak = File('${db.path}.bak');
+    if (bak.existsSync()) bak.deleteSync();
   }
 
   /// Mengganti database aplikasi dengan [backup]. Database yang sedang

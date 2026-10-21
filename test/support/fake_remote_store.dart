@@ -40,13 +40,25 @@ class FakeRemoteStore implements RemoteStore {
   Future<List<RemoteDoc>> changedSince(
     String uid,
     String table,
-    DateTime? since,
-  ) async {
+    DateTime? since, {
+    void Function(int count)? onPage,
+  }) async {
     _online();
-    return _table(uid, table).values
-        .where((d) => since == null || d.serverTime.isAfter(since))
-        .toList()
-      ..sort((a, b) => a.serverTime.compareTo(b.serverTime));
+    final docs =
+        _table(uid, table).values
+            .where((d) => since == null || d.serverTime.isAfter(since))
+            .toList()
+          ..sort((a, b) => a.serverTime.compareTo(b.serverTime));
+    onPage?.call(docs.length);
+    return docs;
+  }
+
+  @override
+  Future<int> countAll(String uid) async {
+    _online();
+    return _docs.entries
+        .where((e) => e.key.startsWith('$uid/'))
+        .fold<int>(0, (sum, e) => sum + e.value.length);
   }
 
   @override

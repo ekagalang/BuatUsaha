@@ -55,6 +55,14 @@ class AutoBackup {
     return file;
   }
 
+  /// Keluar akun (FR-10.8): backup otomatis ikut dihapus dari HP, supaya
+  /// akun lain di HP ini tidak bisa memulihkannya.
+  static Future<void> deleteAll({Directory? into}) async {
+    for (final file in await list(into: into)) {
+      if (file.existsSync()) file.deleteSync();
+    }
+  }
+
   /// Backup otomatis, terbaru di atas.
   static Future<List<File>> list({Directory? into}) async {
     final dir = into ?? await folder();

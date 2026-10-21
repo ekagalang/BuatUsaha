@@ -12,6 +12,7 @@ import '../data/sync/sync_engine.dart';
 import '../data/sync/sync_schema.dart';
 import 'account_service.dart';
 import 'auto_backup.dart';
+import 'backup_service.dart';
 
 /// `true` setelah `Firebase.initializeApp` berhasil (ada
 /// `google-services.json` di build ini); diisi di `main`.
@@ -48,6 +49,7 @@ final syncControllerProvider = NotifierProvider<SyncController, SyncStatus>(
 class SyncStatus {
   const SyncStatus({
     this.available = false,
+    this.ready = false,
     this.user,
     this.linked = false,
     this.busy = false,
@@ -56,24 +58,30 @@ class SyncStatus {
 
   /// Firebase siap di build ini.
   final bool available;
+
+  /// Status masuk dan keterhubungan data sudah diketahui; sebelum itu
+  /// aplikasi menampilkan layar pembuka.
+  final bool ready;
   final AccountUser? user;
 
   /// Data HP ini terhubung dengan akun [user] dan ikut disinkron.
   final bool linked;
   final bool busy;
 
-  /// Pesan kegagalan terakhir; hilang setelah sinkron berhasil.
+  /// Pesan kegagalan terakhir; hilang setelah berhasil.
   final String? error;
 
   static const _keep = Object();
 
   SyncStatus copyWith({
+    bool? ready,
     Object? user = _keep,
     bool? linked,
     bool? busy,
     Object? error = _keep,
   }) => SyncStatus(
     available: available,
+    ready: ready ?? this.ready,
     user: identical(user, _keep) ? this.user : user as AccountUser?,
     linked: linked ?? this.linked,
     busy: busy ?? this.busy,
@@ -81,6 +89,10 @@ class SyncStatus {
   );
 }
 
+/// Akun dan sinkron (PRD 5.10). Masuk wajib (FR-10.1): router menahan
+/// pengguna di layar Masuk sampai [SyncStatus.user] ada, lalu di layar
+/// Menyiapkan sampai [SyncStatus.linked].
+///
 /// Kapan sinkron berjalan (FR-10.2): kirim ±15 detik setelah perubahan
 /// tersimpan; tarik + kirim saat aplikasi dibuka, kembali dari latar, tiap
 /// 30 menit selama dibuka, dan tiap 6 jam di latar (WorkManager). Gagal →
@@ -103,7 +115,6 @@ class SyncController extends Notifier<SyncStatus> {
   StreamSubscription<void>? _dbSub;
   AppLifecycleListener? _lifecycle;
   var _failures = 0;
-  var _overwriting = false;
 
   AccountGateway? get _gateway => ref.read(accountGatewayProvider);
   SyncEngine? get _engine => ref.read(syncEngineProvider);
@@ -113,9 +124,13 @@ class SyncController extends Notifier<SyncStatus> {
     final gateway = ref.watch(accountGatewayProvider);
     final engine = ref.watch(syncEngineProvider);
     ref.onDispose(_stop);
-    if (gateway == null || engine == null) return const SyncStatus();
+    if (gateway == null || engine == null) {
+      // Build tanpa Firebase: layar Masuk menampilkan pesannya (FR-10.12).
+      return const SyncStatus(ready: true);
+    }
 
     final db = ref.watch(appDatabaseProvider);
+    // Stream login langsung mengirim akun saat ini → status siap.
     _authSub = gateway.changes().listen(_onUser);
     _dbSub = db
         .tableUpdates(
@@ -127,7 +142,6 @@ class SyncController extends Notifier<SyncStatus> {
         .listen((_) => _schedulePush());
     _lifecycle = AppLifecycleListener(onResume: () => _run(full: true));
     _periodic = Timer.periodic(_foregroundPull, (_) => _run(full: true));
-    // Stream login langsung mengirim akun saat ini → sinkron saat dibuka.
     return SyncStatus(available: true, user: gateway.current);
   }
 
@@ -150,12 +164,8 @@ class SyncController extends Notifier<SyncStatus> {
     final linkedUid = await engine.linkedUid();
     if (!ref.mounted) return;
     final linked = user != null && linkedUid == user.uid;
-    state = state.copyWith(user: user, linked: linked);
-    if (linked) {
-      await _run(full: true);
-    } else if (user != null && await engine.overwritePending()) {
-      await _guard(() => _overwrite(user));
-    }
+    state = state.copyWith(ready: true, user: user, linked: linked);
+    if (linked) await _run(full: true);
   }
 
   void _schedulePush() {
@@ -172,7 +182,7 @@ class SyncController extends Notifier<SyncStatus> {
   }
 
   /// Menjalankan [body] dengan status sibuk; gagal → pesan di [SyncStatus]
-  /// (FR-10.7) dan dicoba lagi nanti. `true` jika berhasil.
+  /// (FR-10.7) dan sinkron dicoba lagi nanti. `true` jika berhasil.
   Future<bool> _guard(Future<void> Function() body) async {
     state = state.copyWith(busy: true);
     try {
@@ -195,55 +205,59 @@ class SyncController extends Notifier<SyncStatus> {
     }
   }
 
-  // ------------------------------------------------------- Dari layar
+  // ------------------------------------------------------- Layar Masuk
 
-  /// Login Google (FR-10.1). Mengembalikan pemeriksaan akun bila pengguna
-  /// harus memilih gabung atau ganti (FR-10.5); `null` jika sudah selesai
-  /// atau dibatalkan.
-  Future<LinkCheck?> signIn() async {
+  /// Masuk dengan Google (FR-10.1). `true` jika berhasil; dibatalkan atau
+  /// gagal → `false`, pesannya di [SyncStatus.error].
+  Future<bool> signIn() async {
     final gateway = _gateway;
-    if (gateway == null) return null;
+    if (gateway == null) return false;
     AccountUser? user;
-    if (!await _guard(() async => user = await gateway.signIn())) return null;
-    final signedIn = user;
-    if (signedIn == null) return null;
-    state = state.copyWith(user: signedIn);
-    return _connect(signedIn);
+    final ok = await _guard(() async => user = await gateway.signIn());
+    if (!ref.mounted) return false;
+    if (ok && user == null) {
+      state = state.copyWith(
+        error:
+            'Masuk dibatalkan. Pilih akun Google '
+            'untuk melanjutkan.',
+      );
+      return false;
+    }
+    if (!ok) return false;
+    // Data belum terhubung: router pindah ke layar Menyiapkan.
+    state = state.copyWith(ready: true, user: user, linked: false);
+    return true;
   }
 
-  /// Sinkron sekarang. Bila data HP ini belum terhubung dengan akun yang
-  /// login, sama seperti login pertama.
-  Future<LinkCheck?> syncNow() async {
+  // -------------------------------------------------- Layar Menyiapkan
+
+  /// Backup baru dipulihkan: isi akun harus diganti isi HP ini (FR-10.11).
+  Future<bool> overwritePending() async =>
+      await _engine?.overwritePending() ?? false;
+
+  /// Memeriksa isi akun dan HP ini (FR-10.13). `null` jika gagal.
+  Future<LinkCheck?> inspect() async {
+    final engine = _engine;
     final user = state.user;
-    if (user == null) return null;
-    if (state.linked) {
-      await _run(full: true);
-      return null;
-    }
-    return _connect(user);
-  }
-
-  Future<LinkCheck?> _connect(AccountUser user) async {
-    final engine = _engine!;
-    if (await engine.overwritePending()) {
-      await _guard(() => _overwrite(user));
-      return null;
-    }
+    if (engine == null || user == null) return null;
     LinkCheck? check;
-    if (!await _guard(() async => check = await engine.check(user.uid))) {
-      return null;
-    }
-    final result = check!;
-    if (result.plan == LinkPlan.choose) return result;
-    await link(result);
-    return null;
+    final ok = await _guard(() async {
+      // Usaha bawaan dulu, supaya akun baru langsung punya usaha.
+      await ref.read(businessRepositoryProvider).ensureDefault();
+      check = await engine.check(user.uid);
+    });
+    return ok ? check : null;
   }
 
   /// Menghubungkan data HP ini dengan akun sesuai [check] dan [choice].
-  Future<void> link(LinkCheck check, [LinkChoice? choice]) async {
+  Future<bool> link(
+    LinkCheck check, {
+    LinkChoice? choice,
+    LinkProgressCallback? onProgress,
+  }) async {
     final engine = _engine;
     final user = state.user;
-    if (engine == null || user == null) return;
+    if (engine == null || user == null) return false;
     final ok = await _guard(() async {
       final replacing =
           check.plan == LinkPlan.download ||
@@ -252,7 +266,12 @@ class SyncController extends Notifier<SyncStatus> {
         // FR-10.5: data HP dicadangkan dulu ke file.
         await AutoBackup.snapshot(ref.read(appDatabaseProvider));
       }
-      await engine.link(user.uid, check.plan, choice: choice);
+      await engine.link(
+        user.uid,
+        check.plan,
+        choice: choice,
+        onProgress: onProgress,
+      );
       try {
         await ref
             .read(remoteStoreProvider)
@@ -261,59 +280,72 @@ class SyncController extends Notifier<SyncStatus> {
         // Hanya keterangan akun; data usaha sudah tersinkron.
       }
     });
-    if (!ok || !ref.mounted) return;
+    if (!ok || !ref.mounted) return false;
     state = state.copyWith(linked: true);
     ref.invalidate(currentBusinessProvider);
+    return true;
   }
 
-  /// Pengguna menutup dialog "Akun ini sudah berisi data": batal login.
-  Future<void> cancelLink() async {
-    await _gateway?.signOut();
-    if (ref.mounted) state = state.copyWith(user: null, linked: false);
-  }
-
-  /// Keluar akun (FR-10.8). Perubahan yang masih tertunda dicoba dikirim
-  /// dulu; [wipe] menghapus data dari HP ini.
-  Future<void> signOut({required bool wipe}) async {
+  /// Isi akun diganti isi backup yang baru dipulihkan (FR-10.11).
+  Future<bool> overwrite({LinkProgressCallback? onProgress}) async {
     final engine = _engine;
     final user = state.user;
+    if (engine == null || user == null) return false;
+    final ok = await _guard(
+      () => engine.overwriteRemote(user.uid, onProgress: onProgress),
+    );
+    if (!ok || !ref.mounted) return false;
+    state = state.copyWith(linked: true);
+    ref.invalidate(currentBusinessProvider);
+    return true;
+  }
+
+  /// Batal di layar Menyiapkan: keluar dari Google, kembali ke layar Masuk.
+  /// Data HP ini belum terhubung, jadi tidak dihapus.
+  Future<void> cancelLink() async {
+    await _gateway?.signOut();
+    if (ref.mounted) {
+      state = state.copyWith(user: null, linked: false, error: null);
+    }
+  }
+
+  // ------------------------------------------------------- Pengaturan
+
+  Future<void> syncNow() => _run(full: true);
+
+  /// Sebelum keluar: perubahan yang tertunda dicoba dikirim. Mengembalikan
+  /// jumlah yang masih belum terkirim (tanpa internet).
+  Future<int> flushBeforeSignOut() async {
+    final engine = _engine;
+    final user = state.user;
+    if (engine == null) return 0;
+    if (user != null && state.linked && await engine.pendingCount() > 0) {
+      await _guard(() => engine.sync(user.uid, pull: false));
+    }
+    return engine.pendingCount();
+  }
+
+  /// Keluar akun (FR-10.8): data usaha dan backup otomatis dihapus dari HP
+  /// ini, lalu router kembali ke layar Masuk. Data di akun tetap ada.
+  Future<void> signOut() async {
+    final engine = _engine;
     if (engine == null) return;
-    if (user != null && state.linked) {
+    _pushTimer?.cancel();
+    _retryTimer?.cancel();
+    await engine.unlink(wipe: true);
+    for (final cleanup in [
+      AutoBackup.deleteAll,
+      BackupService.deleteLeftovers,
+    ]) {
       try {
-        await engine.sync(user.uid, pull: false);
-      } catch (_) {
-        // Tetap keluar; perubahan yang belum terkirim hilang dari antrean.
+        await cleanup();
+      } catch (e) {
+        debugPrint('Keluar akun: backup lokal gagal dihapus ($e)');
       }
     }
-    await engine.unlink(wipe: wipe);
     await _gateway?.signOut();
     if (!ref.mounted) return;
-    _retryTimer?.cancel();
     state = state.copyWith(user: null, linked: false, error: null);
     ref.invalidate(currentBusinessProvider);
-  }
-
-  /// Dipanggil setelah database diganti backup. Saat login, isi akun ikut
-  /// diganti isi backup (data akun tidak menimpa data yang dipulihkan).
-  Future<void> afterRestore() async {
-    final engine = _engine;
-    final user = _gateway?.current;
-    if (engine == null || user == null) return;
-    // Ditandai dulu: jika gagal (offline), dijalankan lagi saat sinkron
-    // berikutnya.
-    await engine.requestOverwrite();
-    await _guard(() => _overwrite(user));
-  }
-
-  Future<void> _overwrite(AccountUser user) async {
-    // Stream login dan afterRestore bisa memanggil bersamaan; cukup sekali.
-    if (_overwriting) return;
-    _overwriting = true;
-    try {
-      await _engine!.overwriteRemote(user.uid);
-    } finally {
-      _overwriting = false;
-    }
-    if (ref.mounted) state = state.copyWith(user: user, linked: true);
   }
 }

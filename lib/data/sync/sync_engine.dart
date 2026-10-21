@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
@@ -46,6 +47,21 @@ class LocalSummary {
       ingredients == 0 && products == 0 && orders == 0 && others == 0;
 }
 
+enum LinkPhase { download, upload }
+
+/// Progres menyiapkan data setelah masuk (FR-10.13).
+class LinkProgress {
+  const LinkProgress(this.phase, this.done, this.total);
+
+  final LinkPhase phase;
+  final int done;
+  final int total;
+
+  double get fraction => total == 0 ? 1 : done / total;
+}
+
+typedef LinkProgressCallback = void Function(LinkProgress progress);
+
 class LinkCheck {
   const LinkCheck(this.plan, this.local, {this.remoteUpdatedAt});
 
@@ -90,7 +106,7 @@ class SyncEngine {
 
   // ------------------------------------------------------------- Status
 
-  /// uid akun yang terhubung dengan data HP ini; `null` = mode lokal.
+  /// uid akun yang terhubung dengan data HP ini; `null` = belum terhubung.
   Future<String?> linkedUid() async {
     final row = await _db
         .customSelect(
@@ -160,24 +176,30 @@ class SyncEngine {
   }
 
   /// Menghubungkan data HP ini dengan akun [uid] lalu sinkron. Untuk
-  /// [LinkPlan.choose], [choice] wajib diisi. Backup ke file sebelum data
-  /// HP diganti adalah tugas pemanggil.
-  Future<void> link(String uid, LinkPlan plan, {LinkChoice? choice}) async {
+  /// [LinkPlan.choose], [choice] wajib diisi. [onProgress] melaporkan unduh
+  /// lalu unggah (FR-10.13). Backup ke file sebelum data HP diganti adalah
+  /// tugas pemanggil.
+  Future<void> link(
+    String uid,
+    LinkPlan plan, {
+    LinkChoice? choice,
+    LinkProgressCallback? onProgress,
+  }) async {
     await _exclusive(() async {
       switch (plan) {
         case LinkPlan.upload:
           await _linkUpload(uid);
         case LinkPlan.download:
-          await _linkReplace(uid);
+          await _linkReplace(uid, onProgress);
         case LinkPlan.rejoin:
-          await _linkMerge(uid);
+          await _linkMerge(uid, onProgress);
         case LinkPlan.choose:
           if (choice == null) throw ArgumentError.notNull('choice');
           await (choice == LinkChoice.replace
-              ? _linkReplace(uid)
-              : _linkMerge(uid));
+              ? _linkReplace(uid, onProgress)
+              : _linkMerge(uid, onProgress));
       }
-      await _push(uid);
+      await _push(uid, onProgress: onProgress);
       await _markSynced();
     });
   }
@@ -199,14 +221,14 @@ class SyncEngine {
     });
   }
 
-  /// Tandai bahwa isi akun harus diganti isi HP ini (setelah memulihkan
-  /// backup), supaya tetap dijalankan walau internet baru ada nanti.
-  Future<void> requestOverwrite() => _db
-      .into(_db.syncState)
+  /// Tandai bahwa isi akun harus diganti isi [db] (backup yang dipulihkan),
+  /// supaya tetap dijalankan walau internet baru ada nanti.
+  static Future<void> markOverwrite(AppDatabase db) => db
+      .into(db.syncState)
       .insertOnConflictUpdate(
         SyncStateCompanion.insert(
           entity: _overwriteKey,
-          lastPulledAt: Value(_clock().toUtc()),
+          lastPulledAt: Value(DateTime.now().toUtc()),
         ),
       );
 
@@ -220,9 +242,12 @@ class SyncEngine {
   /// Baris akun yang tidak ada di backup dihapus dari akun, supaya HP lain
   /// ikut kembali ke isi backup dan data yang dipulihkan tidak tertimpa
   /// lagi saat menarik.
-  Future<void> overwriteRemote(String uid) async {
+  Future<void> overwriteRemote(
+    String uid, {
+    LinkProgressCallback? onProgress,
+  }) async {
     await _exclusive(() async {
-      final docs = await _fetch(uid, all: true);
+      final docs = await _fetchAll(uid, onProgress);
       await _db.transaction(() async {
         await _resetState();
         await _setOwner(uid);
@@ -237,7 +262,7 @@ class SyncEngine {
         await _saveCursors(docs);
         await setSyncFlag(_db, 'enabled', on: true);
       });
-      await _push(uid);
+      await _push(uid, onProgress: onProgress);
       await _markSynced();
     });
   }
@@ -252,8 +277,11 @@ class SyncEngine {
   }
 
   /// Data HP ini diganti seluruhnya dengan data akun.
-  Future<void> _linkReplace(String uid) async {
-    final docs = await _fetch(uid, all: true);
+  Future<void> _linkReplace(
+    String uid, [
+    LinkProgressCallback? onProgress,
+  ]) async {
+    final docs = await _fetchAll(uid, onProgress);
     await _db.transaction(() async {
       await setSyncFlag(_db, 'applying', on: true);
       await _wipe();
@@ -270,8 +298,11 @@ class SyncEngine {
 
   /// Data akun ditambahkan ke data HP ini. Usaha HP ini dilebur ke usaha di
   /// akun; channel dan kategori pengeluaran bernama sama dipakai bersama.
-  Future<void> _linkMerge(String uid) async {
-    final docs = await _fetch(uid, all: true);
+  Future<void> _linkMerge(
+    String uid, [
+    LinkProgressCallback? onProgress,
+  ]) async {
+    final docs = await _fetchAll(uid, onProgress);
     await _db.transaction(() async {
       await setSyncFlag(_db, 'applying', on: true);
       await _resetState();
@@ -401,9 +432,10 @@ class SyncEngine {
     _notifyAll();
   }
 
-  Future<void> _push(String uid) async {
+  Future<void> _push(String uid, {LinkProgressCallback? onProgress}) async {
     final entries = await _db.select(_db.syncOutbox).get();
     if (entries.isEmpty) return;
+    onProgress?.call(LinkProgress(LinkPhase.upload, 0, entries.length));
     int rank(SyncOutboxEntry e) {
       final i = syncedTables.indexOf(e.entity);
       return i < 0 ? syncedTables.length : i;
@@ -446,18 +478,52 @@ class SyncEngine {
           );
         }
       });
+      onProgress?.call(
+        LinkProgress(
+          LinkPhase.upload,
+          math.min(i + chunk.length, entries.length),
+          entries.length,
+        ),
+      );
     }
   }
 
   Future<Map<String, List<RemoteDoc>>> _fetch(
     String uid, {
     bool all = false,
+    void Function(int count)? onPage,
   }) async {
     final cursors = all ? const <String, DateTime>{} : await _cursors();
     return {
       for (final table in _pullOrder)
-        table: await _remote.changedSince(uid, table, cursors[table]),
+        table: await _remote.changedSince(
+          uid,
+          table,
+          cursors[table],
+          onPage: onPage,
+        ),
     };
+  }
+
+  /// Semua data akun, dengan progres unduh bila diminta.
+  Future<Map<String, List<RemoteDoc>>> _fetchAll(
+    String uid,
+    LinkProgressCallback? onProgress,
+  ) async {
+    if (onProgress == null) return _fetch(uid, all: true);
+    final total = await _remote.countAll(uid);
+    var done = 0;
+    onProgress(LinkProgress(LinkPhase.download, 0, total));
+    return _fetch(
+      uid,
+      all: true,
+      onPage: (count) {
+        done += count;
+        onProgress(
+          LinkProgress(LinkPhase.download, math.min(done, total), total),
+        );
+      },
+    );
   }
 
   /// Menerapkan dokumen akun ke SQLite, induk dulu. Mengembalikan baris

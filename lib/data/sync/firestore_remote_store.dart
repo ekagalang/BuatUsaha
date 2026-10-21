@@ -42,8 +42,9 @@ class FirestoreRemoteStore implements RemoteStore {
   Future<List<RemoteDoc>> changedSince(
     String uid,
     String table,
-    DateTime? since,
-  ) async {
+    DateTime? since, {
+    void Function(int count)? onPage,
+  }) async {
     Query<Map<String, dynamic>> base = _col(uid, table);
     if (since != null) {
       base = base.where(
@@ -64,9 +65,21 @@ class FirestoreRemoteStore implements RemoteStore {
         final doc = _toDoc(d.id, d.data());
         if (doc != null) docs.add(doc);
       }
+      onPage?.call(snap.docs.length);
       if (snap.docs.length < _page) return docs;
       last = snap.docs.last;
     }
+  }
+
+  @override
+  Future<int> countAll(String uid) async {
+    var total = 0;
+    for (final table in syncedTables) {
+      // Agregasi dihitung di server: 1 baca per 1.000 dokumen.
+      final snap = await _col(uid, table).count().get().timeout(_timeout);
+      total += snap.count ?? 0;
+    }
+    return total;
   }
 
   @override
