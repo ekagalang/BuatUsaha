@@ -89,6 +89,9 @@ void main() {
             bytes.sublist(i, (i + 65536).clamp(0, bytes.length)),
           );
           await request.response.flush();
+          // Tanpa jeda, loopback di Linux (CI) bisa menggabungkan semua
+          // potongan jadi satu, sehingga progres hanya terlapor sekali.
+          await Future<void>.delayed(const Duration(milliseconds: 30));
         }
         await request.response.close();
       });
