@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../data/db/decimal_convert.dart';
 import '../../data/providers.dart';
 import '../../data/repositories/purchase_preview.dart';
 import '../../data/repositories/stock_repository.dart';
@@ -22,6 +23,12 @@ class _Line {
 
   /// Harga per satuan dasar di belanja lama (mode ubah).
   Decimal? originalUnitCost;
+
+  /// Item daftar belanja asal baris ini (FR-12.7).
+  String? shoppingItemId;
+
+  /// Harga masih perkiraan dari daftar belanja.
+  bool estimated = false;
   List<UnitOption> units = const [];
   UnitOption? unit;
   final qty = TextEditingController(text: '1');
@@ -35,12 +42,16 @@ class _Line {
 
 /// Belanja bahan multi-item (FR-1.3, mockup `FormBelanja`); dengan
 /// [purchaseId] menjadi layar ubah belanja = batalkan + catat ulang (FR-9.2,
-/// mockup `UbahBelanja`).
+/// mockup `UbahBelanja`). Dengan [fromShoppingList], baris terisi dari item
+/// daftar belanja yang dicentang (FR-12.7, mockup `BelanjaDariDaftar`).
 class PurchaseFormScreen extends ConsumerStatefulWidget {
-  const PurchaseFormScreen({super.key, this.purchaseId});
+  const PurchaseFormScreen({super.key, this.purchaseId, this.fromShoppingList});
 
   /// `null` = belanja baru.
   final String? purchaseId;
+
+  /// Id daftar belanja asal.
+  final String? fromShoppingList;
 
   @override
   ConsumerState<PurchaseFormScreen> createState() => _PurchaseFormScreenState();
@@ -51,7 +62,9 @@ class _PurchaseFormScreenState extends ConsumerState<PurchaseFormScreen> {
   final _lines = [_Line()];
   var _date = DateUtils.dateOnly(DateTime.now());
   var _saving = false;
-  late bool _loading = widget.purchaseId != null;
+  late bool _loading =
+      widget.purchaseId != null || widget.fromShoppingList != null;
+  var _fromListCount = 0;
 
   /// Jam belanja lama dipertahankan saat diubah.
   DateTime? _originalAt;
@@ -64,6 +77,50 @@ class _PurchaseFormScreenState extends ConsumerState<PurchaseFormScreen> {
   void initState() {
     super.initState();
     if (_editing) _load(widget.purchaseId!);
+    if (widget.fromShoppingList != null) {
+      _loadFromList(widget.fromShoppingList!);
+    }
+  }
+
+  Future<void> _loadFromList(String listId) async {
+    final stock = ref.read(stockRepositoryProvider);
+    final items = await ref
+        .read(shoppingRepositoryProvider)
+        .linesToRecord(listId);
+    final lines = <_Line>[];
+    for (final l in items) {
+      final id = l.item.ingredientId!;
+      final units = await stock.unitOptions(id);
+      final line = _Line()
+        ..ingredientId = id
+        ..units = units
+        ..unit = units.firstWhere(
+          (u) => u.name == l.item.unitName,
+          orElse: () => UnitOption(
+            name: l.item.unitName,
+            factorToBase: dec(l.item.factorToBase),
+          ),
+        )
+        ..shoppingItemId = l.item.id
+        ..estimated = true;
+      line.qty.text = formatDecimal(dec(l.item.qty), maxDecimals: 3);
+      final cost = l.item.estimatedCost;
+      if (cost != null) line.price.text = formatRupiahDigits(cost);
+      lines.add(line);
+    }
+    if (!mounted) return;
+    setState(() {
+      if (lines.isNotEmpty) {
+        for (final old in _lines) {
+          old.dispose();
+        }
+        _lines
+          ..clear()
+          ..addAll(lines);
+      }
+      _fromListCount = lines.length;
+      _loading = false;
+    });
   }
 
   Future<void> _load(String id) async {
@@ -219,7 +276,15 @@ class _PurchaseFormScreenState extends ConsumerState<PurchaseFormScreen> {
         await repo.replacePurchase(widget.purchaseId!, input, reason: 'Diubah');
       } else {
         final business = await ref.read(currentBusinessProvider.future);
-        await repo.recordPurchase(business.id, input);
+        final id = await repo.recordPurchase(business.id, input);
+        final fromList = [
+          for (final line in _lines)
+            if (line.shoppingItemId != null) line.shoppingItemId!,
+        ];
+        if (fromList.isNotEmpty) {
+          // Item daftar belanja ditandai Tercatat (FR-12.7).
+          await ref.read(shoppingRepositoryProvider).markRecorded(fromList, id);
+        }
       }
       if (!mounted) return;
       await Navigator.of(context).maybePop();
@@ -261,6 +326,14 @@ class _PurchaseFormScreenState extends ConsumerState<PurchaseFormScreen> {
           : ListView(
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
               children: [
+                if (_fromListCount > 0) ...[
+                  InfoBox(
+                    'Dari daftar belanja: $_fromListCount bahan yang dicentang. '
+                    'Jumlah dan harga masih perkiraan; sesuaikan dengan struk.',
+                    kind: StatusKind.neutral,
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 if (_editing) ...[
                   const InfoBox(
                     'Belanja lama tetap terlihat di kartu stok sebagai '
@@ -469,9 +542,13 @@ class _LineCard extends StatelessWidget {
               keyboardType: TextInputType.number,
               onChanged: (_) => onChanged(),
               inputFormatters: const [RupiahInputFormatter()],
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Total harga',
                 prefixText: 'Rp ',
+                helperText: line.estimated
+                    ? 'Harga perkiraan dari harga rata-rata; ganti sesuai struk.'
+                    : null,
+                helperMaxLines: 2,
               ),
             ),
             if (view != null && line.unit != null && !editing) ...[

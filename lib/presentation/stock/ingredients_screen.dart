@@ -73,6 +73,8 @@ class _IngredientsScreenState extends ConsumerState<IngredientsScreen> {
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
       children: [
         _ValueHero(list: sorted),
+        const SizedBox(height: 12),
+        const _ShoppingCard(),
         const SizedBox(height: 16),
         Wrap(
           spacing: 8,
@@ -127,6 +129,75 @@ class _IngredientsScreenState extends ConsumerState<IngredientsScreen> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Jalan masuk Daftar belanja di atas daftar bahan (FR-12.11).
+class _ShoppingCard extends ConsumerWidget {
+  const _ShoppingCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final plan = ref.watch(shoppingPlanProvider(3)).value;
+    final list = ref.watch(activeShoppingListProvider).value;
+    final todo = list?.todo ?? const [];
+    final String detail;
+    if (todo.isNotEmpty) {
+      final total = todo.fold(0, (sum, l) => sum + (l.item.estimatedCost ?? 0));
+      detail =
+          '${todo.length} belum dibeli'
+          '${total > 0 ? ' · ±${formatRupiah(total)}' : ''}';
+    } else if (plan != null && plan.items.isNotEmpty) {
+      detail =
+          '${plan.items.length} bahan perlu dibeli'
+          '${plan.total > 0 ? ' · ±${formatRupiah(plan.total)}' : ''}';
+    } else {
+      detail = 'Tidak ada yang perlu dibeli untuk 3 hari ke depan';
+    }
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => context.push('/bahan/daftar-belanja'),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Daftar belanja',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      detail,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(0, 40),
+                  shape: const StadiumBorder(),
+                ),
+                onPressed: () => context.push('/bahan/daftar-belanja'),
+                child: const Text('Buka'),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

@@ -22,7 +22,7 @@ void main() {
     return rows.map((row) => row.read<String>('name')).toList();
   }
 
-  test('membuat 21 tabel MVP + 2 tabel sinkron', () async {
+  test('membuat 21 tabel MVP + 2 tabel sinkron + 2 tabel belanja', () async {
     expect(
       await namesOf('table'),
       unorderedEquals([
@@ -49,6 +49,8 @@ void main() {
         'expenses',
         'sync_outbox',
         'sync_state',
+        'shopping_lists',
+        'shopping_list_items',
       ]),
     );
   });
@@ -239,12 +241,24 @@ void main() {
   });
 
   test(
-    'migrasi skema v1 ke v3 menambah kolom dan tabel tanpa menghapus data',
+    'migrasi skema v1 ke v4 menambah kolom dan tabel tanpa menghapus data',
     () async {
       final dir = Directory.systemTemp.createTempSync('hpp_migrasi');
       final file = File('${dir.path}/app.sqlite');
       var old = AppDatabase(NativeDatabase(file));
       final id = (await BusinessRepository(old).ensureDefault()).id;
+      // Trigger sinkron (TEMP) menunjuk kolom dan tabel yang akan dibuang
+      // untuk meniru skema v1.
+      final triggers = await old
+          .customSelect(
+            "SELECT name FROM sqlite_temp_master WHERE type = 'trigger'",
+          )
+          .get();
+      for (final t in triggers) {
+        await old.customStatement(
+          'DROP TRIGGER temp.${t.read<String>('name')}',
+        );
+      }
       await old.customStatement(
         'ALTER TABLE businesses DROP COLUMN onboarded_at',
       );
@@ -252,6 +266,11 @@ void main() {
       await old.customStatement('ALTER TABLE businesses DROP COLUMN owner_uid');
       await old.customStatement('DROP TABLE sync_outbox');
       await old.customStatement('DROP TABLE sync_state');
+      await old.customStatement(
+        'ALTER TABLE products DROP COLUMN safety_stock',
+      );
+      await old.customStatement('DROP TABLE shopping_list_items');
+      await old.customStatement('DROP TABLE shopping_lists');
       await old.customStatement('PRAGMA user_version = 1');
       await old.close();
 
@@ -261,6 +280,7 @@ void main() {
       expect(business.onboardedAt, isNull);
       expect(business.ownerUid, isNull);
       expect(await old.select(old.syncOutbox).get(), isEmpty);
+      expect(await old.select(old.shoppingLists).get(), isEmpty);
       final columns = await old
           .customSelect("SELECT name FROM pragma_table_info('expenses')")
           .get();

@@ -5,6 +5,7 @@ import 'package:buat_usaha/data/db/app_database.dart';
 import 'package:buat_usaha/data/repositories/business_repository.dart';
 import 'package:buat_usaha/data/repositories/order_repository.dart';
 import 'package:buat_usaha/data/repositories/product_repository.dart';
+import 'package:buat_usaha/data/repositories/shopping_repository.dart';
 import 'package:buat_usaha/data/repositories/stock_repository.dart';
 import 'package:buat_usaha/data/sync/remote_store.dart';
 import 'package:buat_usaha/data/sync/sync_engine.dart';
@@ -398,6 +399,26 @@ void main() {
     expect(await a.count('businesses'), 0);
     expect(await a.engine.pendingCount(), 0);
     expect(remote.live(uid, 'ingredients'), hasLength(5));
+  });
+
+  test('daftar belanja ikut tersinkron ke HP lain (FR-12.5)', () async {
+    final (a, b, seed) = await twoLinkedPhones();
+    final shopA = ShoppingRepository(a.db, a.orders);
+    final list = await shopA.activeList(seed.businessId);
+    await shopA.addOther(list.id, 'Plastik kemasan', qty: 2, unitName: 'pak');
+    await shopA.addIngredient(list.id, seed.ids['cokelat']!);
+    await a.engine.sync(uid);
+    await b.engine.sync(uid);
+
+    final shopB = ShoppingRepository(b.db, b.orders);
+    final onB = await shopB.view((await shopB.activeList(seed.businessId)).id);
+    expect(onB.list.id, list.id);
+    expect(onB.lines.map((l) => l.item.name), ['Plastik kemasan', 'Cokelat']);
+
+    await shopB.setChecked(onB.lines.last.item.id, checked: true);
+    await b.engine.sync(uid);
+    await a.engine.sync(uid);
+    expect((await shopA.view(list.id)).done.single.item.name, 'Cokelat');
   });
 
   test('tanpa internet perubahan menunggu lalu terkirim saat online', () async {

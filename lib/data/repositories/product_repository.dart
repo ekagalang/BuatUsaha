@@ -60,6 +60,7 @@ class ProductInput {
     this.shelfLifeDays,
     this.stockDeductMode,
     this.targetMarkupPct,
+    this.safetyStock,
   });
 
   final String name;
@@ -73,6 +74,9 @@ class ProductInput {
   /// `null` = ikut mode stok bawaan usaha.
   final StockDeductMode? stockDeductMode;
   final Decimal? targetMarkupPct;
+
+  /// Stok jaga menu ready stock (FR-12.10); kosong = 0.
+  final Decimal? safetyStock;
 }
 
 /// Menu beserta HPP, harga, kapasitas, dan stok produk jadinya.
@@ -200,6 +204,7 @@ class ProductRepository {
               yieldQty: dbl(input.yieldQty),
               category: Value(input.category),
               shelfLifeDays: Value(input.shelfLifeDays),
+              safetyStock: Value(dbl(input.safetyStock ?? Decimal.zero)),
               stockDeductMode: Value(input.stockDeductMode),
               targetMarkupPct: Value(
                 input.targetMarkupPct == null
@@ -224,6 +229,7 @@ class ProductRepository {
           yieldQty: Value(dbl(input.yieldQty)),
           category: Value(input.category),
           shelfLifeDays: Value(input.shelfLifeDays),
+          safetyStock: Value(dbl(input.safetyStock ?? Decimal.zero)),
           stockDeductMode: Value(input.stockDeductMode),
           targetMarkupPct: Value(
             input.targetMarkupPct == null ? null : dbl(input.targetMarkupPct!),
@@ -250,6 +256,7 @@ class ProductRepository {
       yieldQty: dec(product.yieldQty),
       category: product.category,
       shelfLifeDays: product.shelfLifeDays,
+      safetyStock: dec(product.safetyStock),
       stockDeductMode: product.stockDeductMode,
       targetMarkupPct: product.targetMarkupPct == null
           ? null

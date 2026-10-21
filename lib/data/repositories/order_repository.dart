@@ -202,12 +202,20 @@ class IngredientNeed {
       : missingQty * dec(ingredient.avgUnitCost!);
 }
 
-/// Kebutuhan produksi untuk satu tanggal (FR-5.5).
+/// Kebutuhan produksi untuk satu tanggal (FR-5.5) atau rentang tanggal
+/// daftar belanja (FR-12.2).
 class ProductionNeeds {
-  const ProductionNeeds({required this.products, required this.ingredients});
+  const ProductionNeeds({
+    required this.products,
+    required this.ingredients,
+    this.orderCount = 0,
+  });
 
   final List<ProductNeed> products;
   final List<IngredientNeed> ingredients;
+
+  /// Jumlah pesanan yang ikut dihitung.
+  final int orderCount;
 
   List<IngredientNeed> get shortages =>
       ingredients.where((i) => i.missingQty > Decimal.zero).toList();
@@ -739,13 +747,25 @@ class OrderRepository {
 
   /// Total pcs per menu untuk pesanan tanggal [day] (lokal) dan cukup
   /// tidaknya stok bahan (FR-5.5).
-  Future<ProductionNeeds> productionNeeds(
-    String businessId,
-    DateTime day,
-  ) async {
+  Future<ProductionNeeds> productionNeeds(String businessId, DateTime day) {
     final local = day.toLocal();
     final from = DateTime(local.year, local.month, local.day);
-    final to = from.add(const Duration(days: 1));
+    return productionNeedsBetween(
+      businessId,
+      from,
+      from.add(const Duration(days: 1)),
+    );
+  }
+
+  /// Kebutuhan untuk pesanan berjadwal di `[from, to)`. Dengan [safetyStock],
+  /// stok jaga menu ready stock ikut dihitung, termasuk menu yang tidak
+  /// dipesan (FR-12.2).
+  Future<ProductionNeeds> productionNeedsBetween(
+    String businessId,
+    DateTime from,
+    DateTime to, {
+    bool safetyStock = false,
+  }) async {
     final business = await _business(businessId);
     final rows =
         await (_db.select(_db.orders)..where(
@@ -780,16 +800,37 @@ class OrderRepository {
         );
       }
     }
+    if (safetyStock) {
+      final guarded =
+          await (_db.select(_db.products)..where(
+                (t) =>
+                    t.businessId.equals(businessId) &
+                    t.isActive.equals(true) &
+                    t.safetyStock.isBiggerThanValue(0),
+              ))
+              .get();
+      for (final p in guarded) {
+        if (!_isReadyStock(p, business)) continue;
+        products.putIfAbsent(p.id, () => p);
+        ordered.putIfAbsent(p.id, () => 0);
+      }
+    }
     final needs = <ProductNeed>[];
     final required = <String, Decimal>{};
     final ingredients = <String, Ingredient>{};
     for (final MapEntry(key: id, value: qty) in ordered.entries) {
       final product = products[id]!;
-      final have = _isReadyStock(product, business)
+      final ready = _isReadyStock(product, business);
+      final have = ready
           ? dec(product.currentStock)
           : (made[id] ?? Decimal.zero);
+      final guard = safetyStock && ready
+          ? dec(product.safetyStock)
+          : Decimal.zero;
       final diff =
-          Decimal.fromInt(qty) - (have < Decimal.zero ? Decimal.zero : have);
+          Decimal.fromInt(qty) +
+          guard -
+          (have < Decimal.zero ? Decimal.zero : have);
       final toMake = diff > Decimal.zero ? diff : Decimal.zero;
       needs.add(ProductNeed(product: product, orderedQty: qty, toMake: toMake));
       if (toMake == Decimal.zero) continue;
@@ -806,6 +847,7 @@ class OrderRepository {
     }
     needs.sort((a, b) => a.product.name.compareTo(b.product.name));
     return ProductionNeeds(
+      orderCount: rows.length,
       products: needs,
       ingredients: [
         for (final MapEntry(key: id, value: qty) in required.entries)

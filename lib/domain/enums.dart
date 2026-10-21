@@ -189,3 +189,14 @@ enum ReminderStatus implements CodedEnum {
   @override
   final String code;
 }
+
+/// Asal item daftar belanja (FR-12.5): dari hitungan pesanan, atau ditambah
+/// atau diubah sendiri (tidak diubah Hitung ulang).
+enum ShoppingItemSource implements CodedEnum {
+  auto('AUTO'),
+  manual('MANUAL');
+
+  const ShoppingItemSource(this.code);
+  @override
+  final String code;
+}

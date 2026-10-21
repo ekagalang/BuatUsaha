@@ -213,7 +213,19 @@ Rincian FR-11 sampai FR-19 ada di PRD tab "Rencana fase 2b". Setiap sprint: rinc
   - [x] 182 test lulus; build APK `tool/build_apk.ps1` → BuatUsaha 1.0.0 (build 11; versionCode arm64 2011), izin dan FileProvider dicek di APK
   - [x] Di-commit dan di-push ke `dev` (21 Okt 2026)
   - [ ] Pengguna memasang APK 1.0.0, lalu menjalankan CI di `dev` dengan Terbitkan rilis → rilis pertama `v1.0.0`
-- [ ] **S2 Daftar belanja:** kebutuhan bahan dari pesanan N hari + stok jaga, daftar belanja otomatis dibulatkan ke satuan beli, centang, jadikan belanja, bagikan ke WhatsApp (FR-12.x)
+- [ ] **S2 Daftar belanja** (FR-12.1–12.11):
+  - [x] Dirinci di PRD: rentang Hari ini/3/7 hari, stok jaga, jumlah = kebutuhan + minimum − stok dibulatkan ke satuan beli, alasan item, satu daftar aktif tersinkron, hitung ulang, barang lain, catat jadi belanja, bagikan, selesai belanja, jalan masuk; skema v4; rilis 1.1.0
+  - [x] Mockup baris "S2 Daftar belanja": `DaftarBelanja`, `BelanjaDariDaftar`, `JalanMasukBelanja`
+  - [x] Mockup di-acc pengguna (21 Okt 2026)
+  - [x] Skema v4: `products.safety_stock`, `shopping_lists`, `shopping_list_items`; ikut sinkron (urut setelah `purchase_items`)
+  - [x] Hitungan kebutuhan per rentang + stok jaga (`OrderRepository.productionNeedsBetween`), jumlah dibeli + pembulatan satuan beli + alasan (`shopping_repository.dart`)
+  - [x] Layar Daftar belanja: rentang, ringkasan, hitung ulang, centang, ubah jumlah/satuan, tambah bahan atau barang lain, bagikan, selesai belanja
+  - [x] Catat jadi belanja: form Belanja terisi dari item yang dicentang, item ditandai Tercatat setelah disimpan
+  - [x] Jalan masuk: baris Perlu dibeli di Beranda, kartu Daftar belanja di Bahan, tombol di Kebutuhan produksi; kolom stok jaga di form menu ready stock
+  - [x] Test: 8 repository, 7 layar (termasuk huruf 130%), 1 sinkron dua HP
+  - [x] Versi 1.1.0 dan CHANGELOG
+  - [x] Build APK lokal 1.1.0 (build 12), 198 tes lulus, analyze bersih
+  - [ ] Commit + push ke dev, lalu rilis 1.1.0 lewat CI "Terbitkan rilis" (pengguna)
 - [ ] **S3 Nota dan ekspor:** nota WhatsApp/PDF (A6 atau struk 58 mm), info pembayaran di profil usaha, ekspor laporan PDF/CSV (FR-13.x)
 - [ ] **S4 Harga dan HPP:** harga per channel + saran harga, riwayat HPP dengan grafik, simulasi kenaikan harga bahan (FR-14.x)
 - [ ] **S5 Arus kas:** akun kas, kas otomatis dari pembayaran/belanja/pengeluaran, entri manual, laporan kas (FR-15.x)

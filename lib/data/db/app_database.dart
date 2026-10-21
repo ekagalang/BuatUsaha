@@ -6,6 +6,7 @@ import 'tables/business_tables.dart';
 import 'tables/common.dart';
 import 'tables/order_tables.dart';
 import 'tables/product_tables.dart';
+import 'tables/shopping_tables.dart';
 import 'tables/stock_tables.dart';
 import 'tables/sync_tables.dart';
 import '../sync/sync_schema.dart';
@@ -37,6 +38,8 @@ part 'app_database.g.dart';
     OrderReminders,
     ExpenseCategories,
     Expenses,
+    ShoppingLists,
+    ShoppingListItems,
     SyncOutbox,
     SyncState,
   ],
@@ -58,7 +61,7 @@ class AppDatabase extends _$AppDatabase {
   Future<void> closeOnce() => _closing ??= close();
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -72,6 +75,11 @@ class AppDatabase extends _$AppDatabase {
         await m.createTable(syncOutbox);
         await m.createTable(syncState);
         await m.addColumn(businesses, businesses.ownerUid);
+      }
+      if (from < 4) {
+        await m.addColumn(products, products.safetyStock);
+        await m.createTable(shoppingLists);
+        await m.createTable(shoppingListItems);
       }
     },
     beforeOpen: (details) async {

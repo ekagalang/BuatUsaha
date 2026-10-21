@@ -412,6 +412,8 @@ class _Values extends ConsumerWidget {
   }
 }
 
+const _shoppingPath = '/bahan/daftar-belanja';
+
 class _Attention extends ConsumerWidget {
   const _Attention();
 
@@ -432,7 +434,16 @@ class _Attention extends ConsumerWidget {
         const <OrderView>[];
     final now = DateTime.now();
     final corrections = ref.watch(costCorrectionsProvider).value ?? const [];
+    // Daftar belanja untuk pesanan 3 hari ke depan (FR-12.11).
+    final shopping = ref.watch(shoppingPlanProvider(3)).value;
     final items = <(String, String, String)>[
+      if (shopping != null && shopping.items.isNotEmpty)
+        (
+          'Perlu dibeli · ${shopping.items.length} bahan',
+          '${shopping.total > 0 ? '±${formatRupiah(shopping.total)} ' : ''}'
+              'untuk pesanan 3 hari ke depan',
+          _shoppingPath,
+        ),
       if (corrections.isNotEmpty)
         (
           '${corrections.length} pesanan lama memakai HPP sebelum koreksi',
@@ -488,10 +499,15 @@ class _Attention extends ConsumerWidget {
               for (final (i, (title, detail, path)) in items.indexed) ...[
                 if (i > 0) const Divider(height: 1),
                 ListTile(
-                  leading: const Icon(
-                    Icons.error_outline,
-                    color: AppColors.warning,
-                  ),
+                  leading: path == _shoppingPath
+                      ? const Icon(
+                          Icons.shopping_cart_outlined,
+                          color: AppColors.primary,
+                        )
+                      : const Icon(
+                          Icons.error_outline,
+                          color: AppColors.warning,
+                        ),
                   title: Text(title),
                   subtitle: Text(detail),
                   trailing: const Icon(Icons.chevron_right),

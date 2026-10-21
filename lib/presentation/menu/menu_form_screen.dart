@@ -69,6 +69,7 @@ class _MenuFormScreenState extends ConsumerState<MenuFormScreen> {
   final _name = TextEditingController();
   final _yield = TextEditingController();
   final _shelfLife = TextEditingController();
+  final _safetyStock = TextEditingController();
   final _category = TextEditingController();
   final _price = TextEditingController();
   final _markup = TextEditingController();
@@ -94,6 +95,10 @@ class _MenuFormScreenState extends ConsumerState<MenuFormScreen> {
       _name.text = input.name;
       _yield.text = formatDecimal(input.yieldQty);
       _shelfLife.text = input.shelfLifeDays?.toString() ?? '';
+      final safety = input.safetyStock;
+      _safetyStock.text = safety == null || safety == Decimal.zero
+          ? ''
+          : formatDecimal(safety);
       _category.text = input.category ?? '';
       _price.text = formatRupiahDigits(input.sellingPrice);
       _markup.text = input.targetMarkupPct == null
@@ -129,6 +134,7 @@ class _MenuFormScreenState extends ConsumerState<MenuFormScreen> {
       _name,
       _yield,
       _shelfLife,
+      _safetyStock,
       _category,
       _price,
       _markup,
@@ -278,6 +284,7 @@ class _MenuFormScreenState extends ConsumerState<MenuFormScreen> {
       yieldQty: yieldQty,
       category: _category.text.trim().isEmpty ? null : _category.text.trim(),
       shelfLifeDays: int.tryParse(_shelfLife.text.trim()),
+      safetyStock: parseDecimalInput(_safetyStock.text),
       stockDeductMode: _mode ?? business.stockDeductMode,
       targetMarkupPct: parseDecimalInput(_markup.text),
       recipe: [
@@ -413,6 +420,23 @@ class _MenuFormScreenState extends ConsumerState<MenuFormScreen> {
                       'tanpa stok menu.',
             style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
           ),
+          if (mode == StockDeductMode.onProduction) ...[
+            const SizedBox(height: 12),
+            TextField(
+              controller: _safetyStock,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: const InputDecoration(
+                labelText: 'Stok jaga (opsional)',
+                suffixText: 'pcs',
+                helperText:
+                    'Jumlah pcs yang ingin selalu tersedia di etalase. Ikut '
+                    'dihitung di daftar belanja.',
+                helperMaxLines: 3,
+              ),
+            ),
+          ],
           const SizedBox(height: 24),
           const SectionTitle('Bahan per resep'),
           const SizedBox(height: 8),

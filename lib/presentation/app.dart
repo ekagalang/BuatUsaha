@@ -30,6 +30,7 @@ import 'stock/ingredient_detail_screen.dart';
 import 'stock/ingredient_form_screen.dart';
 import 'stock/ingredients_screen.dart';
 import 'stock/purchase_form_screen.dart';
+import 'stock/shopping_list_screen.dart';
 import 'theme.dart';
 
 class AppTab {
@@ -128,9 +129,17 @@ GoRouter buildRouter({Listenable? refresh, GoRouterRedirect? redirect}) {
           builder: (context, state) => const IngredientFormScreen(),
         ),
         GoRoute(
+          path: 'daftar-belanja',
+          parentNavigatorKey: rootKey,
+          builder: (context, state) => const ShoppingListScreen(),
+        ),
+        GoRoute(
           path: 'belanja',
           parentNavigatorKey: rootKey,
-          builder: (context, state) => const PurchaseFormScreen(),
+          // ?daftar=<id>: terisi dari daftar belanja (FR-12.7).
+          builder: (context, state) => PurchaseFormScreen(
+            fromShoppingList: state.uri.queryParameters['daftar'],
+          ),
           routes: [
             GoRoute(
               path: ':purchaseId',

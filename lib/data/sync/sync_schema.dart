@@ -16,6 +16,8 @@ const syncedTables = [
   'sales_channels',
   'purchases',
   'purchase_items',
+  'shopping_lists',
+  'shopping_list_items',
   'orders',
   'order_items',
   'payments',

@@ -12,6 +12,7 @@ import 'repositories/order_repository.dart';
 import 'repositories/product_repository.dart';
 import 'repositories/purchase_preview.dart';
 import 'repositories/report_repository.dart';
+import 'repositories/shopping_repository.dart';
 import 'repositories/stock_repository.dart';
 
 export 'db/database_provider.dart';
@@ -213,3 +214,28 @@ final purchasePreviewerProvider = Provider(
     ref.watch(orderRepositoryProvider),
   ),
 );
+
+final shoppingRepositoryProvider = Provider(
+  (ref) => ShoppingRepository(
+    ref.watch(appDatabaseProvider),
+    ref.watch(orderRepositoryProvider),
+  ),
+);
+
+/// Daftar belanja aktif usaha (FR-12.5); `null` bila belum pernah dibuka.
+final activeShoppingListProvider = StreamProvider<ShoppingListView?>((
+  ref,
+) async* {
+  final business = await ref.watch(currentBusinessProvider.future);
+  yield* ref.watch(shoppingRepositoryProvider).watchActive(business.id);
+});
+
+/// Yang perlu dibeli untuk pesanan [days] hari ke depan (kartu Beranda dan
+/// Bahan, FR-12.11).
+final shoppingPlanProvider = StreamProvider.family<ShoppingPlan, int>((
+  ref,
+  days,
+) async* {
+  final business = await ref.watch(currentBusinessProvider.future);
+  yield* ref.watch(shoppingRepositoryProvider).watchPlan(business.id, days);
+});

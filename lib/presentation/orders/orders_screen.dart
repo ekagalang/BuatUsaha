@@ -530,6 +530,13 @@ class _NeedsCard extends ConsumerWidget {
                 'Perkiraan belanja ${formatRupiah(toRupiah(needs.shortages.fold(Decimal.zero, (sum, s) => sum + (s.estimatedCost ?? Decimal.zero))))}.',
                 kind: StatusKind.danger,
               ),
+              const SizedBox(height: 8),
+              // FR-12.11: lanjut ke daftar belanja.
+              OutlinedButton(
+                style: OutlinedButton.styleFrom(shape: const StadiumBorder()),
+                onPressed: () => context.push('/bahan/daftar-belanja'),
+                child: const Text('Buat daftar belanja'),
+              ),
             ],
           ],
         ),
