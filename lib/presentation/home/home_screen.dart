@@ -10,7 +10,9 @@ import '../common/format.dart';
 import '../common/widgets.dart';
 import '../orders/orders_screen.dart' show OrderCard;
 import '../reports/expenses_screen.dart';
+import '../motion.dart';
 import '../theme.dart';
+import '../update/update_widgets.dart';
 
 DateTime _today() {
   final n = DateTime.now();
@@ -62,6 +64,8 @@ class HomeScreen extends ConsumerWidget {
               business.name,
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
+          // Versi baru tersedia (FR-11.4), di atas status hari ini.
+          const UpdateCard(),
           const SizedBox(height: 12),
           _TodayHero(day: today),
           const SizedBox(height: 20),
@@ -106,7 +110,7 @@ class _TodayHero extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(l, style: muted),
-          Text(formatRupiah(v), style: strong),
+          AnimatedRupiah(v, style: strong),
         ],
       ),
     );
@@ -139,8 +143,8 @@ class _TodayHero extends ConsumerWidget {
                 StatusPill(label, kind: kind),
               ],
             ),
-            Text(
-              formatRupiah(net),
+            AnimatedRupiah(
+              net,
               style: Theme.of(context).textTheme.displaySmall
                   ?.copyWith(fontSize: 34, color: AppColors.onPrimary),
             ),
@@ -224,29 +228,31 @@ class _QuickActions extends ConsumerWidget {
           .clamp(0.6, 1.15),
       children: [
         for (final (label, icon, onTap) in actions)
-          Material(
-            color: AppColors.surface,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: const BorderSide(color: AppColors.border),
-            ),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(16),
-              onTap: onTap,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(icon, color: AppColors.primary),
-                  const SizedBox(height: 6),
-                  Text(
-                    label,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
+          Pressable(
+            child: Material(
+              color: AppColors.surface,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: const BorderSide(color: AppColors.border),
+              ),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: onTap,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(icon, color: AppColors.primary),
+                    const SizedBox(height: 6),
+                    Text(
+                      label,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

@@ -5,6 +5,7 @@ import '../../services/sync_controller.dart';
 import '../auth/account_dialogs.dart';
 import '../common/format.dart';
 import '../common/widgets.dart';
+import '../motion.dart';
 import '../theme.dart';
 
 /// Pengaturan → Akun dan sinkron (PRD 5.10, mockup `AkunData`). Masuk wajib
@@ -54,7 +55,7 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
     final messenger = ScaffoldMessenger.of(context);
     final unsent = await _controller.flushBeforeSignOut();
     if (!mounted) return;
-    final ok = await showDialog<bool>(
+    final ok = await showAppDialog<bool>(
       context: context,
       builder: (_) => SignOutDialog(unsent: unsent),
     );

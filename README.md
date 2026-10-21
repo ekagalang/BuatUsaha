@@ -33,10 +33,21 @@ Tanpa `android/key.properties`, build release memakai kunci debug dan Gradle men
 ## Build APK
 
 ```bash
-flutter build apk --release --split-per-abi
+& .\tool\build_apk.ps1
 ```
 
-Hasilnya ada di `build/app/outputs/flutter-apk/`. Untuk HP Android modern pakai `app-arm64-v8a-release.apk`.
+Skrip ini menjalankan `flutter build apk --release --split-per-abi` dengan nomor build = jumlah commit dan tanggal build, sama seperti CI. Hasilnya ada di `build/app/outputs/flutter-apk/`. Untuk HP Android modern pakai `app-arm64-v8a-release.apk`.
+
+Jangan pasang APK dari `flutter build apk` biasa di atas versi rilis: nomor build-nya 1, jadi Android menolaknya sebagai versi lama.
+
+## Versi dan rilis
+
+- Nama versi ada di `pubspec.yaml` (`version: 1.0.0+1`; angka setelah `+` diabaikan). Naikkan angka terakhir untuk perbaikan (1.0.1), angka tengah untuk fitur baru (1.1.0).
+- Tulis perubahannya di [CHANGELOG.md](CHANGELOG.md) dengan judul `## <versi> (<tanggal>)` dan poin `- …`. Poin-poin itu tampil di dialog "Versi baru tersedia" di aplikasi.
+- Terbitkan: **Actions › Build APK › Run workflow**, centang **Terbitkan rilis**. Push ke `main` juga selalu menerbitkan rilis. CI membuat GitHub Release `v<versi>` berisi `BuatUsaha-<versi>-arm64-v8a.apk`, `-armeabi-v7a.apk`, `-x86_64.apk`.
+- Rilis gagal bila versi itu sudah pernah dirilis atau CHANGELOG belum berisi bagian versinya; APK tetap ada di Artifacts. Rilis hanya dibuat dari APK bertanda tangan kunci sendiri.
+- Aplikasi memeriksa `releases/latest` repo ini (saat dibuka paling sering sekali per 6 jam, tugas latar tiap 6 jam, dan tombol Pengaturan › Tentang aplikasi › Cek pembaruan), lalu menawarkan **Unduh dan pasang**. Pertama kali, Android meminta izin "pasang dari sumber ini". Data tetap aman karena kunci tanda tangannya sama.
+- Kalau repo ini dijadikan private, API rilis butuh token; halaman unduh perlu dipindah dulu.
 
 ## CI (GitHub Actions)
 

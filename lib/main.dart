@@ -13,6 +13,7 @@ import 'services/auto_backup.dart';
 import 'services/background_tasks.dart';
 import 'services/local_notifications.dart';
 import 'services/sync_controller.dart';
+import 'services/update_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,6 +27,8 @@ Future<void> main() async {
   container.read(notificationSyncProvider).start();
   // Login Google dan sinkron otomatis (FR-10.1, FR-10.2).
   container.read(syncControllerProvider);
+  // Cek versi baru di GitHub (FR-11.3).
+  container.read(updateControllerProvider.notifier).start();
   unawaited(
     AutoBackup.runIfDue(container.read(appDatabaseProvider))
         .then((_) {}, onError: (Object _) {}),

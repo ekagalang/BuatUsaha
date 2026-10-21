@@ -7,6 +7,7 @@ import '../../data/repositories/expense_repository.dart';
 import '../common/format.dart';
 import '../common/rupiah_input.dart';
 import '../common/widgets.dart';
+import '../motion.dart';
 import '../theme.dart';
 
 /// Daftar dan form pengeluaran operasional per bulan (FR-7.3, FR-7.7).
@@ -156,7 +157,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
   }
 
   Future<void> _void(Expense x) async {
-    final reason = await showDialog<String>(
+    final reason = await showAppDialog<String>(
       context: context,
       builder: (_) => ReasonDialog(
         title: 'Batalkan pengeluaran ini?',

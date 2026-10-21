@@ -13,6 +13,7 @@ import '../../domain/stock/units.dart';
 import '../common/format.dart';
 import '../common/rupiah_input.dart';
 import '../common/widgets.dart';
+import '../motion.dart';
 import '../theme.dart';
 import 'menu_labels.dart';
 
@@ -245,7 +246,7 @@ class _MenuFormScreenState extends ConsumerState<MenuFormScreen> {
   }
 
   Future<void> _editWage(Business business) async {
-    final wage = await showDialog<int>(
+    final wage = await showAppDialog<int>(
       context: context,
       builder: (_) => _WageDialog(initial: business.ownerHourlyWage),
     );

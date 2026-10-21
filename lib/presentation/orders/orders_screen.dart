@@ -9,6 +9,8 @@ import '../../domain/costing/costing.dart';
 import '../../domain/enums.dart';
 import '../common/format.dart';
 import '../common/widgets.dart';
+import '../motion.dart';
+import 'order_detail_screen.dart';
 import '../theme.dart';
 import 'order_labels.dart';
 
@@ -73,7 +75,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
         ],
       ),
       body: orders.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const SkeletonList(height: 88),
         error: (e, _) => Center(child: Text('Gagal memuat pesanan: $e')),
         data: (list) => ListView(
           padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
@@ -159,7 +161,14 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
           ),
         )
       else ...[
-        for (final v in dayOrders) ...[OrderCard(v), const SizedBox(height: 8)],
+        for (final (i, v) in dayOrders.indexed) ...[
+          StaggeredEntrance(
+            key: ValueKey(v.order.id),
+            index: i,
+            child: OrderCard(v),
+          ),
+          const SizedBox(height: 8),
+        ],
         _NeedsCard(day: _day),
       ],
     ];
@@ -209,8 +218,12 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
         if (orders.isNotEmpty) ...[
           SectionTitle('$title · ${orders.length}'),
           const SizedBox(height: 8),
-          for (final v in orders) ...[
-            OrderCard(v, showDate: title != 'Hari ini'),
+          for (final (i, v) in orders.indexed) ...[
+            StaggeredEntrance(
+              key: ValueKey(v.order.id),
+              index: i,
+              child: OrderCard(v, showDate: title != 'Hari ini'),
+            ),
             const SizedBox(height: 8),
           ],
           const SizedBox(height: 8),
@@ -394,10 +407,11 @@ class OrderCard extends StatelessWidget {
     final when = showDate
         ? '${formatShortDate(order.dueAt)} ${formatTime(order.dueAt)}'
         : formatTime(order.dueAt);
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => context.push('/pesanan/${order.id}'),
+    // Kartu membesar menjadi Detail pesanan (FR-11.8).
+    return ContainerToDetail(
+      open: (_) => OrderDetailScreen(id: order.id),
+      closed: (context, open) => InkWell(
+        onTap: open,
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Row(

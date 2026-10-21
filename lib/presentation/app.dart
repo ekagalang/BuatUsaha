@@ -7,10 +7,12 @@ import 'package:go_router/go_router.dart';
 
 import '../services/local_notifications.dart';
 import '../services/sync_controller.dart';
+import '../services/update_controller.dart';
 import 'auth/login_screen.dart';
 import 'auth/prepare_screen.dart';
 import 'common/brand_marks.dart';
 import 'home/home_screen.dart';
+import 'motion.dart';
 import 'menu/menu_detail_screen.dart';
 import 'menu/menu_form_screen.dart';
 import 'menu/menu_screen.dart';
@@ -21,6 +23,7 @@ import 'orders/orders_screen.dart';
 import 'reports/day_close_screen.dart';
 import 'reports/expenses_screen.dart';
 import 'reports/reports_screen.dart';
+import 'settings/about_screen.dart';
 import 'settings/onboarding_screen.dart';
 import 'settings/settings_screen.dart';
 import 'stock/ingredient_detail_screen.dart';
@@ -175,8 +178,11 @@ GoRouter buildRouter({Listenable? refresh, GoRouterRedirect? redirect}) {
         path: '/menyiapkan',
         builder: (context, state) => const PrepareScreen(),
       ),
-      StatefulShellRoute.indexedStack(
+      StatefulShellRoute(
         builder: (context, state, shell) => HomeShell(shell: shell),
+        // Ganti tab dengan fade-through; semua tab tetap hidup (FR-11.7).
+        navigatorContainerBuilder: (context, shell, children) =>
+            FadeThroughTabs(index: shell.currentIndex, children: children),
         branches: [
           for (final tab in appTabs)
             StatefulShellBranch(routes: [tabRoute(tab)]),
@@ -193,6 +199,10 @@ GoRouter buildRouter({Listenable? refresh, GoRouterRedirect? redirect}) {
       GoRoute(
         path: '/onboarding',
         builder: (context, state) => const OnboardingScreen(),
+      ),
+      GoRoute(
+        path: '/tentang',
+        builder: (context, state) => const AboutScreen(),
       ),
     ],
   );
@@ -267,6 +277,10 @@ class _HppAppState extends ConsumerState<HppApp> {
         _router.push('/bahan/');
       case 'day-close':
         _router.push('/tutup-hari');
+      case 'update':
+        // Versi baru (FR-11.4): Beranda membuka dialog pembaruan.
+        _router.go('/beranda');
+        ref.read(updateControllerProvider.notifier).requestDialog();
       default:
         _router.go('/beranda');
     }
@@ -331,10 +345,10 @@ class HomeShell extends StatelessWidget {
         ),
         child: NavigationBar(
           selectedIndex: shell.currentIndex,
-          onDestinationSelected: (index) => shell.goBranch(
-            index,
-            initialLocation: index == shell.currentIndex,
-          ),
+          onDestinationSelected: (index) {
+            Haptics.select();
+            shell.goBranch(index, initialLocation: index == shell.currentIndex);
+          },
           destinations: [
             for (final tab in appTabs)
               NavigationDestination(icon: Icon(tab.icon), label: tab.label),

@@ -13,6 +13,7 @@ import '../../domain/orders/orders.dart';
 import '../common/format.dart';
 import '../common/rupiah_input.dart';
 import '../common/widgets.dart';
+import '../motion.dart';
 import '../menu/menu_labels.dart';
 import '../theme.dart';
 import 'order_labels.dart';
@@ -884,7 +885,7 @@ Future<void> showStockShortDialog(
   InsufficientProductStockException e,
   String productId,
 ) async {
-  final produce = await showDialog<bool>(
+  final produce = await showAppDialog<bool>(
     context: context,
     builder: (context) => AlertDialog(
       title: const Text('Stok menu jadi kurang'),

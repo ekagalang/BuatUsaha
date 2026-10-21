@@ -150,6 +150,25 @@ void main() {
     await _close(tester, db);
   });
 
+  testWidgets('kartu menu membesar menjadi detail menu (FR-11.8)', (
+    tester,
+  ) async {
+    final db = AppDatabase(NativeDatabase.memory());
+    await tester.runAsync(() => _seed(db));
+    await _pumpScreen(tester, db, const MenuScreen());
+
+    await tester.tap(find.text('Brownies'));
+    for (var i = 0; i < 6; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.text('Saran harga jual'), findsOneWidget);
+
+    await _close(tester, db);
+  });
+
   testWidgets('detail menu: HPP, saran harga, rincian, kapasitas', (
     tester,
   ) async {

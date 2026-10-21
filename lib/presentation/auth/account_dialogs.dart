@@ -3,18 +3,23 @@ import 'package:flutter/material.dart';
 import '../../data/sync/sync_engine.dart';
 import '../common/format.dart';
 import '../common/widgets.dart';
+import '../motion.dart';
 import '../theme.dart';
 
 const pillShape = StadiumBorder();
 
-ButtonStyle pillFilled({Color? background, double height = 48}) =>
-    FilledButton.styleFrom(
-      minimumSize: Size.fromHeight(height),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      shape: pillShape,
-      backgroundColor: background,
-      textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-    );
+/// [expand] `false` untuk tombol kecil di dalam baris (lebarnya mengikuti isi).
+ButtonStyle pillFilled({
+  Color? background,
+  double height = 48,
+  bool expand = true,
+}) => FilledButton.styleFrom(
+  minimumSize: expand ? Size.fromHeight(height) : Size(64, height),
+  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+  shape: pillShape,
+  backgroundColor: background,
+  textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+);
 
 ButtonStyle pillOutlined({Color color = AppColors.primary}) =>
     OutlinedButton.styleFrom(
@@ -40,7 +45,11 @@ class StackedDialog extends StatelessWidget {
     required this.message,
     required this.buttons,
     this.warning,
+    this.body,
   });
+
+  /// Isi tambahan di bawah [message] (mis. daftar perubahan, progres).
+  final Widget? body;
 
   final String title;
   final String message;
@@ -73,6 +82,7 @@ class StackedDialog extends StatelessWidget {
                 color: AppColors.textMuted,
               ),
             ),
+            if (body != null) ...[const SizedBox(height: 12), body!],
             if (warning != null) ...[
               const SizedBox(height: 12),
               InfoBox(warning!),
@@ -165,7 +175,10 @@ class SignOutDialog extends StatelessWidget {
       buttons: [
         FilledButton(
           style: pillFilled(background: AppColors.danger),
-          onPressed: () => Navigator.pop(context, true),
+          onPressed: () {
+            Haptics.warning();
+            Navigator.pop(context, true);
+          },
           child: Text(
             unsent == 0
                 ? 'Keluar dan hapus data dari HP ini'

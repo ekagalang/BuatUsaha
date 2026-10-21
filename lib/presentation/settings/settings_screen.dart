@@ -15,9 +15,11 @@ import '../../data/providers.dart';
 import '../../services/auto_backup.dart';
 import '../../services/backup_service.dart';
 import '../../services/local_notifications.dart';
+import '../../services/update_controller.dart';
 import '../common/format.dart';
 import '../common/rupiah_input.dart';
 import '../common/widgets.dart';
+import '../motion.dart';
 import '../menu/menu_labels.dart';
 import '../theme.dart';
 import 'account_section.dart';
@@ -54,12 +56,12 @@ class SettingsScreen extends ConsumerWidget {
                 const SizedBox(height: 24),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Lisensi dan font'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => showLicensePage(
-                    context: context,
-                    applicationName: 'BuatUsaha',
+                  title: const Text('Tentang aplikasi'),
+                  subtitle: Text(
+                    'Versi ${ref.watch(updateControllerProvider.select((s) => s.installed?.versionName)) ?? '—'}',
                   ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push('/tentang'),
                 ),
               ],
             ),
@@ -628,7 +630,7 @@ class _ChannelSection extends ConsumerWidget {
     WidgetRef ref,
     SalesChannel? channel,
   ) async {
-    final result = await showDialog<_ChannelResult>(
+    final result = await showAppDialog<_ChannelResult>(
       context: context,
       builder: (_) => _ChannelDialog(channel: channel),
     );
@@ -908,7 +910,7 @@ class _DataSectionState extends ConsumerState<_DataSection> {
     try {
       final name = await BackupService.inspect(file);
       if (!mounted) return;
-      final ok = await showDialog<bool>(
+      final ok = await showAppDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('Ganti semua data?'),

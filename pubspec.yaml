@@ -1,7 +1,11 @@
 name: buat_usaha
 description: "BuatUsaha: HPP, stok bahan, pesanan, dan untung-rugi harian untuk usaha rumahan."
 publish_to: 'none'
-version: 0.1.0+1
+# Nama versi dinaikkan saat rilis (PRD FR-11.1): angka terakhir untuk
+# perbaikan, tengah untuk fitur baru. Nomor build (+1) ditimpa jumlah commit
+# oleh tool/build_apk.ps1 dan CI; jangan pasang APK hasil `flutter build`
+# biasa di atas versi rilis karena nomor build-nya lebih kecil.
+version: 1.0.0+1
 
 environment:
   sdk: ^3.13.1
@@ -31,6 +35,9 @@ dependencies:
   firebase_auth: ^7.0.0
   cloud_firestore: ^7.0.0
   google_sign_in: ^7.2.0
+  package_info_plus: ^10.2.2
+  shared_preferences: ^2.5.6
+  animations: ^3.0.0
 
 dev_dependencies:
   flutter_test:

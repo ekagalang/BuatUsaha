@@ -11,6 +11,7 @@ import '../../data/repositories/stock_repository.dart';
 import '../../domain/costing/costing.dart';
 import '../common/format.dart';
 import '../common/widgets.dart';
+import '../motion.dart';
 import '../theme.dart';
 import 'labels.dart';
 
@@ -158,7 +159,7 @@ class IngredientDetailScreen extends ConsumerWidget {
     WidgetRef ref,
     IngredientView v,
   ) async {
-    final result = await showDialog<(Decimal, String?)>(
+    final result = await showAppDialog<(Decimal, String?)>(
       context: context,
       builder: (_) => _QtyDialog(
         title: 'Penyesuaian stok',
@@ -184,7 +185,7 @@ class IngredientDetailScreen extends ConsumerWidget {
     WidgetRef ref,
     IngredientView v,
   ) async {
-    final result = await showDialog<(Decimal, String?)>(
+    final result = await showAppDialog<(Decimal, String?)>(
       context: context,
       builder: (_) => _QtyDialog(
         title: 'Bahan rusak atau kedaluwarsa',
@@ -211,7 +212,7 @@ class IngredientDetailScreen extends ConsumerWidget {
     IngredientView v,
   ) async {
     final unit = v.ingredient.baseUnit.code;
-    final result = await showDialog<(Decimal, String?)>(
+    final result = await showAppDialog<(Decimal, String?)>(
       context: context,
       builder: (_) => _QtyDialog(
         title: 'Stock opname',
@@ -252,7 +253,7 @@ class IngredientDetailScreen extends ConsumerWidget {
   ) async {
     final movement = entry.movement;
     final isPurchase = movement.refType == 'purchase_item';
-    final reason = await showDialog<String>(
+    final reason = await showAppDialog<String>(
       context: context,
       builder: (_) => ReasonDialog(
         title: isPurchase ? 'Batalkan belanja ini?' : 'Batalkan mutasi ini?',
@@ -283,7 +284,7 @@ class IngredientDetailScreen extends ConsumerWidget {
     WidgetRef ref,
     IngredientView v,
   ) async {
-    final result = await showDialog<(String, Decimal)>(
+    final result = await showAppDialog<(String, Decimal)>(
       context: context,
       builder: (_) => _UnitDialog(baseUnit: v.ingredient.baseUnit.code),
     );
@@ -303,7 +304,7 @@ class IngredientDetailScreen extends ConsumerWidget {
     WidgetRef ref,
     IngredientView v,
   ) async {
-    final result = await showDialog<(Decimal, String?)>(
+    final result = await showAppDialog<(Decimal, String?)>(
       context: context,
       builder: (_) => _QtyDialog(
         title: 'Stok minimum',

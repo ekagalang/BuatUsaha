@@ -9,8 +9,10 @@ import 'package:workmanager/workmanager.dart';
 import '../data/db/app_database.dart';
 import '../data/sync/firestore_remote_store.dart';
 import '../data/sync/sync_engine.dart';
+import 'app_updates.dart';
 import 'local_notifications.dart';
 import 'notification_sync.dart';
+import 'update_controller.dart';
 
 const _resyncTask = 'notification-resync';
 
@@ -26,6 +28,7 @@ void callbackDispatcher() {
       await _syncInBackground(db);
       await LocalNotifications.instance.init(background: true);
       await NotificationSync(db, LocalNotifications.instance).resync();
+      await _checkUpdateInBackground();
       return true;
     } catch (_) {
       return false;
@@ -48,6 +51,20 @@ Future<void> _syncInBackground(AppDatabase db) async {
   } catch (_) {
     // Tanpa Firebase atau internet: dicoba lagi di jadwal berikutnya atau
     // saat aplikasi dibuka.
+  }
+}
+
+/// Versi baru di GitHub → notifikasi sekali per versi (FR-11.3, FR-11.4).
+Future<void> _checkUpdateInBackground() async {
+  try {
+    await notifyIfUpdateAvailable(
+      platform: AndroidAppPlatform(),
+      source: GitHubReleaseSource(),
+      store: SharedPrefsStore(),
+      notifications: LocalNotifications.instance,
+    );
+  } catch (_) {
+    // Tanpa internet: dicek lagi di jadwal berikutnya.
   }
 }
 

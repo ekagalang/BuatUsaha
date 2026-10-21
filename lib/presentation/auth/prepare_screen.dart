@@ -7,6 +7,7 @@ import '../../data/sync/sync_engine.dart';
 import '../../services/sync_controller.dart';
 import '../common/brand_marks.dart';
 import '../common/widgets.dart';
+import '../motion.dart';
 import '../theme.dart';
 import 'account_dialogs.dart';
 
@@ -57,7 +58,7 @@ class _PrepareScreenState extends ConsumerState<PrepareScreen> {
       }
       LinkChoice? choice;
       if (check.plan == LinkPlan.choose) {
-        choice = await showDialog<LinkChoice>(
+        choice = await showAppDialog<LinkChoice>(
           context: context,
           barrierDismissible: false,
           builder: (_) => LinkChoiceDialog(check: check),

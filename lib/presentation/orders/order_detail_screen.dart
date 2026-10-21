@@ -12,6 +12,7 @@ import '../../domain/orders/orders.dart';
 import '../common/format.dart';
 import '../common/rupiah_input.dart';
 import '../common/widgets.dart';
+import '../motion.dart';
 import '../theme.dart';
 import 'order_form_screen.dart';
 import 'order_labels.dart';
@@ -193,7 +194,7 @@ class _Detail extends ConsumerWidget {
       return;
     }
     if (view.order.paymentStatus != PaymentStatus.paid) {
-      final ok = await showDialog<bool>(
+      final ok = await showAppDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('Belum lunas'),
@@ -241,7 +242,7 @@ class _Detail extends ConsumerWidget {
   }
 
   Future<void> _addPayment(BuildContext context, WidgetRef ref) async {
-    final result = await showDialog<(int, PaymentMethod)>(
+    final result = await showAppDialog<(int, PaymentMethod)>(
       context: context,
       builder: (_) => _PaymentDialog(remaining: view.remaining),
     );
@@ -266,7 +267,7 @@ class _Detail extends ConsumerWidget {
     WidgetRef ref,
     Payment p,
   ) async {
-    final reason = await showDialog<String>(
+    final reason = await showAppDialog<String>(
       context: context,
       builder: (_) => ReasonDialog(
         title: 'Batalkan pembayaran ini?',
@@ -283,7 +284,7 @@ class _Detail extends ConsumerWidget {
   }
 
   Future<void> _cancel(BuildContext context, WidgetRef ref) async {
-    final result = await showDialog<_CancelResult>(
+    final result = await showAppDialog<_CancelResult>(
       context: context,
       builder: (_) => _CancelDialog(
         title: 'Batalkan pesanan?',
@@ -305,7 +306,7 @@ class _Detail extends ConsumerWidget {
   }
 
   Future<void> _correct(BuildContext context, WidgetRef ref) async {
-    final result = await showDialog<_CancelResult>(
+    final result = await showAppDialog<_CancelResult>(
       context: context,
       builder: (_) => _CancelDialog(
         title: 'Batalkan pesanan selesai?',
@@ -598,7 +599,7 @@ class _ProductionCard extends ConsumerWidget {
   ) async {
     final yieldQty = dec(line.product.yieldQty);
     final suggested = divide(Decimal.fromInt(line.item.qty), yieldQty);
-    final batch = await showDialog<Decimal>(
+    final batch = await showAppDialog<Decimal>(
       context: context,
       builder: (_) => _BatchDialog(
         product: line.product.name,
