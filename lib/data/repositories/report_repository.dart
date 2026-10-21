@@ -147,6 +147,74 @@ class PeriodReport {
       [...products]..sort((a, b) => b.profit.compareTo(a.profit));
 }
 
+/// Baris mentah satu periode untuk ekspor (FR-13.4).
+class ReportExport {
+  const ReportExport({
+    required this.orders,
+    required this.sales,
+    required this.purchases,
+    required this.expenses,
+  });
+
+  final List<ExportOrder> orders;
+  final List<ExportSale> sales;
+  final List<ExportPurchaseLine> purchases;
+
+  /// Urut dari yang paling lama.
+  final List<ExpenseView> expenses;
+}
+
+class ExportOrder {
+  const ExportOrder({
+    required this.order,
+    this.customer,
+    required this.channel,
+  });
+
+  final Order order;
+  final String? customer;
+  final String channel;
+}
+
+/// Satu item terjual; omzet sudah dipotong bagian diskonnya.
+class ExportSale {
+  const ExportSale({
+    required this.orderNo,
+    required this.completedAt,
+    required this.product,
+    required this.qty,
+    required this.unitPrice,
+    required this.revenue,
+    required this.fee,
+    required this.cogs,
+  });
+
+  final String orderNo;
+  final DateTime completedAt;
+  final String product;
+  final int qty;
+  final int unitPrice;
+  final int revenue;
+  final int fee;
+  final Decimal cogs;
+
+  Decimal get profit => rupiah(revenue) - rupiah(fee) - cogs;
+}
+
+class ExportPurchaseLine {
+  const ExportPurchaseLine({
+    required this.purchase,
+    required this.item,
+    required this.ingredient,
+    this.supplier,
+  });
+
+  final Purchase purchase;
+  final PurchaseItem item;
+  final String ingredient;
+  final String? supplier;
+}
+
 /// Ringkasan harian dan laporan periode dihitung dari transaksi
 /// (bukan disimpan), jadi koreksi apa pun langsung tercermin.
 class ReportRepository {
@@ -340,7 +408,125 @@ class ReportRepository {
     );
   }
 
+  /// Baris mentah periode untuk ekspor CSV dan PDF (FR-13.4); yang dibatalkan
+  /// atau dikoreksi tidak ikut, sama dengan [periodReport].
+  Future<ReportExport> exportData(
+    String businessId,
+    DateTime from,
+    DateTime to,
+  ) async {
+    final start = startOfDay(from);
+    final end = startOfDay(to);
+    final orders = await _completedOrders(businessId, start, end);
+    final customers = {
+      for (final c in await (_db.select(
+        _db.customers,
+      )..where((t) => t.businessId.equals(businessId))).get())
+        c.id: c.name,
+    };
+    final channels = await _channelNames(businessId);
+    final products = {
+      for (final p in await _products(businessId)) p.id: p.name,
+    };
+    final orderNos = {for (final o in orders) o.id: o.orderNo};
+
+    final purchases =
+        await (_db.select(_db.purchases)
+              ..where(
+                (t) =>
+                    t.businessId.equals(businessId) &
+                    t.voidedAt.isNull() &
+                    t.purchasedAt.isBiggerOrEqualValue(start.toUtc()) &
+                    t.purchasedAt.isSmallerThanValue(end.toUtc()),
+              )
+              ..orderBy([(t) => OrderingTerm.asc(t.purchasedAt)]))
+            .get();
+    final suppliers = {
+      for (final s in await (_db.select(
+        _db.suppliers,
+      )..where((t) => t.businessId.equals(businessId))).get())
+        s.id: s.name,
+    };
+    final ingredients = {
+      for (final i in await (_db.select(
+        _db.ingredients,
+      )..where((t) => t.businessId.equals(businessId))).get())
+        i.id: i.name,
+    };
+    final purchaseItems = purchases.isEmpty
+        ? const <PurchaseItem>[]
+        : await (_db.select(_db.purchaseItems)..where(
+                (t) => t.purchaseId.isIn([for (final p in purchases) p.id]),
+              ))
+              .get();
+    final itemsByPurchase = <String, List<PurchaseItem>>{};
+    for (final i in purchaseItems) {
+      (itemsByPurchase[i.purchaseId] ??= []).add(i);
+    }
+
+    final sales = await _sales(businessId, start, end)
+      ..sort((a, b) => a.completedAt.compareTo(b.completedAt));
+    return ReportExport(
+      orders: [
+        for (final o in orders)
+          ExportOrder(
+            order: o,
+            customer: customers[o.customerId],
+            channel: channels[o.channelId] ?? 'Langsung',
+          ),
+      ],
+      sales: [
+        for (final s in sales)
+          ExportSale(
+            orderNo: orderNos[s.orderId] ?? '',
+            completedAt: s.completedAt,
+            product: products[s.productId] ?? '',
+            qty: s.qty,
+            unitPrice: s.unitPrice,
+            revenue: s.revenue,
+            fee: s.fee,
+            cogs: s.cogs,
+          ),
+      ],
+      purchases: [
+        for (final p in purchases)
+          for (final i in itemsByPurchase[p.id] ?? const <PurchaseItem>[])
+            ExportPurchaseLine(
+              purchase: p,
+              item: i,
+              ingredient: ingredients[i.ingredientId] ?? '',
+              supplier: suppliers[p.supplierId],
+            ),
+      ],
+      expenses: (await _expenses(businessId, start, end)).reversed.toList(),
+    );
+  }
+
   // ---------------------------------------------------------- Internal
+
+  Future<List<Order>> _completedOrders(
+    String businessId,
+    DateTime from,
+    DateTime to,
+  ) =>
+      (_db.select(_db.orders)
+            ..where(
+              (t) =>
+                  t.businessId.equals(businessId) &
+                  t.status.equalsValue(OrderStatus.completed) &
+                  t.voidedAt.isNull() &
+                  t.completedAt.isBiggerOrEqualValue(from.toUtc()) &
+                  t.completedAt.isSmallerThanValue(to.toUtc()),
+            )
+            ..orderBy([(t) => OrderingTerm.asc(t.completedAt)]))
+          .get();
+
+  Future<Map<String, String>> _channelNames(String businessId) async => {
+    for (final c in await (_db.select(
+      _db.salesChannels,
+    )..where((t) => t.businessId.equals(businessId))).get())
+      c.id: c.name,
+  };
 
   /// Item pesanan yang selesai di `[from, to)` dan tidak dikoreksi; diskon dan
   /// potongan channel dibagi ke tiap item sesuai porsi nilainya.
@@ -349,23 +535,9 @@ class ReportRepository {
     DateTime from,
     DateTime to,
   ) async {
-    final orders =
-        await (_db.select(_db.orders)..where(
-              (t) =>
-                  t.businessId.equals(businessId) &
-                  t.status.equalsValue(OrderStatus.completed) &
-                  t.voidedAt.isNull() &
-                  t.completedAt.isBiggerOrEqualValue(from.toUtc()) &
-                  t.completedAt.isSmallerThanValue(to.toUtc()),
-            ))
-            .get();
-    if (orders.isEmpty) return const [];
-    final channels = {
-      for (final c in await (_db.select(
-        _db.salesChannels,
-      )..where((t) => t.businessId.equals(businessId))).get())
-        c.id: c.name,
-    };
+    final orders = await _completedOrders(businessId, from, to);
+    if (orders.isEmpty) return [];
+    final channels = await _channelNames(businessId);
     final items = await (_db.select(
       _db.orderItems,
     )..where((t) => t.orderId.isIn([for (final o in orders) o.id]))).get();
@@ -391,6 +563,7 @@ class ReportRepository {
             channel: channels[o.channelId] ?? 'Langsung',
             completedAt: o.completedAt!,
             qty: l.qty,
+            unitPrice: l.unitPrice,
             revenue: net[i],
             fee: fees[i],
             cogs: dec(l.hppPerPcsSnapshot ?? 0) * Decimal.fromInt(l.qty),
@@ -513,6 +686,7 @@ class _Sale {
     required this.channel,
     required this.completedAt,
     required this.qty,
+    required this.unitPrice,
     required this.revenue,
     required this.fee,
     required this.cogs,
@@ -525,6 +699,7 @@ class _Sale {
   final String channel;
   final DateTime completedAt;
   final int qty;
+  final int unitPrice;
   final int revenue;
   final int fee;
   final Decimal cogs;

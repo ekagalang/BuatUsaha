@@ -200,3 +200,13 @@ enum ShoppingItemSource implements CodedEnum {
   @override
   final String code;
 }
+
+/// Ukuran nota PDF (FR-13.3).
+enum ReceiptSize implements CodedEnum {
+  a6('A6'),
+  roll58('ROLL58');
+
+  const ReceiptSize(this.code);
+  @override
+  final String code;
+}

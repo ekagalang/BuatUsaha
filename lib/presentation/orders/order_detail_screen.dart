@@ -12,6 +12,7 @@ import '../../domain/orders/orders.dart';
 import '../common/format.dart';
 import '../common/rupiah_input.dart';
 import '../common/widgets.dart';
+import '../documents/document_screens.dart';
 import '../motion.dart';
 import '../theme.dart';
 import 'order_form_screen.dart';
@@ -57,10 +58,19 @@ class _Detail extends ConsumerWidget {
     final (status, kind) = orderStatusPill(view, now);
     final next = nextStatus(o.status);
     final completed = o.status == OrderStatus.completed;
+    final business = ref.watch(businessProvider).value;
     return Scaffold(
       appBar: AppBar(
         title: Text(o.orderNo),
         actions: [
+          if (o.status != OrderStatus.cancelled)
+            IconButton(
+              tooltip: 'Nota',
+              icon: const Icon(Icons.receipt_long_outlined),
+              onPressed: business == null
+                  ? null
+                  : () => showReceiptSheet(context, ref, view, business),
+            ),
           if (view.isOpen || (completed && o.voidedAt == null))
             PopupMenuButton<_Menu>(
               onSelected: (m) => switch (m) {

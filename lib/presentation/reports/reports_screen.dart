@@ -9,6 +9,7 @@ import '../../data/repositories/report_repository.dart';
 import '../../domain/costing/costing.dart';
 import '../common/format.dart';
 import '../common/widgets.dart';
+import '../documents/document_screens.dart';
 import '../orders/order_form_screen.dart' show SummaryRow;
 import '../theme.dart';
 
@@ -98,6 +99,17 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       appBar: AppBar(
         title: const Text('Laporan'),
         actions: [
+          IconButton(
+            tooltip: 'Ekspor',
+            icon: const Icon(Icons.file_download_outlined),
+            onPressed: () => showReportExportSheet(
+              context,
+              ref,
+              from: range.$1,
+              to: range.$2,
+              label: _label,
+            ),
+          ),
           TextButton.icon(
             onPressed: () => context.push('/laporan/pengeluaran'),
             icon: const Icon(Icons.receipt_long_outlined),

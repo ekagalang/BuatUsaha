@@ -189,6 +189,60 @@ class $BusinessesTable extends Businesses
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _addressMeta = const VerificationMeta(
+    'address',
+  );
+  @override
+  late final GeneratedColumn<String> address = GeneratedColumn<String>(
+    'address',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _paymentInfoMeta = const VerificationMeta(
+    'paymentInfo',
+  );
+  @override
+  late final GeneratedColumn<String> paymentInfo = GeneratedColumn<String>(
+    'payment_info',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _receiptNoteMeta = const VerificationMeta(
+    'receiptNote',
+  );
+  @override
+  late final GeneratedColumn<String> receiptNote = GeneratedColumn<String>(
+    'receipt_note',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _logoDataMeta = const VerificationMeta(
+    'logoData',
+  );
+  @override
+  late final GeneratedColumn<String> logoData = GeneratedColumn<String>(
+    'logo_data',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<ReceiptSize, String> receiptSize =
+      GeneratedColumn<String>(
+        'receipt_size',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('A6'),
+      ).withConverter<ReceiptSize>($BusinessesTable.$converterreceiptSize);
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -207,6 +261,11 @@ class $BusinessesTable extends Businesses
     lastClosedOn,
     onboardedAt,
     ownerUid,
+    address,
+    paymentInfo,
+    receiptNote,
+    logoData,
+    receiptSize,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -327,6 +386,36 @@ class $BusinessesTable extends Businesses
         ownerUid.isAcceptableOrUnknown(data['owner_uid']!, _ownerUidMeta),
       );
     }
+    if (data.containsKey('address')) {
+      context.handle(
+        _addressMeta,
+        address.isAcceptableOrUnknown(data['address']!, _addressMeta),
+      );
+    }
+    if (data.containsKey('payment_info')) {
+      context.handle(
+        _paymentInfoMeta,
+        paymentInfo.isAcceptableOrUnknown(
+          data['payment_info']!,
+          _paymentInfoMeta,
+        ),
+      );
+    }
+    if (data.containsKey('receipt_note')) {
+      context.handle(
+        _receiptNoteMeta,
+        receiptNote.isAcceptableOrUnknown(
+          data['receipt_note']!,
+          _receiptNoteMeta,
+        ),
+      );
+    }
+    if (data.containsKey('logo_data')) {
+      context.handle(
+        _logoDataMeta,
+        logoData.isAcceptableOrUnknown(data['logo_data']!, _logoDataMeta),
+      );
+    }
     return context;
   }
 
@@ -402,6 +491,28 @@ class $BusinessesTable extends Businesses
         DriftSqlType.string,
         data['${effectivePrefix}owner_uid'],
       ),
+      address: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}address'],
+      ),
+      paymentInfo: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payment_info'],
+      ),
+      receiptNote: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}receipt_note'],
+      ),
+      logoData: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}logo_data'],
+      ),
+      receiptSize: $BusinessesTable.$converterreceiptSize.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}receipt_size'],
+        )!,
+      ),
     );
   }
 
@@ -412,6 +523,8 @@ class $BusinessesTable extends Businesses
 
   static TypeConverter<StockDeductMode, String> $converterstockDeductMode =
       const CodedEnumConverter(StockDeductMode.values);
+  static TypeConverter<ReceiptSize, String> $converterreceiptSize =
+      const CodedEnumConverter(ReceiptSize.values);
 }
 
 class Business extends DataClass implements Insertable<Business> {
@@ -444,6 +557,20 @@ class Business extends DataClass implements Insertable<Business> {
   /// uid Firebase pemilik setelah login Google; kosong = mode lokal
   /// (FR-10.1). Skema v3, tidak ikut disinkron.
   final String? ownerUid;
+
+  /// Profil untuk nota (FR-13.1). Skema v5.
+  final String? address;
+
+  /// Rekening/QRIS, teks bebas beberapa baris.
+  final String? paymentInfo;
+
+  /// Catatan kaki nota; kosong = bawaan "Terima kasih sudah memesan."
+  final String? receiptNote;
+
+  /// Logo JPEG ≤ 100 KB dalam base64, disimpan di baris supaya ikut
+  /// tersinkron tanpa Cloud Storage. Menggantikan [logoPath].
+  final String? logoData;
+  final ReceiptSize receiptSize;
   const Business({
     required this.id,
     required this.createdAt,
@@ -461,6 +588,11 @@ class Business extends DataClass implements Insertable<Business> {
     this.lastClosedOn,
     this.onboardedAt,
     this.ownerUid,
+    this.address,
+    this.paymentInfo,
+    this.receiptNote,
+    this.logoData,
+    required this.receiptSize,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -499,6 +631,23 @@ class Business extends DataClass implements Insertable<Business> {
     if (!nullToAbsent || ownerUid != null) {
       map['owner_uid'] = Variable<String>(ownerUid);
     }
+    if (!nullToAbsent || address != null) {
+      map['address'] = Variable<String>(address);
+    }
+    if (!nullToAbsent || paymentInfo != null) {
+      map['payment_info'] = Variable<String>(paymentInfo);
+    }
+    if (!nullToAbsent || receiptNote != null) {
+      map['receipt_note'] = Variable<String>(receiptNote);
+    }
+    if (!nullToAbsent || logoData != null) {
+      map['logo_data'] = Variable<String>(logoData);
+    }
+    {
+      map['receipt_size'] = Variable<String>(
+        $BusinessesTable.$converterreceiptSize.toSql(receiptSize),
+      );
+    }
     return map;
   }
 
@@ -534,6 +683,19 @@ class Business extends DataClass implements Insertable<Business> {
       ownerUid: ownerUid == null && nullToAbsent
           ? const Value.absent()
           : Value(ownerUid),
+      address: address == null && nullToAbsent
+          ? const Value.absent()
+          : Value(address),
+      paymentInfo: paymentInfo == null && nullToAbsent
+          ? const Value.absent()
+          : Value(paymentInfo),
+      receiptNote: receiptNote == null && nullToAbsent
+          ? const Value.absent()
+          : Value(receiptNote),
+      logoData: logoData == null && nullToAbsent
+          ? const Value.absent()
+          : Value(logoData),
+      receiptSize: Value(receiptSize),
     );
   }
 
@@ -561,6 +723,11 @@ class Business extends DataClass implements Insertable<Business> {
       lastClosedOn: serializer.fromJson<String?>(json['lastClosedOn']),
       onboardedAt: serializer.fromJson<DateTime?>(json['onboardedAt']),
       ownerUid: serializer.fromJson<String?>(json['ownerUid']),
+      address: serializer.fromJson<String?>(json['address']),
+      paymentInfo: serializer.fromJson<String?>(json['paymentInfo']),
+      receiptNote: serializer.fromJson<String?>(json['receiptNote']),
+      logoData: serializer.fromJson<String?>(json['logoData']),
+      receiptSize: serializer.fromJson<ReceiptSize>(json['receiptSize']),
     );
   }
   @override
@@ -583,6 +750,11 @@ class Business extends DataClass implements Insertable<Business> {
       'lastClosedOn': serializer.toJson<String?>(lastClosedOn),
       'onboardedAt': serializer.toJson<DateTime?>(onboardedAt),
       'ownerUid': serializer.toJson<String?>(ownerUid),
+      'address': serializer.toJson<String?>(address),
+      'paymentInfo': serializer.toJson<String?>(paymentInfo),
+      'receiptNote': serializer.toJson<String?>(receiptNote),
+      'logoData': serializer.toJson<String?>(logoData),
+      'receiptSize': serializer.toJson<ReceiptSize>(receiptSize),
     };
   }
 
@@ -603,6 +775,11 @@ class Business extends DataClass implements Insertable<Business> {
     Value<String?> lastClosedOn = const Value.absent(),
     Value<DateTime?> onboardedAt = const Value.absent(),
     Value<String?> ownerUid = const Value.absent(),
+    Value<String?> address = const Value.absent(),
+    Value<String?> paymentInfo = const Value.absent(),
+    Value<String?> receiptNote = const Value.absent(),
+    Value<String?> logoData = const Value.absent(),
+    ReceiptSize? receiptSize,
   }) => Business(
     id: id ?? this.id,
     createdAt: createdAt ?? this.createdAt,
@@ -622,6 +799,11 @@ class Business extends DataClass implements Insertable<Business> {
     lastClosedOn: lastClosedOn.present ? lastClosedOn.value : this.lastClosedOn,
     onboardedAt: onboardedAt.present ? onboardedAt.value : this.onboardedAt,
     ownerUid: ownerUid.present ? ownerUid.value : this.ownerUid,
+    address: address.present ? address.value : this.address,
+    paymentInfo: paymentInfo.present ? paymentInfo.value : this.paymentInfo,
+    receiptNote: receiptNote.present ? receiptNote.value : this.receiptNote,
+    logoData: logoData.present ? logoData.value : this.logoData,
+    receiptSize: receiptSize ?? this.receiptSize,
   );
   Business copyWithCompanion(BusinessesCompanion data) {
     return Business(
@@ -655,6 +837,17 @@ class Business extends DataClass implements Insertable<Business> {
           ? data.onboardedAt.value
           : this.onboardedAt,
       ownerUid: data.ownerUid.present ? data.ownerUid.value : this.ownerUid,
+      address: data.address.present ? data.address.value : this.address,
+      paymentInfo: data.paymentInfo.present
+          ? data.paymentInfo.value
+          : this.paymentInfo,
+      receiptNote: data.receiptNote.present
+          ? data.receiptNote.value
+          : this.receiptNote,
+      logoData: data.logoData.present ? data.logoData.value : this.logoData,
+      receiptSize: data.receiptSize.present
+          ? data.receiptSize.value
+          : this.receiptSize,
     );
   }
 
@@ -676,13 +869,18 @@ class Business extends DataClass implements Insertable<Business> {
           ..write('ownerHourlyWage: $ownerHourlyWage, ')
           ..write('lastClosedOn: $lastClosedOn, ')
           ..write('onboardedAt: $onboardedAt, ')
-          ..write('ownerUid: $ownerUid')
+          ..write('ownerUid: $ownerUid, ')
+          ..write('address: $address, ')
+          ..write('paymentInfo: $paymentInfo, ')
+          ..write('receiptNote: $receiptNote, ')
+          ..write('logoData: $logoData, ')
+          ..write('receiptSize: $receiptSize')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     createdAt,
     updatedAt,
@@ -699,7 +897,12 @@ class Business extends DataClass implements Insertable<Business> {
     lastClosedOn,
     onboardedAt,
     ownerUid,
-  );
+    address,
+    paymentInfo,
+    receiptNote,
+    logoData,
+    receiptSize,
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -719,7 +922,12 @@ class Business extends DataClass implements Insertable<Business> {
           other.ownerHourlyWage == this.ownerHourlyWage &&
           other.lastClosedOn == this.lastClosedOn &&
           other.onboardedAt == this.onboardedAt &&
-          other.ownerUid == this.ownerUid);
+          other.ownerUid == this.ownerUid &&
+          other.address == this.address &&
+          other.paymentInfo == this.paymentInfo &&
+          other.receiptNote == this.receiptNote &&
+          other.logoData == this.logoData &&
+          other.receiptSize == this.receiptSize);
 }
 
 class BusinessesCompanion extends UpdateCompanion<Business> {
@@ -739,6 +947,11 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
   final Value<String?> lastClosedOn;
   final Value<DateTime?> onboardedAt;
   final Value<String?> ownerUid;
+  final Value<String?> address;
+  final Value<String?> paymentInfo;
+  final Value<String?> receiptNote;
+  final Value<String?> logoData;
+  final Value<ReceiptSize> receiptSize;
   final Value<int> rowid;
   const BusinessesCompanion({
     this.id = const Value.absent(),
@@ -757,6 +970,11 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
     this.lastClosedOn = const Value.absent(),
     this.onboardedAt = const Value.absent(),
     this.ownerUid = const Value.absent(),
+    this.address = const Value.absent(),
+    this.paymentInfo = const Value.absent(),
+    this.receiptNote = const Value.absent(),
+    this.logoData = const Value.absent(),
+    this.receiptSize = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   BusinessesCompanion.insert({
@@ -776,6 +994,11 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
     this.lastClosedOn = const Value.absent(),
     this.onboardedAt = const Value.absent(),
     this.ownerUid = const Value.absent(),
+    this.address = const Value.absent(),
+    this.paymentInfo = const Value.absent(),
+    this.receiptNote = const Value.absent(),
+    this.logoData = const Value.absent(),
+    this.receiptSize = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : name = Value(name);
   static Insertable<Business> custom({
@@ -795,6 +1018,11 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
     Expression<String>? lastClosedOn,
     Expression<DateTime>? onboardedAt,
     Expression<String>? ownerUid,
+    Expression<String>? address,
+    Expression<String>? paymentInfo,
+    Expression<String>? receiptNote,
+    Expression<String>? logoData,
+    Expression<String>? receiptSize,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -815,6 +1043,11 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
       if (lastClosedOn != null) 'last_closed_on': lastClosedOn,
       if (onboardedAt != null) 'onboarded_at': onboardedAt,
       if (ownerUid != null) 'owner_uid': ownerUid,
+      if (address != null) 'address': address,
+      if (paymentInfo != null) 'payment_info': paymentInfo,
+      if (receiptNote != null) 'receipt_note': receiptNote,
+      if (logoData != null) 'logo_data': logoData,
+      if (receiptSize != null) 'receipt_size': receiptSize,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -836,6 +1069,11 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
     Value<String?>? lastClosedOn,
     Value<DateTime?>? onboardedAt,
     Value<String?>? ownerUid,
+    Value<String?>? address,
+    Value<String?>? paymentInfo,
+    Value<String?>? receiptNote,
+    Value<String?>? logoData,
+    Value<ReceiptSize>? receiptSize,
     Value<int>? rowid,
   }) {
     return BusinessesCompanion(
@@ -855,6 +1093,11 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
       lastClosedOn: lastClosedOn ?? this.lastClosedOn,
       onboardedAt: onboardedAt ?? this.onboardedAt,
       ownerUid: ownerUid ?? this.ownerUid,
+      address: address ?? this.address,
+      paymentInfo: paymentInfo ?? this.paymentInfo,
+      receiptNote: receiptNote ?? this.receiptNote,
+      logoData: logoData ?? this.logoData,
+      receiptSize: receiptSize ?? this.receiptSize,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -912,6 +1155,23 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
     if (ownerUid.present) {
       map['owner_uid'] = Variable<String>(ownerUid.value);
     }
+    if (address.present) {
+      map['address'] = Variable<String>(address.value);
+    }
+    if (paymentInfo.present) {
+      map['payment_info'] = Variable<String>(paymentInfo.value);
+    }
+    if (receiptNote.present) {
+      map['receipt_note'] = Variable<String>(receiptNote.value);
+    }
+    if (logoData.present) {
+      map['logo_data'] = Variable<String>(logoData.value);
+    }
+    if (receiptSize.present) {
+      map['receipt_size'] = Variable<String>(
+        $BusinessesTable.$converterreceiptSize.toSql(receiptSize.value),
+      );
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -937,6 +1197,11 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
           ..write('lastClosedOn: $lastClosedOn, ')
           ..write('onboardedAt: $onboardedAt, ')
           ..write('ownerUid: $ownerUid, ')
+          ..write('address: $address, ')
+          ..write('paymentInfo: $paymentInfo, ')
+          ..write('receiptNote: $receiptNote, ')
+          ..write('logoData: $logoData, ')
+          ..write('receiptSize: $receiptSize, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -18020,6 +18285,11 @@ typedef $$BusinessesTableCreateCompanionBuilder = BusinessesCompanion Function({
   Value<String?> lastClosedOn,
   Value<DateTime?> onboardedAt,
   Value<String?> ownerUid,
+  Value<String?> address,
+  Value<String?> paymentInfo,
+  Value<String?> receiptNote,
+  Value<String?> logoData,
+  Value<ReceiptSize> receiptSize,
   Value<int> rowid,
 });
 typedef $$BusinessesTableUpdateCompanionBuilder = BusinessesCompanion Function({
@@ -18039,6 +18309,11 @@ typedef $$BusinessesTableUpdateCompanionBuilder = BusinessesCompanion Function({
   Value<String?> lastClosedOn,
   Value<DateTime?> onboardedAt,
   Value<String?> ownerUid,
+  Value<String?> address,
+  Value<String?> paymentInfo,
+  Value<String?> receiptNote,
+  Value<String?> logoData,
+  Value<ReceiptSize> receiptSize,
   Value<int> rowid,
 });
 
@@ -18364,6 +18639,32 @@ class $$BusinessesTableFilterComposer
   ColumnFilters<String> get ownerUid => $composableBuilder(
     column: $table.ownerUid,
     builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get address => $composableBuilder(
+    column: $table.address,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get paymentInfo => $composableBuilder(
+    column: $table.paymentInfo,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get receiptNote => $composableBuilder(
+    column: $table.receiptNote,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get logoData => $composableBuilder(
+    column: $table.logoData,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<ReceiptSize, ReceiptSize, String>
+  get receiptSize => $composableBuilder(
+    column: $table.receiptSize,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
   );
 
   Expression<bool> notificationSettingsRefs(
@@ -18755,6 +19056,31 @@ class $$BusinessesTableOrderingComposer
     column: $table.ownerUid,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get address => $composableBuilder(
+    column: $table.address,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get paymentInfo => $composableBuilder(
+    column: $table.paymentInfo,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get receiptNote => $composableBuilder(
+    column: $table.receiptNote,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get logoData => $composableBuilder(
+    column: $table.logoData,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get receiptSize => $composableBuilder(
+    column: $table.receiptSize,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$BusinessesTableAnnotationComposer
@@ -18828,6 +19154,28 @@ class $$BusinessesTableAnnotationComposer
 
   GeneratedColumn<String> get ownerUid =>
       $composableBuilder(column: $table.ownerUid, builder: (column) => column);
+
+  GeneratedColumn<String> get address =>
+      $composableBuilder(column: $table.address, builder: (column) => column);
+
+  GeneratedColumn<String> get paymentInfo => $composableBuilder(
+    column: $table.paymentInfo,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get receiptNote => $composableBuilder(
+    column: $table.receiptNote,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get logoData =>
+      $composableBuilder(column: $table.logoData, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<ReceiptSize, String> get receiptSize =>
+      $composableBuilder(
+        column: $table.receiptSize,
+        builder: (column) => column,
+      );
 
   Expression<T> notificationSettingsRefs<T extends Object>(
     Expression<T> Function($$NotificationSettingsTableAnnotationComposer a) f,
@@ -19189,6 +19537,11 @@ class $$BusinessesTableTableManager
                 Value<String?> lastClosedOn = const Value.absent(),
                 Value<DateTime?> onboardedAt = const Value.absent(),
                 Value<String?> ownerUid = const Value.absent(),
+                Value<String?> address = const Value.absent(),
+                Value<String?> paymentInfo = const Value.absent(),
+                Value<String?> receiptNote = const Value.absent(),
+                Value<String?> logoData = const Value.absent(),
+                Value<ReceiptSize> receiptSize = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => BusinessesCompanion(
                 id: id,
@@ -19207,6 +19560,11 @@ class $$BusinessesTableTableManager
                 lastClosedOn: lastClosedOn,
                 onboardedAt: onboardedAt,
                 ownerUid: ownerUid,
+                address: address,
+                paymentInfo: paymentInfo,
+                receiptNote: receiptNote,
+                logoData: logoData,
+                receiptSize: receiptSize,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -19227,6 +19585,11 @@ class $$BusinessesTableTableManager
                 Value<String?> lastClosedOn = const Value.absent(),
                 Value<DateTime?> onboardedAt = const Value.absent(),
                 Value<String?> ownerUid = const Value.absent(),
+                Value<String?> address = const Value.absent(),
+                Value<String?> paymentInfo = const Value.absent(),
+                Value<String?> receiptNote = const Value.absent(),
+                Value<String?> logoData = const Value.absent(),
+                Value<ReceiptSize> receiptSize = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => BusinessesCompanion.insert(
                 id: id,
@@ -19245,6 +19608,11 @@ class $$BusinessesTableTableManager
                 lastClosedOn: lastClosedOn,
                 onboardedAt: onboardedAt,
                 ownerUid: ownerUid,
+                address: address,
+                paymentInfo: paymentInfo,
+                receiptNote: receiptNote,
+                logoData: logoData,
+                receiptSize: receiptSize,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

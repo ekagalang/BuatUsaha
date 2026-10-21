@@ -225,8 +225,19 @@ Rincian FR-11 sampai FR-19 ada di PRD tab "Rencana fase 2b". Setiap sprint: rinc
   - [x] Test: 8 repository, 7 layar (termasuk huruf 130%), 1 sinkron dua HP
   - [x] Versi 1.1.0 dan CHANGELOG
   - [x] Build APK lokal 1.1.0 (build 12), 198 tes lulus, analyze bersih
-  - [ ] Commit + push ke dev, lalu rilis 1.1.0 lewat CI "Terbitkan rilis" (pengguna)
-- [ ] **S3 Nota dan ekspor:** nota WhatsApp/PDF (A6 atau struk 58 mm), info pembayaran di profil usaha, ekspor laporan PDF/CSV (FR-13.x)
+  - [x] Commit + push ke dev (0b2d3f2)
+  - [ ] Rilis lewat CI "Terbitkan rilis" (pengguna); bisa langsung 1.2.0 karena memuat S2
+- [ ] **S3 Nota dan ekspor** (FR-13.1–13.4):
+  - [x] Dirinci di PRD ("Rincian S3"); tanpa mockup atas pilihan pengguna (21 Okt 2026), catatan tampilan di Design.md bagian 16
+  - [x] Skema v5: `businesses.address`, `payment_info`, `receipt_note`, `logo_data`, `receipt_size`; ikut sinkron
+  - [x] Profil usaha: logo (diperkecil 256 px, JPEG ≤ 100 KB), alamat, info pembayaran, catatan kaki, ukuran nota A6/struk 58 mm
+  - [x] Nota di Detail pesanan: kirim ke WhatsApp pelanggan, bagikan teks, Nota PDF (pratinjau, bagikan, cetak)
+  - [x] Ekspor di Laporan: ringkasan PDF A4 dan 4 file CSV (pemisah `;`, desimal koma, BOM)
+  - [x] Test: 10 (teks nota, wa.me, PDF dua ukuran, logo, CSV, PDF laporan, lembar nota, pengaturan, lembar ekspor); 208 tes lulus
+  - [x] Versi 1.2.0 dan CHANGELOG
+  - [x] Build APK lokal 1.2.0 (build 13)
+  - [ ] Commit + push ke dev, rilis 1.2.0 (pengguna)
+  - [ ] Coba di HP: kirim nota ke WhatsApp, cetak struk 58 mm lewat aplikasi printer thermal, buka CSV di Excel/Sheets (pengguna)
 - [ ] **S4 Harga dan HPP:** harga per channel + saran harga, riwayat HPP dengan grafik, simulasi kenaikan harga bahan (FR-14.x)
 - [ ] **S5 Arus kas:** akun kas, kas otomatis dari pembayaran/belanja/pengeluaran, entri manual, laporan kas (FR-15.x)
 - [ ] **S6 Sub-resep dan paket/hampers** (FR-16.x)

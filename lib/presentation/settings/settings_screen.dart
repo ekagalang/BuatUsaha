@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:decimal/decimal.dart';
 import 'package:drift/drift.dart' show Value;
@@ -19,6 +20,8 @@ import '../../services/update_controller.dart';
 import '../common/format.dart';
 import '../common/rupiah_input.dart';
 import '../common/widgets.dart';
+import '../documents/logo_image.dart';
+import '../documents/receipt.dart';
 import '../motion.dart';
 import '../menu/menu_labels.dart';
 import '../theme.dart';
@@ -110,21 +113,115 @@ class _ProfileSectionState extends ConsumerState<_ProfileSection> {
   late final _phone = TextEditingController(
     text: widget.business.phoneWa ?? '',
   );
+  late final _address = TextEditingController(
+    text: widget.business.address ?? '',
+  );
+  late final _payment = TextEditingController(
+    text: widget.business.paymentInfo ?? '',
+  );
+  late final _footer = TextEditingController(
+    text: widget.business.receiptNote ?? '',
+  );
+  var _pickingLogo = false;
 
   @override
   void dispose() {
     _name.dispose();
     _phone.dispose();
+    _address.dispose();
+    _payment.dispose();
+    _footer.dispose();
     super.dispose();
+  }
+
+  static Value<String?> _text(TextEditingController c) =>
+      Value(c.text.trim().isEmpty ? null : c.text.trim());
+
+  Future<void> _pickLogo() async {
+    setState(() => _pickingLogo = true);
+    try {
+      final picked = await FilePicker.pickFile(
+        dialogTitle: 'Pilih logo usaha',
+        type: FileType.image,
+      );
+      if (picked == null || !mounted) return;
+      final bytes = await picked.readAsBytes();
+      final logo = await Isolate.run(() => encodeLogo(bytes));
+      if (!mounted) return;
+      if (logo == null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('File itu bukan gambar.')));
+        return;
+      }
+      await _update(
+        context,
+        ref,
+        BusinessesCompanion(logoData: Value(logo)),
+        'Logo disimpan.',
+      );
+    } finally {
+      if (mounted) setState(() => _pickingLogo = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final business = ref.watch(businessProvider).value ?? widget.business;
+    final logo = decodeLogo(business.logoData);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SectionTitle('Profil usaha'),
         const SizedBox(height: 8),
+        Row(
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                border: Border.all(color: AppColors.border),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: logo == null
+                  ? const Icon(
+                      Icons.storefront_outlined,
+                      color: AppColors.textMuted,
+                    )
+                  : Image.memory(logo, fit: BoxFit.contain),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                logo == null
+                    ? 'Logo untuk nota (opsional)'
+                    : 'Logo tampil di nota dan laporan PDF',
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textMuted,
+                ),
+              ),
+            ),
+            if (logo != null)
+              IconButton(
+                tooltip: 'Hapus logo',
+                icon: const Icon(Icons.delete_outline),
+                onPressed: () => _update(
+                  context,
+                  ref,
+                  const BusinessesCompanion(logoData: Value(null)),
+                  'Logo dihapus.',
+                ),
+              ),
+            TextButton(
+              onPressed: _pickingLogo ? null : _pickLogo,
+              child: Text(logo == null ? 'Pilih' : 'Ganti'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
         TextField(
           controller: _name,
           textCapitalization: TextCapitalization.words,
@@ -135,6 +232,35 @@ class _ProfileSectionState extends ConsumerState<_ProfileSection> {
           controller: _phone,
           keyboardType: TextInputType.phone,
           decoration: const InputDecoration(labelText: 'No. WhatsApp usaha'),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _address,
+          textCapitalization: TextCapitalization.sentences,
+          minLines: 1,
+          maxLines: 3,
+          decoration: const InputDecoration(labelText: 'Alamat (opsional)'),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _payment,
+          minLines: 2,
+          maxLines: 5,
+          decoration: const InputDecoration(
+            labelText: 'Info pembayaran',
+            hintText: 'mis. BCA 1234567 a.n. Rina',
+            helperText: 'Tampil di nota yang belum lunas.',
+            alignLabelWithHint: true,
+          ),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _footer,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: const InputDecoration(
+            labelText: 'Catatan kaki nota',
+            hintText: defaultReceiptNote,
+          ),
         ),
         const SizedBox(height: 8),
         Align(
@@ -147,14 +273,40 @@ class _ProfileSectionState extends ConsumerState<_ProfileSection> {
                 name: Value(
                   _name.text.trim().isEmpty ? 'Usaha saya' : _name.text.trim(),
                 ),
-                phoneWa: Value(
-                  _phone.text.trim().isEmpty ? null : _phone.text.trim(),
-                ),
+                phoneWa: _text(_phone),
+                address: _text(_address),
+                paymentInfo: _text(_payment),
+                receiptNote: _text(_footer),
               ),
               'Profil usaha disimpan.',
             ),
             child: const Text('Simpan profil'),
           ),
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'Ukuran nota PDF',
+          style: TextStyle(fontSize: 13, color: AppColors.textMuted),
+        ),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 8,
+          children: [
+            for (final (size, label) in const [
+              (ReceiptSize.a6, 'A6'),
+              (ReceiptSize.roll58, 'Struk 58 mm'),
+            ])
+              ChoicePill(
+                label: label,
+                selected: business.receiptSize == size,
+                onSelected: () => ref
+                    .read(businessRepositoryProvider)
+                    .updateBusiness(
+                      business.id,
+                      BusinessesCompanion(receiptSize: Value(size)),
+                    ),
+              ),
+          ],
         ),
       ],
     );

@@ -61,7 +61,7 @@ class AppDatabase extends _$AppDatabase {
   Future<void> closeOnce() => _closing ??= close();
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -80,6 +80,13 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(products, products.safetyStock);
         await m.createTable(shoppingLists);
         await m.createTable(shoppingListItems);
+      }
+      if (from < 5) {
+        await m.addColumn(businesses, businesses.address);
+        await m.addColumn(businesses, businesses.paymentInfo);
+        await m.addColumn(businesses, businesses.receiptNote);
+        await m.addColumn(businesses, businesses.logoData);
+        await m.addColumn(businesses, businesses.receiptSize);
       }
     },
     beforeOpen: (details) async {

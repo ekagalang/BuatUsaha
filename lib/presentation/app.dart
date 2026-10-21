@@ -11,6 +11,7 @@ import '../services/update_controller.dart';
 import 'auth/login_screen.dart';
 import 'auth/prepare_screen.dart';
 import 'common/brand_marks.dart';
+import 'documents/document_screens.dart';
 import 'home/home_screen.dart';
 import 'motion.dart';
 import 'menu/menu_detail_screen.dart';
@@ -90,6 +91,12 @@ GoRouter buildRouter({Listenable? refresh, GoRouterRedirect? redirect}) {
               builder: (context, state) =>
                   OrderFormScreen(id: state.pathParameters['id']),
             ),
+            GoRoute(
+              path: 'nota',
+              parentNavigatorKey: rootKey,
+              builder: (context, state) =>
+                  ReceiptPdfScreen(orderId: state.pathParameters['id']!),
+            ),
           ],
         ),
       ],
@@ -166,6 +173,11 @@ GoRouter buildRouter({Listenable? refresh, GoRouterRedirect? redirect}) {
           path: 'pengeluaran',
           parentNavigatorKey: rootKey,
           builder: (context, state) => const ExpensesScreen(),
+        ),
+        GoRoute(
+          path: 'pdf',
+          parentNavigatorKey: rootKey,
+          builder: (context, state) => reportPdfRoute(state),
         ),
       ],
     ),

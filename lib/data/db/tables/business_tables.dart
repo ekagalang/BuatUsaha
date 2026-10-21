@@ -35,6 +35,22 @@ class Businesses extends Table with EntityColumns {
   /// uid Firebase pemilik setelah login Google; kosong = mode lokal
   /// (FR-10.1). Skema v3, tidak ikut disinkron.
   TextColumn get ownerUid => text().nullable()();
+
+  /// Profil untuk nota (FR-13.1). Skema v5.
+  TextColumn get address => text().nullable()();
+
+  /// Rekening/QRIS, teks bebas beberapa baris.
+  TextColumn get paymentInfo => text().nullable()();
+
+  /// Catatan kaki nota; kosong = bawaan "Terima kasih sudah memesan."
+  TextColumn get receiptNote => text().nullable()();
+
+  /// Logo JPEG ≤ 100 KB dalam base64, disimpan di baris supaya ikut
+  /// tersinkron tanpa Cloud Storage. Menggantikan [logoPath].
+  TextColumn get logoData => text().nullable()();
+  TextColumn get receiptSize => text()
+      .map(const CodedEnumConverter(ReceiptSize.values))
+      .withDefault(const Constant('A6'))();
 }
 
 /// Pengaturan notifikasi, 1:1 dengan [Businesses].

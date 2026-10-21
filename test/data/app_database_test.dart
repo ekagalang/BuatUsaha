@@ -241,7 +241,7 @@ void main() {
   });
 
   test(
-    'migrasi skema v1 ke v4 menambah kolom dan tabel tanpa menghapus data',
+    'migrasi skema v1 ke v5 menambah kolom dan tabel tanpa menghapus data',
     () async {
       final dir = Directory.systemTemp.createTempSync('hpp_migrasi');
       final file = File('${dir.path}/app.sqlite');
@@ -271,6 +271,15 @@ void main() {
       );
       await old.customStatement('DROP TABLE shopping_list_items');
       await old.customStatement('DROP TABLE shopping_lists');
+      for (final c in [
+        'address',
+        'payment_info',
+        'receipt_note',
+        'logo_data',
+        'receipt_size',
+      ]) {
+        await old.customStatement('ALTER TABLE businesses DROP COLUMN $c');
+      }
       await old.customStatement('PRAGMA user_version = 1');
       await old.close();
 
@@ -279,6 +288,8 @@ void main() {
       expect(business.id, id);
       expect(business.onboardedAt, isNull);
       expect(business.ownerUid, isNull);
+      expect(business.receiptSize, ReceiptSize.a6);
+      expect(business.paymentInfo, isNull);
       expect(await old.select(old.syncOutbox).get(), isEmpty);
       expect(await old.select(old.shoppingLists).get(), isEmpty);
       final columns = await old

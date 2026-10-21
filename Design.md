@@ -240,3 +240,15 @@ Di-acc lewat mockup `Gerak` (21 Okt 2026). Kode: `lib/presentation/motion.dart`.
 - Dialog: `showAppDialog` (skala 0,9 → 1 + pudar, 250 ms) menggantikan `showDialog`; snackbar mengambang di atas navigasi bawah.
 - Pengaturan Android "hapus animasi" aktif → semua durasi 0 (`Motion.of`); getar tetap.
 - Belum: animasi pratinjau gestur kembali prediktif Android 14+; gestur kembali tetap berfungsi seperti biasa.
+
+## 16. Nota dan dokumen PDF
+
+Dibuat langsung tanpa mockup atas pilihan pengguna (S3, 21 Okt 2026); dicek dari APK.
+
+- Font PDF: Plus Jakarta Sans yang dibundel (Regular dan Bold), supaya Rp, ×, −, dan · tampil benar. Warna: teks `text`, keterangan `textMuted`, garis `inputBorder`, judul dan tanda LUNAS `primary`, kotak info pembayaran `primaryContainer`.
+- Nota A6 (105 × 148 mm, margin 8 mm, teks 8,5 pt): kepala rata kiri (logo, nama, alamat, WhatsApp), nomor nota, jadwal, pelanggan, item (nama tebal, lalu "10 × Rp8.000" dan total rata kanan), ringkasan, Total tebal, LUNAS dalam kotak bergaris atau Sudah dibayar/Sisa, kotak Pembayaran (hanya bila belum lunas), catatan, catatan kaki di tengah.
+- Struk 58 mm (margin 3 mm, teks 7 pt): isi sama, kepala di tengah, panjang halaman mengikuti isi.
+- Laporan A4 (margin 16/14 mm, teks 9,5 pt): kepala logo + nama + periode, Ringkasan, tabel Per menu, Per channel, Pengeluaran dengan kepala tabel `primaryContainer` dan garis bawah tipis; nomor halaman di kaki.
+- Teks nota WhatsApp: tebal dengan `*`, satu baris per item, baris kosong antar bagian.
+- Lembar pilihan (Nota di Detail pesanan, Ekspor di Laporan): bottom sheet `background` dengan ListTile ikon garis; pilihan yang tidak bisa dipakai tampil nonaktif dengan alasannya.
+- Pratinjau PDF: AppBar dengan tombol Bagikan dan Cetak, halaman di atas latar `surfaceMuted`.

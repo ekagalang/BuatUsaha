@@ -2,6 +2,14 @@
 
 Satu bagian per versi, terbaru di atas. Judul bagian `## <versi> (<tanggal>)` dipakai CI sebagai catatan GitHub Release, dan poin-poinnya tampil di dialog "Versi baru tersedia" di aplikasi.
 
+## 1.2.0 (2026-10-21)
+
+- Nota pesanan: kirim ke WhatsApp pelanggan, bagikan teks, atau PDF ukuran A6/struk 58 mm
+- Nota memuat logo, alamat, dan info pembayaran usaha; tanda LUNAS bila sudah dibayar
+- Profil usaha: logo, alamat, info pembayaran, catatan kaki nota, ukuran nota
+- Ekspor laporan periode: ringkasan PDF dan data CSV (pesanan, item terjual, belanja, pengeluaran) untuk Excel/Sheets
+- Cetak nota dan laporan lewat layanan cetak Android
+
 ## 1.1.0 (2026-10-21)
 
 - Daftar belanja otomatis dari pesanan hari ini, 3 hari, atau 7 hari ke depan
