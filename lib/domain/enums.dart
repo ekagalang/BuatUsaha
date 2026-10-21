@@ -189,3 +189,58 @@ enum ReminderStatus implements CodedEnum {
   @override
   final String code;
 }
+
+/// Asal item daftar belanja (FR-12.5): dari hitungan pesanan, atau ditambah
+/// atau diubah sendiri (tidak diubah Hitung ulang).
+enum ShoppingItemSource implements CodedEnum {
+  auto('AUTO'),
+  manual('MANUAL');
+
+  const ShoppingItemSource(this.code);
+  @override
+  final String code;
+}
+
+/// Ukuran nota PDF (FR-13.3).
+enum ReceiptSize implements CodedEnum {
+  a6('A6'),
+  roll58('ROLL58');
+
+  const ReceiptSize(this.code);
+  @override
+  final String code;
+}
+
+/// Sebab HPP per pcs berubah (FR-14.3).
+enum HppChangeCause implements CodedEnum {
+  created('CREATED'),
+  recipe('RECIPE'),
+  ingredientPrice('INGREDIENT_PRICE'),
+  wage('WAGE');
+
+  const HppChangeCause(this.code);
+  @override
+  final String code;
+}
+
+enum CashAccountKind implements CodedEnum {
+  cash('CASH'),
+  bank('BANK'),
+  ewallet('EWALLET');
+
+  const CashAccountKind(this.code);
+  @override
+  final String code;
+}
+
+/// Catatan kas manual (FR-15.3).
+enum CashEntryKind implements CodedEnum {
+  capitalIn('CAPITAL_IN'),
+  ownerDraw('OWNER_DRAW'),
+  transfer('TRANSFER'),
+  adjustment('ADJUSTMENT');
+
+  const CashEntryKind(this.code);
+  @override
+  final String code;
+}

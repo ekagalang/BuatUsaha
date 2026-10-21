@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:decimal/decimal.dart';
 import 'package:drift/drift.dart' show Value;
@@ -12,15 +13,22 @@ import 'package:share_plus/share_plus.dart';
 import '../../data/db/app_database.dart';
 import '../../data/db/decimal_convert.dart';
 import '../../data/providers.dart';
+import '../../services/auto_backup.dart';
 import '../../services/backup_service.dart';
 import '../../services/local_notifications.dart';
+import '../../services/update_controller.dart';
 import '../common/format.dart';
+import '../common/rupiah_input.dart';
 import '../common/widgets.dart';
+import '../documents/logo_image.dart';
+import '../documents/receipt.dart';
+import '../motion.dart';
 import '../menu/menu_labels.dart';
 import '../theme.dart';
+import 'account_section.dart';
 
-/// Pengaturan: profil usaha, harga, stok, notifikasi, channel, backup
-/// (FR-6.8, FR-8.1–8.3).
+/// Pengaturan: profil usaha, harga, stok, notifikasi, channel, akun dan
+/// sinkron, backup (FR-6.8, FR-8.1–8.3, FR-10.7).
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
@@ -45,16 +53,18 @@ class SettingsScreen extends ConsumerWidget {
                 const SizedBox(height: 24),
                 const _ChannelSection(),
                 const SizedBox(height: 24),
+                const AccountSection(),
+                const SizedBox(height: 24),
                 const _DataSection(),
                 const SizedBox(height: 24),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Lisensi dan font'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => showLicensePage(
-                    context: context,
-                    applicationName: 'HPP Usaha',
+                  title: const Text('Tentang aplikasi'),
+                  subtitle: Text(
+                    'Versi ${ref.watch(updateControllerProvider.select((s) => s.installed?.versionName)) ?? '—'}',
                   ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push('/tentang'),
                 ),
               ],
             ),
@@ -103,21 +113,115 @@ class _ProfileSectionState extends ConsumerState<_ProfileSection> {
   late final _phone = TextEditingController(
     text: widget.business.phoneWa ?? '',
   );
+  late final _address = TextEditingController(
+    text: widget.business.address ?? '',
+  );
+  late final _payment = TextEditingController(
+    text: widget.business.paymentInfo ?? '',
+  );
+  late final _footer = TextEditingController(
+    text: widget.business.receiptNote ?? '',
+  );
+  var _pickingLogo = false;
 
   @override
   void dispose() {
     _name.dispose();
     _phone.dispose();
+    _address.dispose();
+    _payment.dispose();
+    _footer.dispose();
     super.dispose();
+  }
+
+  static Value<String?> _text(TextEditingController c) =>
+      Value(c.text.trim().isEmpty ? null : c.text.trim());
+
+  Future<void> _pickLogo() async {
+    setState(() => _pickingLogo = true);
+    try {
+      final picked = await FilePicker.pickFile(
+        dialogTitle: 'Pilih logo usaha',
+        type: FileType.image,
+      );
+      if (picked == null || !mounted) return;
+      final bytes = await picked.readAsBytes();
+      final logo = await Isolate.run(() => encodeLogo(bytes));
+      if (!mounted) return;
+      if (logo == null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('File itu bukan gambar.')));
+        return;
+      }
+      await _update(
+        context,
+        ref,
+        BusinessesCompanion(logoData: Value(logo)),
+        'Logo disimpan.',
+      );
+    } finally {
+      if (mounted) setState(() => _pickingLogo = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final business = ref.watch(businessProvider).value ?? widget.business;
+    final logo = decodeLogo(business.logoData);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SectionTitle('Profil usaha'),
         const SizedBox(height: 8),
+        Row(
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                border: Border.all(color: AppColors.border),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: logo == null
+                  ? const Icon(
+                      Icons.storefront_outlined,
+                      color: AppColors.textMuted,
+                    )
+                  : Image.memory(logo, fit: BoxFit.contain),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                logo == null
+                    ? 'Logo untuk nota (opsional)'
+                    : 'Logo tampil di nota dan laporan PDF',
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textMuted,
+                ),
+              ),
+            ),
+            if (logo != null)
+              IconButton(
+                tooltip: 'Hapus logo',
+                icon: const Icon(Icons.delete_outline),
+                onPressed: () => _update(
+                  context,
+                  ref,
+                  const BusinessesCompanion(logoData: Value(null)),
+                  'Logo dihapus.',
+                ),
+              ),
+            TextButton(
+              onPressed: _pickingLogo ? null : _pickLogo,
+              child: Text(logo == null ? 'Pilih' : 'Ganti'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
         TextField(
           controller: _name,
           textCapitalization: TextCapitalization.words,
@@ -128,6 +232,35 @@ class _ProfileSectionState extends ConsumerState<_ProfileSection> {
           controller: _phone,
           keyboardType: TextInputType.phone,
           decoration: const InputDecoration(labelText: 'No. WhatsApp usaha'),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _address,
+          textCapitalization: TextCapitalization.sentences,
+          minLines: 1,
+          maxLines: 3,
+          decoration: const InputDecoration(labelText: 'Alamat (opsional)'),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _payment,
+          minLines: 2,
+          maxLines: 5,
+          decoration: const InputDecoration(
+            labelText: 'Info pembayaran',
+            hintText: 'mis. BCA 1234567 a.n. Rina',
+            helperText: 'Tampil di nota yang belum lunas.',
+            alignLabelWithHint: true,
+          ),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _footer,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: const InputDecoration(
+            labelText: 'Catatan kaki nota',
+            hintText: defaultReceiptNote,
+          ),
         ),
         const SizedBox(height: 8),
         Align(
@@ -140,14 +273,40 @@ class _ProfileSectionState extends ConsumerState<_ProfileSection> {
                 name: Value(
                   _name.text.trim().isEmpty ? 'Usaha saya' : _name.text.trim(),
                 ),
-                phoneWa: Value(
-                  _phone.text.trim().isEmpty ? null : _phone.text.trim(),
-                ),
+                phoneWa: _text(_phone),
+                address: _text(_address),
+                paymentInfo: _text(_payment),
+                receiptNote: _text(_footer),
               ),
               'Profil usaha disimpan.',
             ),
             child: const Text('Simpan profil'),
           ),
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'Ukuran nota PDF',
+          style: TextStyle(fontSize: 13, color: AppColors.textMuted),
+        ),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 8,
+          children: [
+            for (final (size, label) in const [
+              (ReceiptSize.a6, 'A6'),
+              (ReceiptSize.roll58, 'Struk 58 mm'),
+            ])
+              ChoicePill(
+                label: label,
+                selected: business.receiptSize == size,
+                onSelected: () => ref
+                    .read(businessRepositoryProvider)
+                    .updateBusiness(
+                      business.id,
+                      BusinessesCompanion(receiptSize: Value(size)),
+                    ),
+              ),
+          ],
         ),
       ],
     );
@@ -168,7 +327,7 @@ class _PricingSectionState extends ConsumerState<_PricingSection> {
     text: formatDecimal(dec(widget.business.defaultMarkupPct)),
   );
   late final _wage = TextEditingController(
-    text: widget.business.ownerHourlyWage?.toString() ?? '',
+    text: formatRupiahDigits(widget.business.ownerHourlyWage ?? 0),
   );
 
   @override
@@ -239,6 +398,7 @@ class _PricingSectionState extends ConsumerState<_PricingSection> {
               child: TextField(
                 controller: _wage,
                 keyboardType: TextInputType.number,
+                inputFormatters: const [RupiahInputFormatter()],
                 decoration: const InputDecoration(
                   labelText: 'Upah pemilik/jam',
                   prefixText: 'Rp ',
@@ -514,18 +674,18 @@ class BatteryGuide extends StatelessWidget {
     const steps = [
       (
         'Xiaomi / Redmi / POCO',
-        'Setelan › Aplikasi › Kelola aplikasi › HPP Usaha: nyalakan Mulai '
+        'Setelan › Aplikasi › Kelola aplikasi › BuatUsaha: nyalakan Mulai '
             'otomatis, lalu Penghemat baterai › Tanpa batasan.',
       ),
       (
         'Oppo / Realme',
-        'Setelan › Baterai › Pengelolaan baterai aplikasi › HPP Usaha: '
+        'Setelan › Baterai › Pengelolaan baterai aplikasi › BuatUsaha: '
             'izinkan aktivitas latar belakang dan mulai otomatis.',
       ),
       (
         'Vivo',
         'Setelan › Baterai › Konsumsi daya latar belakang tinggi: izinkan '
-            'HPP Usaha; i Manager › Manajer aplikasi › Mulai otomatis.',
+            'BuatUsaha; i Manager › Manajer aplikasi › Mulai otomatis.',
       ),
       (
         'Samsung',
@@ -622,7 +782,7 @@ class _ChannelSection extends ConsumerWidget {
     WidgetRef ref,
     SalesChannel? channel,
   ) async {
-    final result = await showDialog<_ChannelResult>(
+    final result = await showAppDialog<_ChannelResult>(
       context: context,
       builder: (_) => _ChannelDialog(channel: channel),
     );
@@ -673,7 +833,7 @@ class _ChannelDialogState extends State<_ChannelDialog> {
   );
   late final _fee = TextEditingController(
     text: (widget.channel?.feePerOrder ?? 0) > 0
-        ? '${widget.channel!.feePerOrder}'
+        ? formatRupiahDigits(widget.channel!.feePerOrder)
         : '',
   );
   late var _active = widget.channel?.isActive ?? true;
@@ -718,6 +878,7 @@ class _ChannelDialogState extends State<_ChannelDialog> {
             TextField(
               controller: _fee,
               keyboardType: TextInputType.number,
+              inputFormatters: const [RupiahInputFormatter()],
               decoration: const InputDecoration(
                 labelText: 'Biaya per transaksi (opsional)',
                 prefixText: 'Rp ',
@@ -757,46 +918,121 @@ class _ChannelDialogState extends State<_ChannelDialog> {
   }
 }
 
-class _DataSection extends ConsumerWidget {
+class _DataSection extends ConsumerStatefulWidget {
   const _DataSection();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_DataSection> createState() => _DataSectionState();
+}
+
+class _DataSectionState extends ConsumerState<_DataSection> {
+  late Future<List<File>> _autoBackups = AutoBackup.list();
+
+  @override
+  Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SectionTitle('Data'),
+        const SectionTitle(
+          'Backup otomatis di HP',
+          trailing: Text(
+            'Aktif',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppColors.success,
+            ),
+          ),
+        ),
         const SizedBox(height: 4),
         const Text(
-          'Semua data hanya ada di HP ini. Simpan backup secara berkala ke '
-          'Google Drive atau WhatsApp sendiri.',
-          style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+          'Sekali sehari saat aplikasi dibuka; 7 salinan terakhir disimpan. '
+          'Untuk memulihkan salah input besar.',
+          style: TextStyle(fontSize: 13, color: AppColors.textMuted),
         ),
         const SizedBox(height: 8),
-        OutlinedButton.icon(
-          onPressed: () => _export(context, ref),
-          icon: const Icon(Icons.upload_file),
-          label: const Text('Backup: bagikan file data'),
+        FutureBuilder<List<File>>(
+          future: _autoBackups,
+          builder: (context, snap) {
+            final files = snap.data ?? const <File>[];
+            if (files.isEmpty) {
+              return const Text(
+                'Belum ada backup otomatis; dibuat saat aplikasi dibuka.',
+                style: TextStyle(color: AppColors.textMuted),
+              );
+            }
+            return Card(
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                children: [
+                  for (final (i, f) in files.indexed) ...[
+                    if (i > 0) const Divider(height: 1),
+                    ListTile(
+                      title: Text(_label(f)),
+                      subtitle: Text(
+                        '${(f.lengthSync() / 1024).round()} KB · otomatis',
+                      ),
+                      trailing: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(0, 40),
+                        ),
+                        onPressed: () => _restoreFrom(f, _label(f)),
+                        child: const Text('Pulihkan'),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 24),
+        const SectionTitle('Backup ke file'),
+        const SizedBox(height: 4),
+        const Text(
+          'Simpan ke Google Drive atau WhatsApp sendiri, untuk pindah HP atau '
+          'jika HP hilang.',
+          style: TextStyle(fontSize: 13, color: AppColors.textMuted),
         ),
         const SizedBox(height: 8),
-        OutlinedButton.icon(
-          onPressed: () => _restore(context, ref),
-          icon: const Icon(Icons.restore),
-          label: const Text('Restore dari file backup'),
+        OutlinedButton(
+          onPressed: _export,
+          child: const Text('Bagikan file backup'),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton(
+          style: OutlinedButton.styleFrom(
+            side: const BorderSide(color: AppColors.border),
+            foregroundColor: AppColors.text,
+          ),
+          onPressed: _pickAndRestore,
+          child: const Text('Pulihkan dari file'),
         ),
       ],
     );
   }
 
-  Future<void> _export(BuildContext context, WidgetRef ref) async {
+  String _label(File f) {
+    final date = AutoBackup.dateOf(f);
+    if (date == null) return f.uri.pathSegments.last;
+    final today = DateUtils.dateOnly(DateTime.now());
+    final diff = today.difference(date).inDays;
+    return switch (diff) {
+      0 => 'Hari ini',
+      1 => 'Kemarin',
+      _ => formatLongDate(date).split(' ').take(3).join(' '),
+    };
+  }
+
+  Future<void> _export() async {
     final messenger = ScaffoldMessenger.of(context);
     try {
       final file = await BackupService.export(ref.read(appDatabaseProvider));
       await SharePlus.instance.share(
         ShareParams(
           files: [XFile(file.path)],
-          subject: 'Backup HPP Usaha',
-          text: 'Backup data HPP Usaha ${formatLongDate(DateTime.now())}',
+          subject: 'Backup BuatUsaha',
+          text: 'Backup data BuatUsaha ${formatLongDate(DateTime.now())}',
         ),
       );
     } catch (e) {
@@ -804,9 +1040,8 @@ class _DataSection extends ConsumerWidget {
     }
   }
 
-  Future<void> _restore(BuildContext context, WidgetRef ref) async {
+  Future<void> _pickAndRestore() async {
     final messenger = ScaffoldMessenger.of(context);
-    final router = GoRouter.of(context);
     try {
       final picked = await FilePicker.pickFile(
         dialogTitle: 'Pilih file backup',
@@ -815,15 +1050,27 @@ class _DataSection extends ConsumerWidget {
       final tmp = await getTemporaryDirectory();
       final file = File('${tmp.path}${Platform.pathSeparator}restore.sqlite');
       await file.writeAsBytes(await picked.readAsBytes(), flush: true);
+      await _restoreFrom(file, null);
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Restore gagal: $e')));
+    }
+  }
+
+  Future<void> _restoreFrom(File file, String? when) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final router = GoRouter.of(context);
+    try {
       final name = await BackupService.inspect(file);
-      if (!context.mounted) return;
-      final ok = await showDialog<bool>(
+      if (!mounted) return;
+      final ok = await showAppDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('Ganti semua data?'),
           content: Text(
-            'Data di HP ini akan diganti dengan backup "$name". Data sekarang '
-            'disimpan sebagai cadangan .bak di folder aplikasi.',
+            'Data di HP ini akan diganti dengan backup "$name"'
+            '${when == null ? '' : ' (${when.toLowerCase()})'}. Data sekarang '
+            'disimpan sebagai cadangan .bak di folder aplikasi. Isi akun '
+            'Google juga diganti dengan backup ini.',
           ),
           actions: [
             TextButton(
@@ -842,15 +1089,20 @@ class _DataSection extends ConsumerWidget {
         ),
       );
       if (ok != true) return;
+      // Dilepas dari akun dan ditandai: layar Menyiapkan lalu mengganti isi
+      // akun dengan backup ini (FR-10.11), supaya sinkron tidak menimpanya.
+      final restored = await BackupService.detached(file);
       await ref.read(notificationSyncProvider).dispose();
       await ref.read(appDatabaseProvider).closeOnce();
-      await BackupService.replaceDatabase(file);
+      await BackupService.replaceDatabase(restored);
+      restored.deleteSync();
       ref.invalidate(appDatabaseProvider);
       ref.read(notificationSyncProvider).start();
       router.go('/beranda');
       messenger.showSnackBar(
         const SnackBar(content: Text('Data dipulihkan dari backup.')),
       );
+      if (mounted) setState(() => _autoBackups = AutoBackup.list());
     } on FormatException catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(e.message)));
     } catch (e) {

@@ -9,6 +9,8 @@ import '../../domain/costing/costing.dart';
 import '../../domain/enums.dart';
 import '../common/format.dart';
 import '../common/widgets.dart';
+import '../motion.dart';
+import 'order_detail_screen.dart';
 import '../theme.dart';
 import 'order_labels.dart';
 
@@ -54,9 +56,10 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
       appBar: AppBar(
         title: const Text('Pesanan'),
         actions: [
-          TextButton(
+          IconButton(
+            tooltip: 'Jual langsung',
             onPressed: () => context.push('/pesanan/jual'),
-            child: const Text('Jual langsung'),
+            icon: const Icon(Icons.sell_outlined),
           ),
           Padding(
             padding: const EdgeInsets.only(right: 12),
@@ -72,7 +75,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
         ],
       ),
       body: orders.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const SkeletonList(height: 88),
         error: (e, _) => Center(child: Text('Gagal memuat pesanan: $e')),
         data: (list) => ListView(
           padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
@@ -158,7 +161,14 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
           ),
         )
       else ...[
-        for (final v in dayOrders) ...[OrderCard(v), const SizedBox(height: 8)],
+        for (final (i, v) in dayOrders.indexed) ...[
+          StaggeredEntrance(
+            key: ValueKey(v.order.id),
+            index: i,
+            child: OrderCard(v),
+          ),
+          const SizedBox(height: 8),
+        ],
         _NeedsCard(day: _day),
       ],
     ];
@@ -208,8 +218,12 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
         if (orders.isNotEmpty) ...[
           SectionTitle('$title · ${orders.length}'),
           const SizedBox(height: 8),
-          for (final v in orders) ...[
-            OrderCard(v, showDate: title != 'Hari ini'),
+          for (final (i, v) in orders.indexed) ...[
+            StaggeredEntrance(
+              key: ValueKey(v.order.id),
+              index: i,
+              child: OrderCard(v, showDate: title != 'Hari ini'),
+            ),
             const SizedBox(height: 8),
           ],
           const SizedBox(height: 8),
@@ -393,10 +407,11 @@ class OrderCard extends StatelessWidget {
     final when = showDate
         ? '${formatShortDate(order.dueAt)} ${formatTime(order.dueAt)}'
         : formatTime(order.dueAt);
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => context.push('/pesanan/${order.id}'),
+    // Kartu membesar menjadi Detail pesanan (FR-11.8).
+    return ContainerToDetail(
+      open: (_) => OrderDetailScreen(id: order.id),
+      closed: (context, open) => InkWell(
+        onTap: open,
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Row(
@@ -485,11 +500,15 @@ class _NeedsCard extends ConsumerWidget {
                 child: Row(
                   children: [
                     Expanded(child: Text(p.product.name)),
-                    Text(
-                      p.toMake > Decimal.zero
-                          ? 'pesan ${p.orderedQty} · buat ${formatDecimal(p.toMake)}'
-                          : 'pesan ${p.orderedQty} · stok cukup',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        p.toMake > Decimal.zero
+                            ? 'pesan ${p.orderedQty} · buat ${formatDecimal(p.toMake)}'
+                            : 'pesan ${p.orderedQty} · stok cukup',
+                        textAlign: TextAlign.end,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
                     ),
                   ],
                 ),
@@ -510,6 +529,13 @@ class _NeedsCard extends ConsumerWidget {
                 'Bahan kurang: ${needs.shortages.map((s) => '${s.ingredient.name} ${formatQty(s.missingQty, s.ingredient.baseUnit.code)}').join(', ')}. '
                 'Perkiraan belanja ${formatRupiah(toRupiah(needs.shortages.fold(Decimal.zero, (sum, s) => sum + (s.estimatedCost ?? Decimal.zero))))}.',
                 kind: StatusKind.danger,
+              ),
+              const SizedBox(height: 8),
+              // FR-12.11: lanjut ke daftar belanja.
+              OutlinedButton(
+                style: OutlinedButton.styleFrom(shape: const StadiumBorder()),
+                onPressed: () => context.push('/bahan/daftar-belanja'),
+                child: const Text('Buat daftar belanja'),
               ),
             ],
           ],

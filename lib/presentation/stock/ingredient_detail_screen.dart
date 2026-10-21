@@ -1,13 +1,17 @@
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../data/db/app_database.dart';
 import '../../data/db/decimal_convert.dart';
 import '../../data/providers.dart';
+import '../../data/repositories/product_repository.dart';
 import '../../data/repositories/stock_repository.dart';
+import '../../domain/costing/costing.dart';
 import '../common/format.dart';
 import '../common/widgets.dart';
+import '../motion.dart';
 import '../theme.dart';
 import 'labels.dart';
 
@@ -72,11 +76,14 @@ class IngredientDetailScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 24),
+            _UsedInMenus(ingredient: v),
+            const SizedBox(height: 24),
             const SectionTitle('Kartu stok'),
             const SizedBox(height: 4),
             const Text(
-              'Ketuk baris untuk membatalkannya. Baris yang dibatalkan tetap '
-              'terlihat dan saldo dihitung ulang.',
+              'Belanja bisa diubah atau dibatalkan; baris lain dibatalkan '
+              'dengan mengetuknya. Baris yang dibatalkan tetap terlihat dan '
+              'saldo dihitung ulang.',
               style: TextStyle(fontSize: 12, color: AppColors.textMuted),
             ),
             const SizedBox(height: 10),
@@ -94,13 +101,7 @@ class IngredientDetailScreen extends ConsumerWidget {
                         children: [
                           for (final (i, entry) in entries.indexed) ...[
                             if (i > 0) const Divider(height: 1),
-                            _CardRow(
-                              entry: entry,
-                              unit: v.ingredient.baseUnit.code,
-                              onTap: entry.cancelled || entry.isReversal
-                                  ? null
-                                  : () => _void(context, ref, entry),
-                            ),
+                            _cardRow(context, ref, v, entry),
                           ],
                         ],
                       ),
@@ -109,6 +110,33 @@ class IngredientDetailScreen extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _cardRow(
+    BuildContext context,
+    WidgetRef ref,
+    IngredientView v,
+    StockCardEntry entry,
+  ) {
+    final m = entry.movement;
+    final active = !entry.cancelled && !entry.isReversal;
+    final isPurchase = m.refType == 'purchase_item' && active;
+    return _CardRow(
+      entry: entry,
+      unit: v.ingredient.baseUnit.code,
+      onTap: active && !isPurchase ? () => _void(context, ref, entry) : null,
+      onEdit: isPurchase
+          ? () async {
+              final purchaseId = await ref
+                  .read(stockRepositoryProvider)
+                  .purchaseIdOfItem(m.refId!);
+              if (context.mounted) {
+                await context.push('/bahan/belanja/$purchaseId');
+              }
+            }
+          : null,
+      onVoid: isPurchase ? () => _void(context, ref, entry) : null,
     );
   }
 
@@ -131,7 +159,7 @@ class IngredientDetailScreen extends ConsumerWidget {
     WidgetRef ref,
     IngredientView v,
   ) async {
-    final result = await showDialog<(Decimal, String?)>(
+    final result = await showAppDialog<(Decimal, String?)>(
       context: context,
       builder: (_) => _QtyDialog(
         title: 'Penyesuaian stok',
@@ -157,7 +185,7 @@ class IngredientDetailScreen extends ConsumerWidget {
     WidgetRef ref,
     IngredientView v,
   ) async {
-    final result = await showDialog<(Decimal, String?)>(
+    final result = await showAppDialog<(Decimal, String?)>(
       context: context,
       builder: (_) => _QtyDialog(
         title: 'Bahan rusak atau kedaluwarsa',
@@ -184,7 +212,7 @@ class IngredientDetailScreen extends ConsumerWidget {
     IngredientView v,
   ) async {
     final unit = v.ingredient.baseUnit.code;
-    final result = await showDialog<(Decimal, String?)>(
+    final result = await showAppDialog<(Decimal, String?)>(
       context: context,
       builder: (_) => _QtyDialog(
         title: 'Stock opname',
@@ -225,7 +253,7 @@ class IngredientDetailScreen extends ConsumerWidget {
   ) async {
     final movement = entry.movement;
     final isPurchase = movement.refType == 'purchase_item';
-    final reason = await showDialog<String>(
+    final reason = await showAppDialog<String>(
       context: context,
       builder: (_) => ReasonDialog(
         title: isPurchase ? 'Batalkan belanja ini?' : 'Batalkan mutasi ini?',
@@ -256,7 +284,7 @@ class IngredientDetailScreen extends ConsumerWidget {
     WidgetRef ref,
     IngredientView v,
   ) async {
-    final result = await showDialog<(String, Decimal)>(
+    final result = await showAppDialog<(String, Decimal)>(
       context: context,
       builder: (_) => _UnitDialog(baseUnit: v.ingredient.baseUnit.code),
     );
@@ -276,7 +304,7 @@ class IngredientDetailScreen extends ConsumerWidget {
     WidgetRef ref,
     IngredientView v,
   ) async {
-    final result = await showDialog<(Decimal, String?)>(
+    final result = await showAppDialog<(Decimal, String?)>(
       context: context,
       builder: (_) => _QtyDialog(
         title: 'Stok minimum',
@@ -385,11 +413,21 @@ class _Stat extends StatelessWidget {
 }
 
 class _CardRow extends StatelessWidget {
-  const _CardRow({required this.entry, required this.unit, this.onTap});
+  const _CardRow({
+    required this.entry,
+    required this.unit,
+    this.onTap,
+    this.onEdit,
+    this.onVoid,
+  });
 
   final StockCardEntry entry;
   final String unit;
   final VoidCallback? onTap;
+
+  /// Baris belanja: tombol Ubah belanja dan Batalkan (mockup `DetailBahan`).
+  final VoidCallback? onEdit;
+  final VoidCallback? onVoid;
 
   @override
   Widget build(BuildContext context) {
@@ -436,7 +474,12 @@ class _CardRow extends StatelessWidget {
                       ),
                       if (entry.cancelled) ...[
                         const SizedBox(width: 8),
-                        const StatusPill('Dibatalkan', kind: StatusKind.danger),
+                        const Flexible(
+                          child: StatusPill(
+                            'Dibatalkan',
+                            kind: StatusKind.danger,
+                          ),
+                        ),
                       ],
                     ],
                   ),
@@ -448,6 +491,31 @@ class _CardRow extends StatelessWidget {
                       color: AppColors.textMuted,
                     ),
                   ),
+                  if (onEdit != null) ...[
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(0, 40),
+                          ),
+                          onPressed: onEdit,
+                          icon: const Icon(Icons.edit_outlined, size: 16),
+                          label: const Text('Ubah belanja'),
+                        ),
+                        TextButton(
+                          style: TextButton.styleFrom(
+                            minimumSize: const Size(0, 40),
+                            foregroundColor: AppColors.danger,
+                          ),
+                          onPressed: onVoid,
+                          child: const Text('Batalkan'),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -660,6 +728,124 @@ class _UnitDialogState extends State<_UnitDialog> {
               : null,
           child: const Text('Simpan'),
         ),
+      ],
+    );
+  }
+}
+
+/// Menu yang resepnya memakai bahan ini (PRD 7, mockup `DetailBahan`).
+class _UsedInMenus extends ConsumerWidget {
+  const _UsedInMenus({required this.ingredient});
+
+  final IngredientView ingredient;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final id = ingredient.ingredient.id;
+    final unit = ingredient.ingredient.baseUnit.code;
+    final avg = ingredient.avgUnitCost;
+    final menus = [
+      for (final p
+          in ref.watch(productsProvider).value ?? const <ProductView>[])
+        for (final l in p.costing.lines)
+          if (l.ingredient.id == id) (p, dec(l.item.qtyBase)),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionTitle(
+          'Dipakai di menu',
+          trailing: Text(
+            '${menus.length} menu',
+            style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (menus.isEmpty)
+          const Text(
+            'Belum dipakai di resep mana pun.',
+            style: TextStyle(color: AppColors.textMuted),
+          )
+        else ...[
+          Card(
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              children: [
+                for (final (i, (p, qty)) in menus.indexed) ...[
+                  if (i > 0) const Divider(height: 1),
+                  InkWell(
+                    onTap: () => context.push('/menu/${p.product.id}'),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 4,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  children: [
+                                    Text(
+                                      p.product.name,
+                                      style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    if (p.status == HppStatus.incomplete)
+                                      const StatusPill(
+                                        'HPP belum lengkap',
+                                        kind: StatusKind.warning,
+                                      ),
+                                  ],
+                                ),
+                                Text(
+                                  [
+                                    '${formatQty(qty, unit)} per resep',
+                                    if (p.capacity != null)
+                                      'bisa jadi ${p.capacity!.maxPcs} pcs',
+                                  ].join(' · '),
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    color: AppColors.textMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Text(
+                            avg == null
+                                ? '—'
+                                : formatRupiah(toRupiah(qty * avg)),
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const Icon(
+                            Icons.chevron_right,
+                            color: AppColors.textMuted,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Biaya = takaran per resep × harga rata-rata sekarang. Jika harga '
+            '${ingredient.ingredient.name.toLowerCase()} berubah, HPP '
+            '${menus.length == 1 ? 'menu ini' : 'menu-menu ini'} ikut dihitung '
+            'ulang.',
+            style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+          ),
+        ],
       ],
     );
   }

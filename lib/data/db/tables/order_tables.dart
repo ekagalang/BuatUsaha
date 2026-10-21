@@ -107,6 +107,10 @@ class Payments extends Table with EntityColumns, VoidColumns {
       text().map(const CodedEnumConverter(PaymentKind.values))();
   DateTimeColumn get paidAt => dateTime()();
   TextColumn get note => text().nullable()();
+
+  /// Akun kas penerima (FR-15.2), dari pemetaan cara bayar saat dicatat;
+  /// kosong untuk data sebelum skema v6.
+  TextColumn get cashAccountId => text().nullable()();
 }
 
 @TableIndex(name: 'order_reminders_status_time', columns: {#status, #remindAt})

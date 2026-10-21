@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/db/app_database.dart';
 import '../../data/repositories/day_close_repository.dart';
+import '../motion.dart';
 import '../theme.dart';
 import 'format.dart';
 
@@ -35,6 +36,7 @@ class StatusPill extends StatelessWidget {
       ),
       child: Text(
         label,
+        textAlign: TextAlign.center,
         style: TextStyle(
           color: foreground,
           fontSize: 12,
@@ -89,7 +91,10 @@ class SectionTitle extends StatelessWidget {
         Expanded(
           child: Text(text, style: Theme.of(context).textTheme.titleMedium),
         ),
-        ?trailing,
+        if (trailing != null) ...[
+          const SizedBox(width: 8),
+          Flexible(child: trailing!),
+        ],
       ],
     );
   }
@@ -117,7 +122,9 @@ class BottomActionBar extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (above != null) ...[above!, const SizedBox(height: 12)],
-              SizedBox(width: double.infinity, child: child),
+              Pressable(
+                child: SizedBox(width: double.infinity, child: child),
+              ),
             ],
           ),
         ),
@@ -144,7 +151,10 @@ class ChoicePill extends StatelessWidget {
     return ChoiceChip(
       label: Text(label),
       selected: selected,
-      onSelected: (_) => onSelected(),
+      onSelected: (_) {
+        Haptics.select();
+        onSelected();
+      },
       showCheckmark: false,
       selectedColor: AppColors.primary,
       backgroundColor: AppColors.surface,
@@ -226,7 +236,10 @@ class _ReasonDialogState extends State<ReasonDialog> {
           ),
           onPressed: reason.isEmpty
               ? null
-              : () => Navigator.pop(context, reason),
+              : () {
+                  Haptics.warning();
+                  Navigator.pop(context, reason);
+                },
           child: const Text('Batalkan'),
         ),
       ],
@@ -243,6 +256,7 @@ Future<bool> runWithSnack(
   final messenger = ScaffoldMessenger.of(context);
   try {
     await action();
+    Haptics.success();
     messenger.showSnackBar(SnackBar(content: Text(done)));
     return true;
   } catch (error) {
@@ -277,8 +291,13 @@ class Segmented extends StatelessWidget {
           for (final (i, label) in labels.indexed)
             Expanded(
               child: GestureDetector(
-                onTap: () => onSelected(i),
-                child: Container(
+                onTap: () {
+                  Haptics.select();
+                  onSelected(i);
+                },
+                child: AnimatedContainer(
+                  duration: Motion.of(context, Motion.fast),
+                  curve: Motion.move,
                   height: 40,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(

@@ -1,0 +1,12 @@
+rules_version = '2';
+
+// BuatUsaha (PRD 5.10, FR-10.9): setiap akun hanya boleh membaca dan menulis
+// datanya sendiri di users/{uid}/{tabel}/{id}. Tempel isi file ini di
+// Firebase console › Firestore Database › Rules, lalu Publish.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+  }
+}

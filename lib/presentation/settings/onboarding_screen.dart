@@ -9,6 +9,7 @@ import '../../data/providers.dart';
 import '../../data/repositories/product_repository.dart';
 import '../../services/local_notifications.dart';
 import '../common/format.dart';
+import '../common/rupiah_input.dart';
 import '../common/widgets.dart';
 import '../theme.dart';
 
@@ -227,6 +228,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       TextField(
         controller: _wage,
         keyboardType: TextInputType.number,
+        inputFormatters: const [RupiahInputFormatter()],
         decoration: const InputDecoration(
           labelText: 'Upah kerjamu per jam (opsional)',
           prefixText: 'Rp ',

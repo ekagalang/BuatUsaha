@@ -9,29 +9,43 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'data/providers.dart';
 import 'presentation/app.dart';
+import 'services/auto_backup.dart';
 import 'services/background_tasks.dart';
 import 'services/local_notifications.dart';
+import 'services/sync_controller.dart';
+import 'services/update_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   LicenseRegistry.addLicense(_fontLicenses);
-  await _initCrashlytics();
+  final firebaseReady = await _initFirebase();
   await LocalNotifications.instance.init();
   unawaited(registerBackgroundTasks().catchError((Object _) {}));
-  final container = ProviderContainer();
+  final container = ProviderContainer(
+    overrides: [firebaseReadyProvider.overrideWithValue(firebaseReady)],
+  );
   container.read(notificationSyncProvider).start();
+  // Login Google dan sinkron otomatis (FR-10.1, FR-10.2).
+  container.read(syncControllerProvider);
+  // Cek versi baru di GitHub (FR-11.3).
+  container.read(updateControllerProvider.notifier).start();
+  unawaited(
+    AutoBackup.runIfDue(container.read(appDatabaseProvider))
+        .then((_) {}, onError: (Object _) {}),
+  );
   runApp(
     UncontrolledProviderScope(container: container, child: const HppApp()),
   );
 }
 
-/// Laporan crash ke Firebase Crashlytics (PRD 9.1), satu-satunya data yang
-/// keluar dari HP. Dilewati jika `google-services.json` belum dipasang.
-Future<void> _initCrashlytics() async {
+/// Firebase untuk login, sinkron, dan laporan crash (PRD 5.10, 9.1).
+/// Dilewati jika `google-services.json` belum dipasang: aplikasi tetap jalan
+/// penuh dalam mode lokal.
+Future<bool> _initFirebase() async {
   try {
     await Firebase.initializeApp();
   } catch (_) {
-    return;
+    return false;
   }
   final crashlytics = FirebaseCrashlytics.instance;
   await crashlytics.setCrashlyticsCollectionEnabled(!kDebugMode);
@@ -40,6 +54,7 @@ Future<void> _initCrashlytics() async {
     crashlytics.recordError(error, stack, fatal: true);
     return true;
   };
+  return true;
 }
 
 /// Lisensi OFL font yang dibundel, tampil di halaman lisensi aplikasi.

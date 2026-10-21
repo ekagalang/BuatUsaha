@@ -1,4 +1,4 @@
-# TODO — Aplikasi HPP & Pencatatan Usaha
+# TODO — BuatUsaha (aplikasi HPP & pencatatan usaha)
 
 Checklist pengerjaan, disusun mengikuti roadmap di PRD bagian 12. Diperbarui setiap ada pekerjaan yang selesai.
 
@@ -6,8 +6,8 @@ Checklist pengerjaan, disusun mengikuti roadmap di PRD bagian 12. Diperbarui set
 - **Mockup:** https://claude.ai/artifact/MKtkZPSUxqnebpadio2pYR
 - **Desain:** [Design.md](Design.md)
 
-**Terakhir diperbarui:** 20 Oktober 2026
-**Posisi sekarang:** Sprint 1–4 (semua fitur MVP) selesai di branch `dev`, belum dicoba di HP. Sisa sebelum uji pakai: buat file keystore (release masih gagal karena `hpp_app-upload.jks` belum ada), isi secrets CI, opsional Firebase. Berikutnya: uji pakai sendiri di HP.
+**Terakhir diperbarui:** 21 Oktober 2026
+**Posisi sekarang:** MVP dan fase 2a (masuk wajib dengan Google + sinkron Firestore) sudah di `dev` dan terpasang di HP; Firebase dan secret CI sudah diatur. Rencana fase 2b (sprint S1–S9) menunggu persetujuan pengguna; uji pakai sendiri berjalan.
 
 Tanda: `[x]` selesai · `[ ]` belum · "kalkulator ✓" = rumusnya sudah ada dan lulus test di `lib/domain/costing/`, tetapi penyimpanan ke database dan layarnya belum.
 
@@ -22,12 +22,14 @@ Tanda: `[x]` selesai · `[ ]` belum · "kalkulator ✓" = rumusnya sudah ada dan
 - [x] `git init` + commit pertama (branch `main`; keystore dan `key.properties` di-ignore)
 - [x] Signing release di Gradle (`android/key.properties`, contoh di `key.properties.example`) + desugaring untuk notifikasi; build APK release lokal lulus (arm64 18,1 MB)
 - [x] Workflow CI `.github/workflows/build-apk.yml`: analyze, test, build APK per ABI; ditandatangani kunci sendiri jika secrets diisi (lihat README)
-- [ ] Buat keystore `C:\Users\Kanggo L3-038\keys\hpp_app-upload.jks`, isi `android/key.properties`, simpan keystore dan sandinya di 2 tempat
+- [x] Buat keystore `C:\Users\Kanggo L3-038\keys\hpp_app-upload.jks` (PKCS12, alias `upload`, SHA-256 9B:2A:B9:D4:…:1C:93:E4) dari sandi di `android/key.properties`; APK release lokal ditandatangani kunci ini (20 Okt 2026)
+- [x] Simpan cadangan keystore dan sandinya di 2 tempat terpisah (dilakukan pengguna, 20 Okt 2026)
 - [x] Push ke repo GitHub `ekagalang/BuatUsaha` (branch `main`, sekarang public)
 - [x] Run CI pertama lulus: analyze, test, build APK ±10 menit; artefak `hpp-app-apk-debug-signed` (29,8 MB)
 - [x] Naikkan versi action di workflow (checkout v7, setup-java v6, upload-artifact v7); teruji saat merge ke `main` atau run manual berikutnya
 - [x] Branch `dev` untuk pengerjaan harian; CI hanya berjalan di `main` atau manual (push ke `dev` terbukti tidak memicu CI)
-- [ ] Isi 4 secrets Android di GitHub setelah keystore dibuat (lihat README)
+- [x] Isi 4 secrets Android di GitHub (dilakukan pengguna, 20 Okt 2026)
+- [x] Verifikasi secrets: run manual Build APK di `dev` (20 Okt 2026, 15.07 WIB) lulus, langkah tanda tangan sukses, artefak `hpp-app-apk`
 
 ## Sprint 1 — Bahan dan stok (minggu 2–4)
 
@@ -42,7 +44,7 @@ Tanda: `[x]` selesai · `[ ]` belum · "kalkulator ✓" = rumusnya sudah ada dan
 - [x] Layar Bahan (nilai modal, saringan menipis/belum ada harga) dan Belanja bahan multi-item dengan pratinjau harga rata-rata (mockup `Bahan`, `FormBelanja`)
 - [x] Layar Bahan baru (stok awal / harga perkiraan) dan Detail bahan (penyesuaian, bahan rusak, opname, satuan beli khusus, stok minimum, kartu stok, pembatalan)
 - [x] Format Rupiah/angka/tanggal Indonesia, komponen umum, pemilih tanggal berbahasa Indonesia; 65 test lulus
-- [ ] Layar edit belanja (repository `replacePurchase` sudah ada; di UI saat ini batalkan lalu catat ulang)
+- [x] Layar ubah belanja: tombol "Ubah belanja" di kartu stok, form terisi, pratinjau dampak sebelum disimpan (selesai 20 Okt 2026)
 - [x] Peringatan saat mengoreksi tanggal yang sudah Tutup hari (FR-9.6) — selesai di Sprint 4
 - [x] Sprint 1 + signing release + CI di-commit dan di-push ke `main`
 - [ ] Coba layar Sprint 1 di HP (APK) dan catat masukan
@@ -86,7 +88,7 @@ Tanda: `[x]` selesai · `[ ]` belum · "kalkulator ✓" = rumusnya sudah ada dan
 - [x] 11 test repository pesanan + 5 test penjadwal notifikasi + 3 widget test layar pesanan; 99 test lulus
 - [x] Minta izin notifikasi dan alarm tepat dari layar (onboarding dan Pengaturan, selesai di Sprint 4)
 - [x] Panduan izin baterai/autostart untuk Xiaomi, Oppo, Vivo (di Pengaturan, selesai di Sprint 4)
-- [ ] Daftar pesanan lama yang terpengaruh koreksi harga bahan + tawaran hitung ulang HPP (FR-9.5)
+- [x] Koreksi harga bahan menghitung ulang biaya produksi dan stok menu jadi; layar "Koreksi HPP pesanan" + tanda di Beranda untuk menghitung ulang pesanan lama (FR-9.5, selesai 20 Okt 2026)
 - [ ] Uji notifikasi di HP sungguhan: tepat waktu ≤ 1 menit dengan alarm tepat, muncul setelah restart dan dalam mode pesawat
 
 ## Sprint 4 — Laporan dan persiapan pakai (minggu 9–11)
@@ -105,33 +107,162 @@ Tanda: `[x]` selesai · `[ ]` belum · "kalkulator ✓" = rumusnya sudah ada dan
 - [x] Layar tanpa mockup (detail pesanan, kartu stok menu jadi, pengeluaran, pengaturan, onboarding) dibuat dengan komponen Design.md
 - [x] Firebase Crashlytics terpasang; aktif hanya jika `android/app/google-services.json` ada (lokal) atau secret `GOOGLE_SERVICES_JSON_BASE64` diisi (CI) — lihat README
 - [x] 108 test lulus (termasuk widget test di lebar layar 360 dp); build APK debug arm64 lulus
-- [ ] Buat project Firebase dan pasang `google-services.json` + secret CI (opsional, lihat README)
+- [x] Buat project Firebase dan pasang `google-services.json` + secret CI (selesai 21 Okt 2026, lihat Fase 2a)
 - [ ] Mode gelap (Design.md: belum didesain)
 - [ ] Gerbang: semua FR MVP lulus kriteria penerimaan — dicek saat uji pakai di HP
 
+## Perbaikan setelah MVP (20 Okt 2026)
+
+Desain di-acc lewat mockup baris "Perbaikan, akun & sinkron" di canvas.
+
+- [x] FR-9.5: biaya produksi, HPP stok menu, dan HPP terjual dihitung ulang setelah koreksi harga bahan (`cost_cascade.dart`, `OrderRepository.costCorrections`, layar `cost_correction_screen.dart`); 4 test termasuk kriteria PRD 5.9
+- [x] Ubah belanja dengan pratinjau dampak (harga rata-rata, HPP menu, jumlah pesanan terdampak) tanpa menyimpan (`purchase_preview.dart`)
+- [x] Detail bahan: bagian "Dipakai di menu" (takaran per resep, bisa jadi berapa pcs, biaya per resep)
+- [x] Kolom nominal Rupiah memakai titik ribuan saat mengetik (17 kolom, `rupiah_input.dart`)
+- [x] Ikon aplikasi adaptif (cupcake) dan layar pembuka krem; di Android 12+ layar pembuka sistem hanya menampilkan ikon, tanpa teks nama aplikasi
+- [x] Backup otomatis harian di HP, 7 terakhir, bisa dipulihkan dari Pengaturan › Data
+- [x] Uji huruf 130% di lebar 360 dp untuk 14 layar; 9 tempat teks terpotong diperbaiki
+- [x] 132 test lulus
+- [x] Di-commit ke `dev` (belum di-push)
+- [x] Ikon PNG lama (mipmap) untuk Android 7.x diganti cupcake di latar krem (S1, 21 Okt 2026)
+
+## Ganti nama jadi BuatUsaha (20 Okt 2026)
+
+- [x] Nama aplikasi "BuatUsaha" (label Android, judul aplikasi, teks backup dan panduan baterai)
+- [x] Paket Dart `hpp_app` → `buat_usaha`; ID Android dan namespace `com.hppapp.hpp_app` → `com.ekagalang.buatusaha`; bundle iOS ikut
+- [x] File database `buat_usaha.sqlite`, file backup `buatusaha-backup-…`, artefak CI `buatusaha-apk`
+- [x] PRD, mockup, README (termasuk cara pindah data dari aplikasi lama), TODO diperbarui
+- [x] Folder proyek dipindah ke `Music\ME\App\BuatUsaha` (folder `App` untuk semua proyek aplikasi)
+- [x] Di-commit dan di-push ke `dev`
+- [ ] Pengguna memindahkan data dari aplikasi lama (lihat README) lalu menghapus aplikasi lama
+
+## Fase 2a — Akun & sinkron Firebase
+
+- [x] PRD/ERD diperbarui: bagian 5.10 (FR-10.x), 11.5, dan perubahan bagian 1, 4, 8, 9, 12, 13, 14 (20 Okt 2026)
+- [x] Mockup Pengaturan akun & sinkron di-acc
+- [x] Pengguna mengonfirmasi PRD final untuk Firebase (20 Okt 2026)
+- [x] Pengguna membuat project Firebase: aplikasi Android `com.ekagalang.buatusaha`, sidik jari SHA-1 kunci release + debug, `google-services.json` di `android/app/` (dicek: paket dan kedua sidik jari benar)
+- [x] Pengguna mengaktifkan Authentication › Google, membuat Cloud Firestore (asia-southeast2) dan menempel `firestore.rules` di tab Rules (README › Firebase)
+- [x] Pengguna mengisi secret CI `GOOGLE_SERVICES_JSON_BASE64` (perintah di README)
+- [x] Skema v3: `sync_outbox`, `sync_state`, `businesses.owner_uid`; trigger SQLite sementara mencatat baris yang berubah, kolom cache dan kolom khusus HP tidak memicu kiriman (`lib/data/sync/sync_schema.dart`)
+- [x] Mesin sinkron (`sync_engine.dart`): kirim induk dulu dalam batch, tombstone untuk baris terhapus; tarik anak dulu lalu terapkan induk dulu; perubahan terbaru menang (FR-10.2–10.4); cache dihitung ulang setelah tarik (`cache_rebuilder.dart`)
+- [x] Bentrok kunci unik dua HP offline: nomor pesanan diberi nomor berikutnya, resep/satuan/pengaturan notifikasi memakai aturan id yang sama di kedua HP; id notifikasi pengingat dibuat sendiri di tiap HP
+- [x] Ubah menu dan pesanan memperbarui resep, biaya lain, item, dan pengingat di tempat (id tetap) supaya tidak dobel setelah sinkron; nomor pesanan baru = nomor terbesar + 1
+- [x] Login pertama: akun kosong → unggah; HP kosong → unduh (FR-10.6); keduanya berisi → dialog Gabungkan / Pakai data akun dengan backup otomatis dulu (FR-10.5); data HP dari akun yang sama digabung tanpa bertanya
+- [x] Login Google (google_sign_in 7 + Firebase Auth), dokumen `users/{uid}`; sinkron otomatis ±15 detik setelah perubahan, saat dibuka/kembali dari latar, tiap 30 menit, tiap 6 jam di WorkManager, coba lagi 30 detik–15 menit (`sync_controller.dart`, `background_tasks.dart`)
+- [x] Pengaturan › Akun dan sinkron sesuai mockup `AkunData`: kartu belum masuk / sudah masuk, Tersinkron / Belum terkirim, sinkron terakhir, menunggu dikirim, pesan gagal, Sinkron sekarang (FR-10.7)
+- [x] Keluar akun: data tetap di HP atau dihapus dari HP (FR-10.8); dialognya memakai pola dialog mockup `AkunData` (belum ada di mockup)
+- [x] Pulihkan backup saat login: isi akun ikut diganti isi backup, tetap jalan walau sempat offline (FR-10.11, baru)
+- [x] `firestore.rules` (FR-10.9), README › Firebase dan cara kerja sinkron, PRD 5.10 dan 11.5 diselaraskan
+- [x] 152 test lulus: 14 test mesin sinkron dua HP dengan Firestore tiruan, 6 widget test layar akun (termasuk huruf 130% di 360 dp)
+- [x] Build APK release lulus dengan `google-services.json` (arm64 25,9 MB, armeabi-v7a 23,8 MB, x86_64 27,3 MB)
+- [x] Di-commit dan di-push ke `dev` (21 Okt 2026)
+- Login dari onboarding: tidak berlaku lagi, diganti masuk wajib di awal (21 Okt 2026)
+
+## Masuk wajib dengan Google (disetujui 21 Okt 2026)
+
+Login tidak lagi opsional: aplikasi dibuka → layar Masuk dulu, terasa seperti aplikasi komersial.
+
+- [x] PRD diperbarui sebagai usulan: FR-10.1 (masuk wajib, tanpa mode lokal), FR-10.8 (keluar akun menghapus data dan backup otomatis dari HP), FR-10.12 (layar Masuk), FR-10.13 (menyiapkan data), FR-8.4 (onboarding hanya untuk akun baru), catatan sebelum dikomersialkan
+- [x] Mockup baris "Masuk wajib dengan Google": `Masuk`, `Menyiapkan`, `AlurMasuk`; `AkunData` diperbarui (kartu belum masuk dihapus, dialog keluar akun baru)
+- [x] Pengguna meng-acc PRD dan mockup, termasuk keluar akun menghapus data dari HP (21 Okt 2026)
+- [x] Gerbang masuk di router (`accountGate`): layar pembuka → Masuk → Menyiapkan → aplikasi; lokasi tujuan dari notifikasi dibawa lewat layar pembuka
+- [x] Layar Masuk (`auth/login_screen.dart`) sesuai mockup: ikon cupcake dan logo Google digambar dari path SVG (`common/brand_marks.dart`), pesan gagal (tanpa internet, dibatalkan, belum tersambung Firebase); tautan Ketentuan/Kebijakan masih snackbar
+- [x] Layar Menyiapkan (`auth/prepare_screen.dart`): unduh/unggah dengan progres "x dari y data", dialog Gabungkan / Pakai data akun / Batal dan keluar, akun baru langsung ke onboarding, pulihkan backup → isi akun diganti
+- [x] Keluar akun: kirim perubahan dulu, peringatan bila masih ada yang belum terkirim, hapus data usaha + backup otomatis + `.bak`, kembali ke Masuk
+- [x] Pengaturan › Akun dan sinkron hanya menampilkan akun yang masuk; restore backup menandai isi akun untuk diganti
+- [x] 159 test lulus (alur masuk lengkap lewat aplikasi, keluar akun, huruf 130% untuk layar Masuk dan Menyiapkan)
+- [x] Build APK release lulus (arm64 25,9 MB)
+- [x] Di-commit dan di-push ke `dev` (21 Okt 2026)
+- [x] Pasang APK baru dan masuk dengan Google di HP (dilaporkan pengguna, 21 Okt 2026)
+- [ ] Uji lanjutan di HP: data terunggah lengkap, keluar lalu masuk lagi, HP kedua mengunduh, ubah data saat offline lalu online
+- [ ] Sebelum dikomersialkan: lihat sprint S7 dan "Keputusan nanti: model harga" di Fase 2b
+
+## CI (21 Okt 2026)
+
+- [x] Pengguna mengisi secret `GOOGLE_SERVICES_JSON_BASE64`, mengaktifkan Authentication › Google, membuat Firestore + Rules, dan memasang APK masuk wajib
+- [x] Build APK menghapus APK dari build sebelumnya setelah upload berhasil (hanya satu APK terbaru di Actions, disimpan 14 hari); di-commit dan di-push ke `dev`
+- [ ] Dicek saat CI berikutnya dijalankan pengguna: langkah "Hapus APK dari build sebelumnya" hijau dan hanya ada satu artefak
+
 ## Uji pakai sendiri (minggu 12)
 
-- [ ] Build APK release dengan keystore sendiri, pasang di HP
+- [x] Build APK release dengan keystore sendiri (arm64 24,8 MB, armeabi-v7a 22,6 MB, x86_64 26,3 MB)
+- [x] Pasang APK release di HP (dilakukan pengguna, 20 Okt 2026)
 - [ ] Catat paralel dengan cara lama selama 1 minggu
 - [ ] Gerbang: selisih laba ≤ Rp1.000/hari dan tanpa crash → dipakai penuh mulai minggu 13
 
-## Fase 2 (minggu 13–18)
+## Fase 2b — rencana per sprint (disetujui 21 Okt 2026)
 
-- [ ] Kebutuhan bahan dari pesanan mendatang + daftar belanja
-- [ ] Riwayat perubahan HPP + simulasi kenaikan harga
-- [ ] Sub-resep (adonan dasar) dan paket/hampers
-- [ ] Harga jual dan saran harga per channel
-- [ ] Nota pesanan via WhatsApp/PDF, ekspor laporan PDF/CSV
-- [ ] Arus kas sederhana
-- [ ] Backup otomatis ke Google Drive, kunci PIN/biometrik
+Rincian FR-11 sampai FR-19 ada di PRD tab "Rencana fase 2b". Setiap sprint: rincian PRD → mockup di-acc → kode → test → APK → commit + push `dev`.
+
+- [x] Rencana fase 2b ditulis di PRD (tab baru) dan ditautkan dari bagian 12 Roadmap; Design.md mencatat bagian Gerak dan mode gelap yang akan didesain
+- [x] Pengguna menyetujui rencana dan urutan sprint (21 Okt 2026)
+- [x] S1 dirinci di PRD: versi 1.0.0 + nomor build dari jumlah commit, CHANGELOG.md, rilis CI dengan pilihan Terbitkan rilis, cek/unduh/pasang versi baru, Tentang aplikasi, token gerak
+- [x] Mockup S1 dibuat di baris "S1 Rilis dan gerak": `Gerak` (4 contoh + perlambat 5×), `VersiBaru` (kartu, notifikasi, 5 keadaan dialog), `TentangAplikasi` (3 hasil Cek pembaruan)
+- [x] Mockup S1 di-acc pengguna (21 Okt 2026)
+- [x] **S1 Rilis dan gerak** (FR-11.1–11.10):
+  - [x] Versi 1.0.0; nomor build = jumlah commit lewat `tool/build_apk.ps1` dan CI; `CHANGELOG.md`
+  - [x] CI: pilihan Terbitkan rilis (dan push ke `main`) → GitHub Release `v<versi>` berisi 3 APK + catatan dari CHANGELOG; gagal jelas bila versi sudah dirilis atau CHANGELOG kosong
+  - [x] Cek versi baru (`app_updates.dart`, `update_controller.dart`): saat dibuka/kembali (≥ 6 jam), tugas latar 6 jam dengan notifikasi sekali per versi (kanal "Pembaruan aplikasi"), tombol Cek pembaruan
+  - [x] Kartu Beranda "Versi baru tersedia" + dialog: info dan daftar perubahan, unduh dengan progres, izin pertama kali (lanjut otomatis setelah kembali), siap pasang, gagal + unduh lewat browser; APK dipilih sesuai ABI
+  - [x] Android: saluran `buatusaha/app` di `MainActivity.kt`, `UpdateFileProvider`, izin INTERNET dan REQUEST_INSTALL_PACKAGES
+  - [x] Pengaturan › Tentang aplikasi (versi + build, tanggal rilis, Cek pembaruan, Catatan rilis, Lisensi)
+  - [x] Gerak (`motion.dart`, Design.md bagian 15): shared axis antarlayar, fade-through tab, container transform kartu menu/pesanan/bahan, daftar bertahap, angka beranimasi, efek tekan, getar, kerangka memuat, dialog skala + pudar, snackbar mengambang, hormati "hapus animasi"
+  - [x] Ikon Android 7; plugin KGP dicek (sudah versi terbaru, belum ada versi tanpa KGP)
+  - [ ] Belum: animasi pratinjau gestur kembali prediktif Android 14+
+  - [x] 182 test lulus; build APK `tool/build_apk.ps1` → BuatUsaha 1.0.0 (build 11; versionCode arm64 2011), izin dan FileProvider dicek di APK
+  - [x] Di-commit dan di-push ke `dev` (21 Okt 2026)
+  - [ ] Pengguna memasang APK 1.0.0, lalu menjalankan CI di `dev` dengan Terbitkan rilis → rilis pertama `v1.0.0`
+- [ ] **S2 Daftar belanja** (FR-12.1–12.11):
+  - [x] Dirinci di PRD: rentang Hari ini/3/7 hari, stok jaga, jumlah = kebutuhan + minimum − stok dibulatkan ke satuan beli, alasan item, satu daftar aktif tersinkron, hitung ulang, barang lain, catat jadi belanja, bagikan, selesai belanja, jalan masuk; skema v4; rilis 1.1.0
+  - [x] Mockup baris "S2 Daftar belanja": `DaftarBelanja`, `BelanjaDariDaftar`, `JalanMasukBelanja`
+  - [x] Mockup di-acc pengguna (21 Okt 2026)
+  - [x] Skema v4: `products.safety_stock`, `shopping_lists`, `shopping_list_items`; ikut sinkron (urut setelah `purchase_items`)
+  - [x] Hitungan kebutuhan per rentang + stok jaga (`OrderRepository.productionNeedsBetween`), jumlah dibeli + pembulatan satuan beli + alasan (`shopping_repository.dart`)
+  - [x] Layar Daftar belanja: rentang, ringkasan, hitung ulang, centang, ubah jumlah/satuan, tambah bahan atau barang lain, bagikan, selesai belanja
+  - [x] Catat jadi belanja: form Belanja terisi dari item yang dicentang, item ditandai Tercatat setelah disimpan
+  - [x] Jalan masuk: baris Perlu dibeli di Beranda, kartu Daftar belanja di Bahan, tombol di Kebutuhan produksi; kolom stok jaga di form menu ready stock
+  - [x] Test: 8 repository, 7 layar (termasuk huruf 130%), 1 sinkron dua HP
+  - [x] Versi 1.1.0 dan CHANGELOG
+  - [x] Build APK lokal 1.1.0 (build 12), 198 tes lulus, analyze bersih
+  - [x] Commit + push ke dev (0b2d3f2)
+  - [ ] Rilis lewat CI "Terbitkan rilis" (pengguna); bisa langsung 1.2.0 karena memuat S2
+- [ ] **S3 Nota dan ekspor** (FR-13.1–13.4):
+  - [x] Dirinci di PRD ("Rincian S3"); tanpa mockup atas pilihan pengguna (21 Okt 2026), catatan tampilan di Design.md bagian 16
+  - [x] Skema v5: `businesses.address`, `payment_info`, `receipt_note`, `logo_data`, `receipt_size`; ikut sinkron
+  - [x] Profil usaha: logo (diperkecil 256 px, JPEG ≤ 100 KB), alamat, info pembayaran, catatan kaki, ukuran nota A6/struk 58 mm
+  - [x] Nota di Detail pesanan: kirim ke WhatsApp pelanggan, bagikan teks, Nota PDF (pratinjau, bagikan, cetak)
+  - [x] Ekspor di Laporan: ringkasan PDF A4 dan 4 file CSV (pemisah `;`, desimal koma, BOM)
+  - [x] Test: 10 (teks nota, wa.me, PDF dua ukuran, logo, CSV, PDF laporan, lembar nota, pengaturan, lembar ekspor); 208 tes lulus
+  - [x] Versi 1.2.0 dan CHANGELOG
+  - [x] Build APK lokal 1.2.0 (build 13)
+  - [x] Commit + push ke dev (17830b6)
+  - [ ] Coba di HP: kirim nota ke WhatsApp, cetak struk 58 mm lewat aplikasi printer thermal, buka CSV di Excel/Sheets (pengguna)
+- [ ] **S4 Harga dan HPP + S5 Arus kas** (FR-14.x, FR-15.x), dikerjakan bersama, rilis 1.3.0:
+  - [x] Dirinci di PRD ("Rincian S4", "Rincian S5"); tanpa mockup atas pilihan pengguna (21 Okt 2026), catatan tampilan di Design.md bagian 17
+  - [x] Skema v6: `product_channel_prices`, `product_hpp_history`, `cash_accounts`, `cash_entries`, `cash_account_id` di `payments`/`purchases`/`expenses`; ikut sinkron, akun kas dilebur saat gabung data
+  - [x] Harga per channel di Detail menu (saran harga, laba per pcs) dan dipakai otomatis di form pesanan
+  - [x] Riwayat HPP (sebab: menu dibuat, resep, harga bahan, upah) dengan grafik; tidak dicatat ulang saat data ditarik
+  - [x] Simulasi harga bahan (Menu › Simulasi harga): HPP, laba, saran harga baru per menu
+  - [x] Akun kas bawaan (Tunai, Bank, QRIS/e-wallet), pilihan akun di Belanja dan Pengeluaran, pembayaran masuk sesuai cara bayar
+  - [x] Layar Kas (Laporan › Kas): saldo per akun, masuk/keluar bulan, laba vs kas, mutasi; Catat kas (modal, prive, pindah, koreksi); Atur akun
+  - [x] Test: 10 data, 5 layar (termasuk huruf 130%), 1 sinkron dua HP + peleburan akun; 224 tes lulus
+  - [x] Versi 1.3.0 dan CHANGELOG
+  - [x] Build APK lokal 1.3.0 (build 14)
+  - [ ] Commit + push ke dev, rilis 1.3.0 (pengguna)
+  - [ ] Coba di HP: harga GoFood, simulasi, isi saldo awal akun kas lalu cocokkan dengan uang sebenarnya (pengguna)
+- [ ] **S6 Sub-resep dan paket/hampers** (FR-16.x)
+- [ ] **S7 Siap komersial:** Kebijakan privasi dan Ketentuan layanan di GitHub Pages, Hapus akun dan semua data, halaman cara hapus akun (FR-17.x)
+- [ ] **S8 Mode gelap dan kunci PIN/sidik jari** (FR-18.x)
+- [ ] **S9 Beberapa usaha dalam satu akun** (FR-19.x)
+- [ ] Keputusan model harga (gratis + donasi, freemium, atau bayar sekali) sebelum S7 selesai
+- Backup otomatis ke Google Drive: tidak direncanakan lagi, digantikan sinkron Firestore + backup ke file
 
 ## Catatan teknis untuk dipantau
 
-- [ ] Plugin `workmanager_android` masih memakai Kotlin Gradle Plugin; Flutter versi mendatang akan menolak build. Cek versi baru plugin sebelum upgrade Flutter.
+- [ ] Plugin `workmanager_android`, `firebase_core`, dan `firebase_crashlytics` masih memakai Kotlin Gradle Plugin; Flutter versi mendatang akan menolak build. Dicek 21 Okt 2026: semuanya sudah versi terbaru (0.10.9, 5.0.0, 6.0.0) dan belum ada versi tanpa KGP. Cek lagi sebelum upgrade Flutter.
 - [ ] Jika aplikasi crash di Android 12L ke atas setelah desugaring, tambahkan `androidx.window` (lihat README flutter_local_notifications).
 
-## Fase 3 — opsional (minggu 19–26)
+## Fase 3 lama — tidak berlaku lagi
 
-- [ ] Login Supabase + sinkron antar-HP (hanya jika memakai lebih dari satu HP)
-- [ ] Multi-user dengan RLS
-- [ ] Push FCM via Supabase Cron + Edge Function
+Rencana Supabase (login, sinkron, RLS, push FCM) digantikan Firebase di fase 2a (20 Okt 2026); push dari server tetap tidak dipakai karena butuh paket berbayar. Beberapa usaha per akun pindah ke sprint S9.

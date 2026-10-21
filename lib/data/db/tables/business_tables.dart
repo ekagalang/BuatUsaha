@@ -31,6 +31,26 @@ class Businesses extends Table with EntityColumns {
 
   /// Diisi setelah onboarding selesai atau dilewati (FR-8.4). Skema v2.
   DateTimeColumn get onboardedAt => dateTime().nullable()();
+
+  /// uid Firebase pemilik setelah login Google; kosong = mode lokal
+  /// (FR-10.1). Skema v3, tidak ikut disinkron.
+  TextColumn get ownerUid => text().nullable()();
+
+  /// Profil untuk nota (FR-13.1). Skema v5.
+  TextColumn get address => text().nullable()();
+
+  /// Rekening/QRIS, teks bebas beberapa baris.
+  TextColumn get paymentInfo => text().nullable()();
+
+  /// Catatan kaki nota; kosong = bawaan "Terima kasih sudah memesan."
+  TextColumn get receiptNote => text().nullable()();
+
+  /// Logo JPEG ≤ 100 KB dalam base64, disimpan di baris supaya ikut
+  /// tersinkron tanpa Cloud Storage. Menggantikan [logoPath].
+  TextColumn get logoData => text().nullable()();
+  TextColumn get receiptSize => text()
+      .map(const CodedEnumConverter(ReceiptSize.values))
+      .withDefault(const Constant('A6'))();
 }
 
 /// Pengaturan notifikasi, 1:1 dengan [Businesses].
@@ -76,4 +96,7 @@ class Expenses extends Table with EntityColumns, VoidColumns {
   /// laporan bulanan (FR-7.7). Skema v2.
   BoolColumn get isMonthly => boolean().withDefault(const Constant(false))();
   TextColumn get note => text().nullable()();
+
+  /// Dibayar dari akun kas ini (FR-15.2); kosong = Tunai. Skema v6.
+  TextColumn get cashAccountId => text().nullable()();
 }

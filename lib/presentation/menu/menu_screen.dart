@@ -7,7 +7,9 @@ import '../../data/repositories/product_repository.dart';
 import '../../domain/enums.dart';
 import '../common/format.dart';
 import '../common/widgets.dart';
+import '../motion.dart';
 import '../theme.dart';
+import 'menu_detail_screen.dart';
 import 'menu_labels.dart';
 
 enum _Filter { all, ready, preOrder, attention }
@@ -31,6 +33,11 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
       appBar: AppBar(
         title: const Text('Menu'),
         actions: [
+          IconButton(
+            tooltip: 'Simulasi harga',
+            icon: const Icon(Icons.calculate_outlined),
+            onPressed: () => context.push('/menu/simulasi'),
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: FilledButton.icon(
@@ -43,7 +50,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
         ],
       ),
       body: products.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const SkeletonList(height: 140),
         error: (error, _) => Center(child: Text('Gagal memuat menu: $error')),
         data: (list) => list.isEmpty ? const _EmptyState() : _content(list),
       ),
@@ -90,8 +97,12 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
             ),
           )
         else
-          for (final view in shown) ...[
-            _MenuCard(view),
+          for (final (i, view) in shown.indexed) ...[
+            StaggeredEntrance(
+              key: ValueKey(view.product.id),
+              index: i,
+              child: _MenuCard(view),
+            ),
             const SizedBox(height: 10),
           ],
         const SizedBox(height: 4),
@@ -123,10 +134,11 @@ class _MenuCard extends StatelessWidget {
         : 'tanpa stok';
     final capacity = view.capacity;
     final cantMake = capacity == null || capacity.maxPcs <= 0;
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => context.push('/menu/${product.id}'),
+    // Kartu membesar menjadi Detail menu (FR-11.8).
+    return ContainerToDetail(
+      open: (_) => MenuDetailScreen(id: product.id),
+      closed: (context, open) => InkWell(
+        onTap: open,
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(

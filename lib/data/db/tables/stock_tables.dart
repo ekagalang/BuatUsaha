@@ -59,6 +59,9 @@ class Purchases extends Table with EntityColumns, VoidColumns {
   DateTimeColumn get purchasedAt => dateTime()();
   IntColumn get totalAmount => integer()();
   TextColumn get note => text().nullable()();
+
+  /// Dibayar dari akun kas ini (FR-15.2); kosong = Tunai. Skema v6.
+  TextColumn get cashAccountId => text().nullable()();
 }
 
 class PurchaseItems extends Table with EntityColumns {

@@ -4,7 +4,8 @@ enum NotifyChannel {
   summary('summary', 'Ringkasan harian'),
   stock('stock', 'Stok menipis'),
   payments('payments', 'Pengingat pelunasan'),
-  dayClose('day_close', 'Tutup hari');
+  dayClose('day_close', 'Tutup hari'),
+  updates('updates', 'Pembaruan aplikasi');
 
   const NotifyChannel(this.id, this.label);
 
@@ -50,6 +51,9 @@ abstract final class NotificationIds {
   /// Ringkasan harian hari ke-0..13.
   static const summaryBase = 1;
   static const dayClose = 50;
+
+  /// Versi baru tersedia (FR-11.4).
+  static const update = 60;
 
   /// Pengingat pelunasan per pesanan (urutan dalam satu sinkron).
   static const paymentBase = 500000;

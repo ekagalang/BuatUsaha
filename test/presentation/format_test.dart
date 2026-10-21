@@ -1,6 +1,6 @@
 import 'package:decimal/decimal.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hpp_app/presentation/common/format.dart';
+import 'package:buat_usaha/presentation/common/format.dart';
 
 Decimal d(String value) => Decimal.parse(value);
 

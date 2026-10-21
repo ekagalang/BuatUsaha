@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'motion.dart';
+
 /// Token warna dari Design.md bagian 3.
 abstract final class AppColors {
   static const background = Color(0xFFFBF6EE);
@@ -241,6 +243,27 @@ ThemeData buildAppTheme() {
         borderRadius: radius12,
         borderSide: const BorderSide(color: AppColors.primary, width: 2),
       ),
+    ),
+    // Gerak (Design.md bagian Gerak, FR-11.6, FR-11.9).
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.android: AppPageTransitionsBuilder(),
+        TargetPlatform.iOS: AppPageTransitionsBuilder(),
+        TargetPlatform.windows: AppPageTransitionsBuilder(),
+        TargetPlatform.linux: AppPageTransitionsBuilder(),
+        TargetPlatform.macOS: AppPageTransitionsBuilder(),
+      },
+    ),
+    snackBarTheme: SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: AppColors.text,
+      contentTextStyle: const TextStyle(
+        fontFamily: _bodyFont,
+        fontSize: 14,
+        color: AppColors.onPrimary,
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
     ),
     extensions: const [StatusColors.light],
   );

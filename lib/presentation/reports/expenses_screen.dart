@@ -5,7 +5,10 @@ import '../../data/db/app_database.dart';
 import '../../data/providers.dart';
 import '../../data/repositories/expense_repository.dart';
 import '../common/format.dart';
+import '../common/rupiah_input.dart';
+import '../cash/cash_account_picker.dart';
 import '../common/widgets.dart';
+import '../motion.dart';
 import '../theme.dart';
 
 /// Daftar dan form pengeluaran operasional per bulan (FR-7.3, FR-7.7).
@@ -155,7 +158,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
   }
 
   Future<void> _void(Expense x) async {
-    final reason = await showDialog<String>(
+    final reason = await showAppDialog<String>(
       context: context,
       builder: (_) => ReasonDialog(
         title: 'Batalkan pengeluaran ini?',
@@ -192,6 +195,7 @@ class _ExpenseSheetState extends ConsumerState<ExpenseSheet> {
   final _amount = TextEditingController();
   final _note = TextEditingController();
   String? _categoryId;
+  String? _cashAccountId;
   var _date = DateTime.now();
   var _monthly = false;
   var _saving = false;
@@ -226,6 +230,7 @@ class _ExpenseSheetState extends ConsumerState<ExpenseSheet> {
             spentAt: _date,
             isMonthly: _monthly,
             note: _note.text.trim().isEmpty ? null : _note.text.trim(),
+            cashAccountId: _cashAccountId,
           );
       if (mounted) Navigator.pop(context);
       messenger.showSnackBar(
@@ -277,6 +282,7 @@ class _ExpenseSheetState extends ConsumerState<ExpenseSheet> {
               controller: _amount,
               autofocus: true,
               keyboardType: TextInputType.number,
+              inputFormatters: const [RupiahInputFormatter()],
               decoration: const InputDecoration(
                 labelText: 'Nominal',
                 prefixText: 'Rp ',
@@ -313,6 +319,11 @@ class _ExpenseSheetState extends ConsumerState<ExpenseSheet> {
                 labelText: 'Catatan (opsional)',
                 hintText: 'mis. ojek antar pesanan',
               ),
+            ),
+            const SizedBox(height: 12),
+            CashAccountPicker(
+              value: _cashAccountId,
+              onChanged: (id) => setState(() => _cashAccountId = id),
             ),
             const SizedBox(height: 16),
             FilledButton(

@@ -3,10 +3,15 @@ import 'package:drift_flutter/drift_flutter.dart';
 
 import '../../domain/enums.dart';
 import 'tables/business_tables.dart';
+import 'tables/cash_tables.dart';
 import 'tables/common.dart';
 import 'tables/order_tables.dart';
+import 'tables/pricing_tables.dart';
 import 'tables/product_tables.dart';
+import 'tables/shopping_tables.dart';
 import 'tables/stock_tables.dart';
+import 'tables/sync_tables.dart';
+import '../sync/sync_schema.dart';
 
 export '../../domain/enums.dart';
 
@@ -35,6 +40,14 @@ part 'app_database.g.dart';
     OrderReminders,
     ExpenseCategories,
     Expenses,
+    ShoppingLists,
+    ShoppingListItems,
+    ProductChannelPrices,
+    ProductHppHistory,
+    CashAccounts,
+    CashEntries,
+    SyncOutbox,
+    SyncState,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -43,7 +56,7 @@ class AppDatabase extends _$AppDatabase {
     : super(
         executor ??
             driftDatabase(
-              name: 'hpp_app',
+              name: 'buat_usaha',
               native: const DriftNativeOptions(shareAcrossIsolates: true),
             ),
       );
@@ -54,7 +67,7 @@ class AppDatabase extends _$AppDatabase {
   Future<void> closeOnce() => _closing ??= close();
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -64,9 +77,43 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(businesses, businesses.onboardedAt);
         await m.addColumn(expenses, expenses.isMonthly);
       }
+      if (from < 3) {
+        await m.createTable(syncOutbox);
+        await m.createTable(syncState);
+        await m.addColumn(businesses, businesses.ownerUid);
+      }
+      if (from < 4) {
+        await m.addColumn(products, products.safetyStock);
+        await m.createTable(shoppingLists);
+        await m.createTable(shoppingListItems);
+      }
+      if (from < 5) {
+        await m.addColumn(businesses, businesses.address);
+        await m.addColumn(businesses, businesses.paymentInfo);
+        await m.addColumn(businesses, businesses.receiptNote);
+        await m.addColumn(businesses, businesses.logoData);
+        await m.addColumn(businesses, businesses.receiptSize);
+      }
+      if (from < 6) {
+        await m.createTable(productChannelPrices);
+        await m.createTable(productHppHistory);
+        await m.createIndex(productHppHistoryProductTime);
+        await m.createTable(cashAccounts);
+        await m.createTable(cashEntries);
+        await m.createIndex(cashEntriesBusinessTime);
+        await m.addColumn(payments, payments.cashAccountId);
+        await m.addColumn(purchases, purchases.cashAccountId);
+        await m.addColumn(expenses, expenses.cashAccountId);
+      }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
+      await installSyncTriggers(this);
+      // Login tersimpan dari sesi sebelumnya → pencatatan perubahan aktif.
+      final owner = await customSelect(
+        'SELECT 1 FROM businesses WHERE owner_uid IS NOT NULL LIMIT 1',
+      ).getSingleOrNull();
+      if (owner != null) await setSyncFlag(this, 'enabled', on: true);
     },
   );
 }

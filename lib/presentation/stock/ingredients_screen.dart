@@ -7,6 +7,8 @@ import '../../data/providers.dart';
 import '../../data/repositories/stock_repository.dart';
 import '../common/format.dart';
 import '../common/widgets.dart';
+import '../motion.dart';
+import 'ingredient_detail_screen.dart';
 import '../theme.dart';
 
 enum _Filter { all, low, noPrice }
@@ -46,7 +48,7 @@ class _IngredientsScreenState extends ConsumerState<IngredientsScreen> {
         ],
       ),
       body: ingredients.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const SkeletonList(height: 72),
         error: (error, _) => Center(child: Text('Gagal memuat bahan: $error')),
         data: (list) => list.isEmpty ? const _EmptyState() : _content(list),
       ),
@@ -71,6 +73,8 @@ class _IngredientsScreenState extends ConsumerState<IngredientsScreen> {
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
       children: [
         _ValueHero(list: sorted),
+        const SizedBox(height: 12),
+        const _ShoppingCard(),
         const SizedBox(height: 16),
         Wrap(
           spacing: 8,
@@ -105,7 +109,11 @@ class _IngredientsScreenState extends ConsumerState<IngredientsScreen> {
               children: [
                 for (final (i, view) in shown.indexed) ...[
                   if (i > 0) const Divider(height: 1),
-                  _IngredientRow(view),
+                  StaggeredEntrance(
+                    key: ValueKey(view.ingredient.id),
+                    index: i,
+                    child: _IngredientRow(view),
+                  ),
                 ],
               ],
             ),
@@ -121,6 +129,75 @@ class _IngredientsScreenState extends ConsumerState<IngredientsScreen> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Jalan masuk Daftar belanja di atas daftar bahan (FR-12.11).
+class _ShoppingCard extends ConsumerWidget {
+  const _ShoppingCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final plan = ref.watch(shoppingPlanProvider(3)).value;
+    final list = ref.watch(activeShoppingListProvider).value;
+    final todo = list?.todo ?? const [];
+    final String detail;
+    if (todo.isNotEmpty) {
+      final total = todo.fold(0, (sum, l) => sum + (l.item.estimatedCost ?? 0));
+      detail =
+          '${todo.length} belum dibeli'
+          '${total > 0 ? ' · ±${formatRupiah(total)}' : ''}';
+    } else if (plan != null && plan.items.isNotEmpty) {
+      detail =
+          '${plan.items.length} bahan perlu dibeli'
+          '${plan.total > 0 ? ' · ±${formatRupiah(plan.total)}' : ''}';
+    } else {
+      detail = 'Tidak ada yang perlu dibeli untuk 3 hari ke depan';
+    }
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => context.push('/bahan/daftar-belanja'),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Daftar belanja',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      detail,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(0, 40),
+                  shape: const StadiumBorder(),
+                ),
+                onPressed: () => context.push('/bahan/daftar-belanja'),
+                child: const Text('Buka'),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -160,8 +237,8 @@ class _ValueHero extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 2),
-          Text(
-            formatRupiah(total),
+          AnimatedRupiah(
+            total,
             style: Theme.of(context).textTheme.displaySmall
                 ?.copyWith(fontSize: 34, color: AppColors.onPrimary),
           ),
@@ -227,54 +304,63 @@ class _IngredientRow extends StatelessWidget {
         'minimum ${formatQty(view.minStock, unit)}',
     ].join(' · ');
 
-    return InkWell(
-      onTap: () => context.push('/bahan/${ingredient.id}'),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 4,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      Text(
-                        ingredient.name,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
+    // Baris membesar menjadi Detail bahan (FR-11.8).
+    return ContainerToDetail(
+      radius: 0,
+      bordered: false,
+      open: (_) => IngredientDetailScreen(id: ingredient.id),
+      closed: (context, open) => InkWell(
+        onTap: open,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
+                          ingredient.name,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
-                      if (view.isLow)
-                        const StatusPill('Menipis', kind: StatusKind.danger),
-                      if (avg == null)
-                        const StatusPill(
-                          'Belum ada harga',
-                          kind: StatusKind.warning,
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    details,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textMuted,
+                        if (view.isLow)
+                          const StatusPill('Menipis', kind: StatusKind.danger),
+                        if (avg == null)
+                          const StatusPill(
+                            'Belum ada harga',
+                            kind: StatusKind.warning,
+                          ),
+                      ],
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 4),
+                    Text(
+                      details,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              avg == null ? '—' : formatRupiah(view.value),
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-            ),
-          ],
+              const SizedBox(width: 12),
+              Text(
+                avg == null ? '—' : formatRupiah(view.value),
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

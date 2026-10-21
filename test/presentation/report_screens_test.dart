@@ -2,16 +2,16 @@ import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hpp_app/data/db/app_database.dart';
-import 'package:hpp_app/data/providers.dart';
-import 'package:hpp_app/data/repositories/day_close_repository.dart';
-import 'package:hpp_app/data/repositories/expense_repository.dart';
-import 'package:hpp_app/data/repositories/order_repository.dart';
-import 'package:hpp_app/presentation/home/home_screen.dart';
-import 'package:hpp_app/presentation/reports/day_close_screen.dart';
-import 'package:hpp_app/presentation/reports/reports_screen.dart';
-import 'package:hpp_app/presentation/settings/settings_screen.dart';
-import 'package:hpp_app/presentation/theme.dart';
+import 'package:buat_usaha/data/db/app_database.dart';
+import 'package:buat_usaha/data/providers.dart';
+import 'package:buat_usaha/data/repositories/day_close_repository.dart';
+import 'package:buat_usaha/data/repositories/expense_repository.dart';
+import 'package:buat_usaha/data/repositories/order_repository.dart';
+import 'package:buat_usaha/presentation/home/home_screen.dart';
+import 'package:buat_usaha/presentation/reports/day_close_screen.dart';
+import 'package:buat_usaha/presentation/reports/reports_screen.dart';
+import 'package:buat_usaha/presentation/settings/settings_screen.dart';
+import 'package:buat_usaha/presentation/theme.dart';
 
 import '../support/seed.dart';
 
@@ -147,7 +147,7 @@ void main() {
     expect(find.text('Harga dan HPP'), findsOneWidget);
     expect(find.text('Notifikasi'), findsOneWidget);
     expect(find.text('GoFood'), findsOneWidget);
-    expect(find.text('Backup: bagikan file data'), findsOneWidget);
+    expect(find.text('Bagikan file backup'), findsOneWidget);
 
     await tester.tap(find.text('Izinkan stok minus'));
     await _settle(tester);

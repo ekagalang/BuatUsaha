@@ -2,9 +2,9 @@ import 'package:decimal/decimal.dart';
 import 'package:drift/drift.dart';
 
 import '../../domain/costing/costing.dart';
-import '../../domain/stock/product_ledger.dart';
 import '../db/app_database.dart';
 import '../db/decimal_convert.dart';
+import 'cost_cascade.dart';
 import 'hpp_refresher.dart';
 import 'stock_repository.dart';
 
@@ -60,6 +60,7 @@ class ProductInput {
     this.shelfLifeDays,
     this.stockDeductMode,
     this.targetMarkupPct,
+    this.safetyStock,
   });
 
   final String name;
@@ -73,6 +74,9 @@ class ProductInput {
   /// `null` = ikut mode stok bawaan usaha.
   final StockDeductMode? stockDeductMode;
   final Decimal? targetMarkupPct;
+
+  /// Stok jaga menu ready stock (FR-12.10); kosong = 0.
+  final Decimal? safetyStock;
 }
 
 /// Menu beserta HPP, harga, kapasitas, dan stok produk jadinya.
@@ -200,6 +204,7 @@ class ProductRepository {
               yieldQty: dbl(input.yieldQty),
               category: Value(input.category),
               shelfLifeDays: Value(input.shelfLifeDays),
+              safetyStock: Value(dbl(input.safetyStock ?? Decimal.zero)),
               stockDeductMode: Value(input.stockDeductMode),
               targetMarkupPct: Value(
                 input.targetMarkupPct == null
@@ -209,7 +214,7 @@ class ProductRepository {
             ),
           );
       await _writeChildren(product.id, input);
-      await refreshProductHpp(_db, product.id);
+      await refreshProductHpp(_db, product.id, cause: HppChangeCause.created);
       return product.id;
     });
   }
@@ -224,6 +229,7 @@ class ProductRepository {
           yieldQty: Value(dbl(input.yieldQty)),
           category: Value(input.category),
           shelfLifeDays: Value(input.shelfLifeDays),
+          safetyStock: Value(dbl(input.safetyStock ?? Decimal.zero)),
           stockDeductMode: Value(input.stockDeductMode),
           targetMarkupPct: Value(
             input.targetMarkupPct == null ? null : dbl(input.targetMarkupPct!),
@@ -231,14 +237,8 @@ class ProductRepository {
           updatedAt: Value(_now()),
         ),
       );
-      await (_db.delete(
-        _db.recipeItems,
-      )..where((t) => t.productId.equals(id))).go();
-      await (_db.delete(
-        _db.productCosts,
-      )..where((t) => t.productId.equals(id))).go();
-      await _writeChildren(id, input);
-      await refreshProductHpp(_db, id);
+      await _replaceChildren(id, input);
+      await refreshProductHpp(_db, id, cause: HppChangeCause.recipe);
     });
   }
 
@@ -256,6 +256,7 @@ class ProductRepository {
       yieldQty: dec(product.yieldQty),
       category: product.category,
       shelfLifeDays: product.shelfLifeDays,
+      safetyStock: dec(product.safetyStock),
       stockDeductMode: product.stockDeductMode,
       targetMarkupPct: product.targetMarkupPct == null
           ? null
@@ -585,6 +586,100 @@ class ProductRepository {
     }
   }
 
+  /// Resep dan biaya lain diperbarui di tempat: baris yang masih ada tetap
+  /// memakai id-nya, supaya menu yang diubah di dua HP tidak dobel setelah
+  /// sinkron (FR-10.4).
+  Future<void> _replaceChildren(String productId, ProductInput input) async {
+    final oldLines = {
+      for (final r in await (_db.select(
+        _db.recipeItems,
+      )..where((t) => t.productId.equals(productId))).get())
+        r.ingredientId: r,
+    };
+    final seen = <String>{};
+    for (final r in input.recipe) {
+      if (r.qtyBase <= Decimal.zero || !seen.add(r.ingredientId)) continue;
+      final old = oldLines.remove(r.ingredientId);
+      if (old == null) {
+        await _db
+            .into(_db.recipeItems)
+            .insert(
+              RecipeItemsCompanion.insert(
+                productId: productId,
+                ingredientId: r.ingredientId,
+                qtyBase: dbl(r.qtyBase),
+              ),
+            );
+      } else if (old.qtyBase != dbl(r.qtyBase)) {
+        await (_db.update(
+          _db.recipeItems,
+        )..where((t) => t.id.equals(old.id))).write(
+          RecipeItemsCompanion(
+            qtyBase: Value(dbl(r.qtyBase)),
+            updatedAt: Value(_now()),
+          ),
+        );
+      }
+    }
+    for (final old in oldLines.values) {
+      await (_db.delete(
+        _db.recipeItems,
+      )..where((t) => t.id.equals(old.id))).go();
+    }
+
+    final oldCosts =
+        await (_db.select(_db.productCosts)
+              ..where((t) => t.productId.equals(productId))
+              ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
+            .get();
+    for (final c in input.costs) {
+      final name = c.name.trim();
+      final hours = c.laborHours == null ? null : dbl(c.laborHours!);
+      final i = oldCosts.indexWhere(
+        (o) => o.name == name && o.costType == c.costType,
+      );
+      if (i < 0) {
+        await _insertCost(productId, c);
+        continue;
+      }
+      final old = oldCosts.removeAt(i);
+      // Nominal upah pemilik dihitung refreshProductHpp dari jam × upah.
+      final amount = hours == null ? c.amount : old.amount;
+      if (old.amount != amount ||
+          old.basis != c.basis ||
+          old.laborHours != hours) {
+        await (_db.update(
+          _db.productCosts,
+        )..where((t) => t.id.equals(old.id))).write(
+          ProductCostsCompanion(
+            amount: Value(amount),
+            basis: Value(c.basis),
+            laborHours: Value(hours),
+            updatedAt: Value(_now()),
+          ),
+        );
+      }
+    }
+    for (final old in oldCosts) {
+      await (_db.delete(
+        _db.productCosts,
+      )..where((t) => t.id.equals(old.id))).go();
+    }
+  }
+
+  Future<void> _insertCost(String productId, CostInput c) => _db
+      .into(_db.productCosts)
+      .insert(
+        ProductCostsCompanion.insert(
+          productId: productId,
+          name: c.name.trim(),
+          costType: c.costType,
+          amount: c.amount,
+          basis: c.basis,
+          laborHours: Value(c.laborHours == null ? null : dbl(c.laborHours!)),
+        ),
+      );
+
   Future<void> _writeChildren(String productId, ProductInput input) async {
     final seen = <String>{};
     for (final r in input.recipe) {
@@ -600,20 +695,7 @@ class ProductRepository {
           );
     }
     for (final c in input.costs) {
-      await _db
-          .into(_db.productCosts)
-          .insert(
-            ProductCostsCompanion.insert(
-              productId: productId,
-              name: c.name.trim(),
-              costType: c.costType,
-              amount: c.amount,
-              basis: c.basis,
-              laborHours: Value(
-                c.laborHours == null ? null : dbl(c.laborHours!),
-              ),
-            ),
-          );
+      await _insertCost(productId, c);
     }
   }
 
@@ -650,51 +732,8 @@ class ProductRepository {
               ))
           .id;
 
-  Future<void> _recomputeProductStock(String productId) async {
-    final rows = await (_db.select(
-      _db.productStockMovements,
-    )..where((t) => t.productId.equals(productId))).get();
-    rows.sort((a, b) {
-      final byTime = a.occurredAt.compareTo(b.occurredAt);
-      if (byTime != 0) return byTime;
-      final byCreated = a.createdAt.compareTo(b.createdAt);
-      return byCreated != 0 ? byCreated : a.id.compareTo(b.id);
-    });
-    final result = replayProductLedger([
-      for (final r in rows)
-        ProductLedgerMovement(
-          id: r.id,
-          type: r.type,
-          qty: dec(r.qty),
-          unitCost: dec(r.unitCost),
-          reversalOfId: r.reversalOfId,
-        ),
-    ]);
-    for (var i = 0; i < rows.length; i++) {
-      final res = result.rows[i];
-      await (_db.update(
-        _db.productStockMovements,
-      )..where((t) => t.id.equals(rows[i].id))).write(
-        ProductStockMovementsCompanion(
-          unitCost: res.cancelled
-              ? const Value.absent()
-              : Value(dbl(res.unitCost)),
-          value: res.cancelled ? const Value.absent() : Value(res.value),
-          balanceAfter: Value(dbl(res.balanceAfter)),
-          avgCostAfter: Value(dbl(res.avgCostAfter)),
-        ),
-      );
-    }
-    await (_db.update(
-      _db.products,
-    )..where((t) => t.id.equals(productId))).write(
-      ProductsCompanion(
-        currentStock: Value(dbl(result.stock)),
-        stockUnitCost: Value(dbl(result.avgUnitCost)),
-        updatedAt: Value(_now()),
-      ),
-    );
-  }
+  Future<void> _recomputeProductStock(String productId) =>
+      recomputeProductStock(_db, productId);
 
   Future<Product> _product(String id) =>
       (_db.select(_db.products)..where((t) => t.id.equals(id))).getSingle();

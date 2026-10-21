@@ -215,3 +215,51 @@ final theme = ThemeData(
 ## 14. Belum didesain
 
 Detail pesanan, kartu stok bahan, stok menu jadi, pengeluaran, pengaturan (termasuk channel dan upah per jam), onboarding, tampilan saat data kosong, dan mode gelap. MVP memakai tema terang saja.
+
+Direncanakan di PRD tab "Rencana fase 2b": **token warna mode gelap** (sprint S8), didesain dan di-acc lewat mockup sebelum dikoding.
+
+## 15. Gerak
+
+Di-acc lewat mockup `Gerak` (21 Okt 2026). Kode: `lib/presentation/motion.dart`.
+
+| Token | Durasi | Untuk |
+| --- | --- | --- |
+| `Motion.fast` | 150 ms | tekan tombol, sakelar, centang, segmented |
+| `Motion.medium` | 250 ms | ganti tab, dialog, bottom sheet, angka berubah, kartu pembaruan muncul |
+| `Motion.slow` | 300 ms | pindah layar, kartu → detail |
+
+- Kurva: masuk `Easing.emphasizedDecelerate` (melambat di akhir), keluar `Easing.emphasizedAccelerate`, pindah posisi `Easing.standard`.
+- Pindah layar: shared axis horizontal untuk semua rute (`AppPageTransitionsBuilder` di tema).
+- Tab bawah: fade-through (`FadeThroughTabs`); isi lama memudar di 35% pertama, isi baru memudar masuk dengan skala 0,92 → 1. Semua tab tetap hidup, jadi posisi gulir dan tumpukan layar tiap tab tidak hilang.
+- Kartu → detail: container transform (`ContainerToDetail`) untuk kartu menu, kartu pesanan, dan baris bahan. Deep link dari notifikasi tetap memakai rute biasa.
+- Daftar: `StaggeredEntrance` 30 ms per item, hanya 8 item pertama, hanya saat item pertama kali dibuat.
+- Angka: `AnimatedRupiah` untuk angka besar di Beranda dan nilai modal Bahan.
+- Tekan: `Pressable` mengecilkan ke 0,97 (tombol bilah bawah, ubin Catat cepat).
+- Getar (`Haptics`): ringan saat simpan berhasil, sedang sebelum aksi membatalkan atau keluar akun, klik halus untuk pilihan dan tab.
+- Memuat: `SkeletonList` berdenyut pelan (opasitas 1 → 0,5, 1 detik) menggantikan lingkaran putar di daftar Menu, Pesanan, Bahan.
+- Dialog: `showAppDialog` (skala 0,9 → 1 + pudar, 250 ms) menggantikan `showDialog`; snackbar mengambang di atas navigasi bawah.
+- Pengaturan Android "hapus animasi" aktif → semua durasi 0 (`Motion.of`); getar tetap.
+- Belum: animasi pratinjau gestur kembali prediktif Android 14+; gestur kembali tetap berfungsi seperti biasa.
+
+## 16. Nota dan dokumen PDF
+
+Dibuat langsung tanpa mockup atas pilihan pengguna (S3, 21 Okt 2026); dicek dari APK.
+
+- Font PDF: Plus Jakarta Sans yang dibundel (Regular dan Bold), supaya Rp, ×, −, dan · tampil benar. Warna: teks `text`, keterangan `textMuted`, garis `inputBorder`, judul dan tanda LUNAS `primary`, kotak info pembayaran `primaryContainer`.
+- Nota A6 (105 × 148 mm, margin 8 mm, teks 8,5 pt): kepala rata kiri (logo, nama, alamat, WhatsApp), nomor nota, jadwal, pelanggan, item (nama tebal, lalu "10 × Rp8.000" dan total rata kanan), ringkasan, Total tebal, LUNAS dalam kotak bergaris atau Sudah dibayar/Sisa, kotak Pembayaran (hanya bila belum lunas), catatan, catatan kaki di tengah.
+- Struk 58 mm (margin 3 mm, teks 7 pt): isi sama, kepala di tengah, panjang halaman mengikuti isi.
+- Laporan A4 (margin 16/14 mm, teks 9,5 pt): kepala logo + nama + periode, Ringkasan, tabel Per menu, Per channel, Pengeluaran dengan kepala tabel `primaryContainer` dan garis bawah tipis; nomor halaman di kaki.
+- Teks nota WhatsApp: tebal dengan `*`, satu baris per item, baris kosong antar bagian.
+- Lembar pilihan (Nota di Detail pesanan, Ekspor di Laporan): bottom sheet `background` dengan ListTile ikon garis; pilihan yang tidak bisa dipakai tampil nonaktif dengan alasannya.
+- Pratinjau PDF: AppBar dengan tombol Bagikan dan Cetak, halaman di atas latar `surfaceMuted`.
+
+## 17. Harga channel, riwayat HPP, simulasi, dan kas
+
+Dibuat langsung tanpa mockup atas pilihan pengguna (S4 + S5, 21 Okt 2026); memakai komponen yang sudah ada.
+
+- Detail menu, setelah Saran harga jual: kartu **Harga per channel** (baris: nama channel, harga atau "harga utama" abu-abu, keterangan "potongan RpX · laba RpY/pcs", chevron) lalu kartu **Riwayat HPP** (grafik garis `primary` tinggi 140 dp dengan titik kecil, lalu daftar perubahan: tanggal kecil abu-abu, "Rp4.835 → Rp5.120" tebal, sebab di bawahnya; naik = `danger`, turun = `success`).
+- Dialog harga channel: `showAppDialog`, kolom Rupiah, teks saran di bawahnya, tombol Samakan dengan harga utama (teks), Batal, Simpan.
+- Simulasi harga: layar penuh; Segmented Persen / Harga baru; daftar bahan terpilih sebagai kartu dengan kolom isian dan tombol hapus; tombol Tambah bahan (lembar cari); hasil sebagai kartu per menu: nama, "HPP Rp4.835 → Rp5.300 (+Rp465)", "Laba/pcs Rp3.165 → Rp2.700", "Saran harga Rp8.500"; InfoBox netral "Simulasi tidak menyimpan apa pun".
+- Layar Kas: kartu hero total saldo (gaya `_StatusHero` Laporan), baris akun (nama, jenis, saldo); pemilih bulan seperti Laporan; ringkasan masuk/keluar/bersih; kartu penjelasan laba vs kas; daftar mutasi per hari (masuk `success`, keluar `danger`). Tombol bawah **Catat kas**; AppBar **Atur akun**.
+- Lembar Catat kas: Segmented 4 jenis (Modal masuk, Ambil pribadi, Pindah, Koreksi saldo), ChoicePill akun (dan akun tujuan untuk Pindah), nominal, tanggal, catatan.
+- Form Belanja dan Pengeluaran: baris ChoicePill "Dibayar dari" (akun aktif), bawaan Tunai.

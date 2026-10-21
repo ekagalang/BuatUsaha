@@ -10,7 +10,9 @@ import '../common/format.dart';
 import '../common/widgets.dart';
 import '../orders/orders_screen.dart' show OrderCard;
 import '../reports/expenses_screen.dart';
+import '../motion.dart';
 import '../theme.dart';
+import '../update/update_widgets.dart';
 
 DateTime _today() {
   final n = DateTime.now();
@@ -62,6 +64,8 @@ class HomeScreen extends ConsumerWidget {
               business.name,
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
+          // Versi baru tersedia (FR-11.4), di atas status hari ini.
+          const UpdateCard(),
           const SizedBox(height: 12),
           _TodayHero(day: today),
           const SizedBox(height: 20),
@@ -106,7 +110,7 @@ class _TodayHero extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(l, style: muted),
-          Text(formatRupiah(v), style: strong),
+          AnimatedRupiah(v, style: strong),
         ],
       ),
     );
@@ -139,8 +143,8 @@ class _TodayHero extends ConsumerWidget {
                 StatusPill(label, kind: kind),
               ],
             ),
-            Text(
-              formatRupiah(net),
+            AnimatedRupiah(
+              net,
               style: Theme.of(context).textTheme.displaySmall
                   ?.copyWith(fontSize: 34, color: AppColors.onPrimary),
             ),
@@ -219,32 +223,36 @@ class _QuickActions extends ConsumerWidget {
       physics: const NeverScrollableScrollPhysics(),
       mainAxisSpacing: 8,
       crossAxisSpacing: 8,
-      childAspectRatio: 1.15,
+      // Lebih tinggi saat huruf sistem diperbesar.
+      childAspectRatio: (1.15 / MediaQuery.textScalerOf(context).scale(1))
+          .clamp(0.6, 1.15),
       children: [
         for (final (label, icon, onTap) in actions)
-          Material(
-            color: AppColors.surface,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: const BorderSide(color: AppColors.border),
-            ),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(16),
-              onTap: onTap,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(icon, color: AppColors.primary),
-                  const SizedBox(height: 6),
-                  Text(
-                    label,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
+          Pressable(
+            child: Material(
+              color: AppColors.surface,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: const BorderSide(color: AppColors.border),
+              ),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: onTap,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(icon, color: AppColors.primary),
+                    const SizedBox(height: 6),
+                    Text(
+                      label,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -404,6 +412,8 @@ class _Values extends ConsumerWidget {
   }
 }
 
+const _shoppingPath = '/bahan/daftar-belanja';
+
 class _Attention extends ConsumerWidget {
   const _Attention();
 
@@ -423,7 +433,23 @@ class _Attention extends ConsumerWidget {
             .value ??
         const <OrderView>[];
     final now = DateTime.now();
+    final corrections = ref.watch(costCorrectionsProvider).value ?? const [];
+    // Daftar belanja untuk pesanan 3 hari ke depan (FR-12.11).
+    final shopping = ref.watch(shoppingPlanProvider(3)).value;
     final items = <(String, String, String)>[
+      if (shopping != null && shopping.items.isNotEmpty)
+        (
+          'Perlu dibeli · ${shopping.items.length} bahan',
+          '${shopping.total > 0 ? '±${formatRupiah(shopping.total)} ' : ''}'
+              'untuk pesanan 3 hari ke depan',
+          _shoppingPath,
+        ),
+      if (corrections.isNotEmpty)
+        (
+          '${corrections.length} pesanan lama memakai HPP sebelum koreksi',
+          'Harga bahan dikoreksi; tinjau dan hitung ulang labanya',
+          '/pesanan/koreksi-hpp',
+        ),
       for (final i in ingredients.where((i) => i.isLow))
         (
           '${i.ingredient.name} menipis',
@@ -473,10 +499,15 @@ class _Attention extends ConsumerWidget {
               for (final (i, (title, detail, path)) in items.indexed) ...[
                 if (i > 0) const Divider(height: 1),
                 ListTile(
-                  leading: const Icon(
-                    Icons.error_outline,
-                    color: AppColors.warning,
-                  ),
+                  leading: path == _shoppingPath
+                      ? const Icon(
+                          Icons.shopping_cart_outlined,
+                          color: AppColors.primary,
+                        )
+                      : const Icon(
+                          Icons.error_outline,
+                          color: AppColors.warning,
+                        ),
                   title: Text(title),
                   subtitle: Text(detail),
                   trailing: const Icon(Icons.chevron_right),

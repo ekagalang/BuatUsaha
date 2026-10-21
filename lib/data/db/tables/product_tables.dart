@@ -40,6 +40,10 @@ class Products extends Table with EntityColumns {
 
   /// Umur simpan dalam hari untuk produk ready stock (FR-4.10).
   IntColumn get shelfLifeDays => integer().nullable()();
+
+  /// Stok jaga: pcs yang ingin selalu tersedia, ikut dihitung di daftar
+  /// belanja (FR-12.10). Skema v4.
+  RealColumn get safetyStock => real().withDefault(const Constant(0.0))();
 }
 
 /// Takaran bahan per 1 resep (bill of materials).

@@ -7,6 +7,14 @@
 #   ANDROID_KEY_PASSWORD      sandi kunci (PKCS12: sama dengan sandi keystore)
 # Tanpa secrets, APK memakai kunci debug dan artefaknya diberi akhiran
 # "debug-signed": cukup untuk dicoba, jangan dipasang permanen.
+#   GOOGLE_SERVICES_JSON_BASE64 isi android/app/google-services.json dalam
+#                               base64; tanpa ini APK berhenti di layar Masuk.
+# Setiap build yang berhasil menghapus APK dari build sebelumnya, jadi di
+# Actions hanya ada satu APK terbaru (disimpan 14 hari).
+# Versi (PRD FR-11.1, FR-11.2): nama versi dari pubspec.yaml, nomor build =
+# jumlah commit. "Terbitkan rilis" (atau push ke main) membuat GitHub Release
+# v<versi> berisi APK dan catatan dari CHANGELOG.md; aplikasi memeriksa
+# rilis terbaru ini untuk pemberitahuan versi baru.
 name: Build APK
 
 # Hanya berjalan saat push/merge ke main, atau dijalankan manual dari tab
@@ -16,6 +24,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      terbitkan_rilis:
+        description: Terbitkan rilis (naikkan versi di pubspec.yaml dan isi CHANGELOG.md dulu)
+        type: boolean
+        default: false
 
 concurrency:
   group: build-apk-${{ github.ref }}
@@ -25,11 +38,28 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # contents: write untuk membuat rilis; actions: write untuk menghapus APK
+    # dari build sebelumnya.
+    permissions:
+      contents: write
+      actions: write
     env:
       HAS_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
       HAS_FIREBASE: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 != '' }}
+      PUBLISH: ${{ github.event_name == 'push' || inputs.terbitkan_rilis == true }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Seluruh riwayat dan tag: nomor build = jumlah commit, dan cek
+          # apakah versi ini sudah pernah dirilis.
+          fetch-depth: 0
+
+      - name: Tentukan versi
+        run: |
+          name=$(sed -n 's/^version:[[:space:]]*\([0-9.]*\).*/\1/p' pubspec.yaml)
+          echo "VERSION_NAME=$name" >> "$GITHUB_ENV"
+          echo "BUILD_NUMBER=$(git rev-list --count HEAD)" >> "$GITHUB_ENV"
+          echo "BUILD_DATE=$(date -u +%Y-%m-%d)" >> "$GITHUB_ENV"
 
       - uses: actions/setup-java@v6
         with:
@@ -64,17 +94,69 @@ jobs:
             "$RUNNER_TEMP/upload.jks" "$KEYSTORE_PASSWORD" "$KEY_ALIAS" "$KEY_PASSWORD" \
             > android/key.properties
 
-      - name: Pasang konfigurasi Firebase Crashlytics dari secret
+      - name: Pasang konfigurasi Firebase (login, sinkron, crash) dari secret
         if: env.HAS_FIREBASE == 'true'
         env:
           GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
         run: echo "$GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > android/app/google-services.json
 
       - name: Build APK release per ABI
-        run: flutter build apk --release --split-per-abi
+        run: >
+          flutter build apk --release --split-per-abi
+          --build-number="$BUILD_NUMBER"
+          --dart-define=BUILD_DATE="$BUILD_DATE"
 
       - uses: actions/upload-artifact@v7
         with:
-          name: ${{ env.HAS_KEYSTORE == 'true' && 'hpp-app-apk' || 'hpp-app-apk-debug-signed' }}
+          name: ${{ env.HAS_KEYSTORE == 'true' && 'buatusaha-apk' || 'buatusaha-apk-debug-signed' }}
           path: build/app/outputs/flutter-apk/app-*-release.apk
           retention-days: 14
+
+      # Hanya APK terbaru yang disimpan. Dijalankan setelah upload berhasil,
+      # jadi bila build gagal APK lama tetap ada.
+      - name: Hapus APK dari build sebelumnya
+        # Gagal menghapus tidak membatalkan build yang sudah berhasil.
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          gh api --paginate "repos/$REPO/actions/artifacts?per_page=100" \
+            --jq ".artifacts[]
+              | select(.name | startswith(\"buatusaha-apk\"))
+              | select(.workflow_run.id != $RUN_ID)
+              | .id" |
+          while read -r id; do
+            echo "Menghapus artifact $id"
+            gh api -X DELETE "repos/$REPO/actions/artifacts/$id"
+          done
+
+      # Rilis hanya dari APK bertanda tangan kunci sendiri (FR-11.2).
+      - name: Terbitkan rilis
+        if: env.PUBLISH == 'true' && env.HAS_KEYSTORE == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="v$VERSION_NAME"
+          if git rev-parse -q --verify "refs/tags/$tag" >/dev/null || gh release view "$tag" >/dev/null 2>&1; then
+            echo "::error::Versi $VERSION_NAME sudah pernah dirilis. Naikkan versi di pubspec.yaml dulu."
+            exit 1
+          fi
+          awk -v v="$VERSION_NAME" '
+            index($0, "## " v " ") == 1 || $0 == "## " v { found = 1; next }
+            /^## / { found = 0 }
+            found' CHANGELOG.md > notes.md
+          if ! grep -q '[^[:space:]]' notes.md; then
+            echo "::error::CHANGELOG.md belum berisi bagian '## $VERSION_NAME'."
+            exit 1
+          fi
+          printf '\nBuild %s\n' "$BUILD_NUMBER" >> notes.md
+          mkdir -p rilis
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            cp "build/app/outputs/flutter-apk/app-$abi-release.apk" "rilis/BuatUsaha-$VERSION_NAME-$abi.apk"
+          done
+          gh release create "$tag" rilis/*.apk \
+            --title "BuatUsaha $VERSION_NAME" \
+            --notes-file notes.md \
+            --target "$GITHUB_SHA"

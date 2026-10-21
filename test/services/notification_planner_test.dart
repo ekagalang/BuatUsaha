@@ -1,11 +1,11 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hpp_app/data/db/app_database.dart';
-import 'package:hpp_app/data/repositories/day_close_repository.dart';
-import 'package:hpp_app/data/repositories/order_repository.dart';
-import 'package:hpp_app/services/notification_planner.dart';
-import 'package:hpp_app/services/notification_scheduler.dart';
-import 'package:hpp_app/services/notification_sync.dart';
+import 'package:buat_usaha/data/db/app_database.dart';
+import 'package:buat_usaha/data/repositories/day_close_repository.dart';
+import 'package:buat_usaha/data/repositories/order_repository.dart';
+import 'package:buat_usaha/services/notification_planner.dart';
+import 'package:buat_usaha/services/notification_scheduler.dart';
+import 'package:buat_usaha/services/notification_sync.dart';
 
 import '../support/seed.dart';
 

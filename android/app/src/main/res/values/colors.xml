@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Warna Design.md: latar krem dan cokelat utama. -->
+    <color name="ic_launcher_background">#FBF6EE</color>
+    <color name="splash_background">#FBF6EE</color>
+    <color name="splash_icon_circle">#FFFFFF</color>
+</resources>

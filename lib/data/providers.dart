@@ -6,11 +6,15 @@ import '../services/notification_sync.dart';
 import 'db/app_database.dart';
 import 'db/database_provider.dart';
 import 'repositories/business_repository.dart';
+import 'repositories/cash_repository.dart';
 import 'repositories/day_close_repository.dart';
 import 'repositories/expense_repository.dart';
 import 'repositories/order_repository.dart';
+import 'repositories/pricing_repository.dart';
 import 'repositories/product_repository.dart';
+import 'repositories/purchase_preview.dart';
 import 'repositories/report_repository.dart';
+import 'repositories/shopping_repository.dart';
 import 'repositories/stock_repository.dart';
 
 export 'db/database_provider.dart';
@@ -196,3 +200,90 @@ final productCardProvider =
     StreamProvider.family<List<ProductStockMovement>, String>(
       (ref, id) => ref.watch(productRepositoryProvider).watchProductCard(id),
     );
+
+/// Pesanan selesai yang HPP-nya berubah karena koreksi harga bahan (FR-9.5).
+final costCorrectionsProvider = StreamProvider<List<OrderCorrection>>((
+  ref,
+) async* {
+  final business = await ref.watch(currentBusinessProvider.future);
+  yield* ref.watch(orderRepositoryProvider).watchCostCorrections(business.id);
+});
+
+final purchasePreviewerProvider = Provider(
+  (ref) => PurchasePreviewer(
+    ref.watch(appDatabaseProvider),
+    ref.watch(stockRepositoryProvider),
+    ref.watch(orderRepositoryProvider),
+  ),
+);
+
+final shoppingRepositoryProvider = Provider(
+  (ref) => ShoppingRepository(
+    ref.watch(appDatabaseProvider),
+    ref.watch(orderRepositoryProvider),
+  ),
+);
+
+/// Daftar belanja aktif usaha (FR-12.5); `null` bila belum pernah dibuka.
+final activeShoppingListProvider = StreamProvider<ShoppingListView?>((
+  ref,
+) async* {
+  final business = await ref.watch(currentBusinessProvider.future);
+  yield* ref.watch(shoppingRepositoryProvider).watchActive(business.id);
+});
+
+/// Yang perlu dibeli untuk pesanan [days] hari ke depan (kartu Beranda dan
+/// Bahan, FR-12.11).
+final shoppingPlanProvider = StreamProvider.family<ShoppingPlan, int>((
+  ref,
+  days,
+) async* {
+  final business = await ref.watch(currentBusinessProvider.future);
+  yield* ref.watch(shoppingRepositoryProvider).watchPlan(business.id, days);
+});
+
+final pricingRepositoryProvider = Provider(
+  (ref) => PricingRepository(
+    ref.watch(appDatabaseProvider),
+    ref.watch(productRepositoryProvider),
+  ),
+);
+
+/// Harga khusus per menu per channel (FR-14.1).
+final channelPricesProvider = StreamProvider<ChannelPrices>((ref) async* {
+  final business = await ref.watch(currentBusinessProvider.future);
+  yield* ref.watch(pricingRepositoryProvider).watchChannelPrices(business.id);
+});
+
+final channelPriceRowsProvider =
+    StreamProvider.family<List<ChannelPriceRow>, String>(
+      (ref, productId) =>
+          ref.watch(pricingRepositoryProvider).watchChannelRows(productId),
+    );
+
+final hppHistoryProvider =
+    StreamProvider.family<List<ProductHppHistoryData>, String>(
+      (ref, productId) =>
+          ref.watch(pricingRepositoryProvider).watchHppHistory(productId),
+    );
+
+final cashRepositoryProvider = Provider(
+  (ref) => CashRepository(ref.watch(appDatabaseProvider)),
+);
+
+final cashAccountsProvider = StreamProvider<List<CashAccount>>((ref) async* {
+  final business = await ref.watch(currentBusinessProvider.future);
+  yield* ref.watch(cashRepositoryProvider).watchAccounts(business.id);
+});
+
+/// Kas periode `[from, to)` (FR-15.4).
+final cashPeriodProvider =
+    StreamProvider.family<CashPeriod, (DateTime, DateTime)>((
+      ref,
+      range,
+    ) async* {
+      final business = await ref.watch(currentBusinessProvider.future);
+      yield* ref
+          .watch(cashRepositoryProvider)
+          .watchPeriod(business.id, range.$1, range.$2);
+    });

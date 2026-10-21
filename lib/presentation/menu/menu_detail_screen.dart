@@ -10,9 +10,11 @@ import '../../data/repositories/product_repository.dart';
 import '../../domain/costing/costing.dart';
 import '../common/format.dart';
 import '../common/widgets.dart';
+import '../motion.dart';
 import '../reports/day_close_screen.dart' show wasteReasonLabel;
 import '../theme.dart';
 import 'menu_labels.dart';
+import 'menu_pricing_cards.dart';
 
 /// Detail menu: HPP, saran harga, rincian, kapasitas, simulasi target, stok
 /// produk jadi, dan riwayat produksi (mockup `DetailMenu`).
@@ -81,7 +83,11 @@ class _Detail extends ConsumerWidget {
             _PriceSuggestion(view: view),
           ],
           const SizedBox(height: 20),
+          ChannelPricesCard(product: product),
+          const SizedBox(height: 20),
           _Breakdown(view: view),
+          const SizedBox(height: 20),
+          HppHistoryCard(productId: product.id),
           if (view.capacity != null) ...[
             const SizedBox(height: 20),
             _Capacity(view: view),
@@ -717,7 +723,7 @@ class _FinishedStock extends ConsumerWidget {
 
   /// Sisa yang disimpan bisa dicatat dibuang kapan saja (FR-4.8).
   Future<void> _discard(BuildContext context, WidgetRef ref) async {
-    final result = await showDialog<(Decimal, WasteReason)>(
+    final result = await showAppDialog<(Decimal, WasteReason)>(
       context: context,
       builder: (_) => _DiscardDialog(max: view.stock),
     );
@@ -738,7 +744,7 @@ class _FinishedStock extends ConsumerWidget {
   }
 
   Future<void> _opening(BuildContext context, WidgetRef ref) async {
-    final qty = await showDialog<Decimal>(
+    final qty = await showAppDialog<Decimal>(
       context: context,
       builder: (_) => const _OpeningDialog(),
     );
@@ -894,7 +900,7 @@ class _ProductionHistory extends ConsumerWidget {
   }
 
   Future<void> _void(BuildContext context, WidgetRef ref, Production p) async {
-    final reason = await showDialog<String>(
+    final reason = await showAppDialog<String>(
       context: context,
       builder: (_) => ReasonDialog(
         title: 'Batalkan produksi ini?',

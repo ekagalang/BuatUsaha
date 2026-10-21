@@ -10,7 +10,10 @@ import '../../data/repositories/order_repository.dart';
 import '../../domain/costing/costing.dart';
 import '../../domain/orders/orders.dart';
 import '../common/format.dart';
+import '../common/rupiah_input.dart';
 import '../common/widgets.dart';
+import '../documents/document_screens.dart';
+import '../motion.dart';
 import '../theme.dart';
 import 'order_form_screen.dart';
 import 'order_labels.dart';
@@ -55,10 +58,19 @@ class _Detail extends ConsumerWidget {
     final (status, kind) = orderStatusPill(view, now);
     final next = nextStatus(o.status);
     final completed = o.status == OrderStatus.completed;
+    final business = ref.watch(businessProvider).value;
     return Scaffold(
       appBar: AppBar(
         title: Text(o.orderNo),
         actions: [
+          if (o.status != OrderStatus.cancelled)
+            IconButton(
+              tooltip: 'Nota',
+              icon: const Icon(Icons.receipt_long_outlined),
+              onPressed: business == null
+                  ? null
+                  : () => showReceiptSheet(context, ref, view, business),
+            ),
           if (view.isOpen || (completed && o.voidedAt == null))
             PopupMenuButton<_Menu>(
               onSelected: (m) => switch (m) {
@@ -192,7 +204,7 @@ class _Detail extends ConsumerWidget {
       return;
     }
     if (view.order.paymentStatus != PaymentStatus.paid) {
-      final ok = await showDialog<bool>(
+      final ok = await showAppDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('Belum lunas'),
@@ -240,7 +252,7 @@ class _Detail extends ConsumerWidget {
   }
 
   Future<void> _addPayment(BuildContext context, WidgetRef ref) async {
-    final result = await showDialog<(int, PaymentMethod)>(
+    final result = await showAppDialog<(int, PaymentMethod)>(
       context: context,
       builder: (_) => _PaymentDialog(remaining: view.remaining),
     );
@@ -265,7 +277,7 @@ class _Detail extends ConsumerWidget {
     WidgetRef ref,
     Payment p,
   ) async {
-    final reason = await showDialog<String>(
+    final reason = await showAppDialog<String>(
       context: context,
       builder: (_) => ReasonDialog(
         title: 'Batalkan pembayaran ini?',
@@ -282,7 +294,7 @@ class _Detail extends ConsumerWidget {
   }
 
   Future<void> _cancel(BuildContext context, WidgetRef ref) async {
-    final result = await showDialog<_CancelResult>(
+    final result = await showAppDialog<_CancelResult>(
       context: context,
       builder: (_) => _CancelDialog(
         title: 'Batalkan pesanan?',
@@ -304,7 +316,7 @@ class _Detail extends ConsumerWidget {
   }
 
   Future<void> _correct(BuildContext context, WidgetRef ref) async {
-    final result = await showDialog<_CancelResult>(
+    final result = await showAppDialog<_CancelResult>(
       context: context,
       builder: (_) => _CancelDialog(
         title: 'Batalkan pesanan selesai?',
@@ -597,7 +609,7 @@ class _ProductionCard extends ConsumerWidget {
   ) async {
     final yieldQty = dec(line.product.yieldQty);
     final suggested = divide(Decimal.fromInt(line.item.qty), yieldQty);
-    final batch = await showDialog<Decimal>(
+    final batch = await showAppDialog<Decimal>(
       context: context,
       builder: (_) => _BatchDialog(
         product: line.product.name,
@@ -666,7 +678,9 @@ class _PaymentDialog extends StatefulWidget {
 }
 
 class _PaymentDialogState extends State<_PaymentDialog> {
-  late final _amount = TextEditingController(text: '${widget.remaining}');
+  late final _amount = TextEditingController(
+    text: formatRupiahDigits(widget.remaining),
+  );
   var _method = PaymentMethod.cash;
 
   @override
@@ -689,6 +703,7 @@ class _PaymentDialogState extends State<_PaymentDialog> {
             autofocus: true,
             keyboardType: TextInputType.number,
             onChanged: (_) => setState(() {}),
+            inputFormatters: const [RupiahInputFormatter()],
             decoration: InputDecoration(
               labelText: 'Jumlah',
               prefixText: 'Rp ',
@@ -755,7 +770,7 @@ class _CancelDialog extends StatefulWidget {
 class _CancelDialogState extends State<_CancelDialog> {
   final _reason = TextEditingController();
   late final _refund = TextEditingController(
-    text: widget.paid > 0 ? '${widget.paid}' : '',
+    text: formatRupiahDigits(widget.paid),
   );
   var _returnToStock = true;
 
@@ -789,6 +804,7 @@ class _CancelDialogState extends State<_CancelDialog> {
               TextField(
                 controller: _refund,
                 keyboardType: TextInputType.number,
+                inputFormatters: const [RupiahInputFormatter()],
                 decoration: InputDecoration(
                   labelText: 'Uang dikembalikan',
                   prefixText: 'Rp ',

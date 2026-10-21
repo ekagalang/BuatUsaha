@@ -7,18 +7,21 @@ import '../../data/db/app_database.dart';
 import '../../data/db/decimal_convert.dart';
 import '../../data/providers.dart';
 import '../../data/repositories/order_repository.dart';
+import '../../data/repositories/pricing_repository.dart';
 import '../../data/repositories/product_repository.dart';
 import '../../domain/costing/costing.dart';
 import '../../domain/orders/orders.dart';
 import '../common/format.dart';
+import '../common/rupiah_input.dart';
 import '../common/widgets.dart';
+import '../motion.dart';
 import '../menu/menu_labels.dart';
 import '../theme.dart';
 import 'order_labels.dart';
 
 class _ItemRow {
   _ItemRow(this.productId, {this.qty = 1, required int price})
-    : price = TextEditingController(text: '$price');
+    : price = TextEditingController(text: formatRupiahDigits(price));
 
   final String productId;
   int qty;
@@ -125,10 +128,10 @@ class _OrderFormScreenState extends ConsumerState<OrderFormScreen> {
       _phone.text = view.customer?.phoneWa ?? '';
       _address.text = o.deliveryAddress ?? '';
       _note.text = o.note ?? '';
-      _discount.text = o.discount > 0 ? '${o.discount}' : '';
-      _shipping.text = o.shippingFee > 0 ? '${o.shippingFee}' : '';
+      _discount.text = formatRupiahDigits(o.discount);
+      _shipping.text = formatRupiahDigits(o.shippingFee);
       _channelId = o.channelId;
-      _fee.text = '${o.channelFee}';
+      _fee.text = formatRupiahDigits(o.channelFee);
       // Potongan yang sama dengan hitungan otomatis tetap ikut berubah.
       _feeEdited = o.channelFee != autoFee;
       _fulfillment = o.fulfillment;
@@ -233,7 +236,29 @@ class _OrderFormScreenState extends ConsumerState<OrderFormScreen> {
           ],
   );
 
+  ChannelPrices get _channelPrices =>
+      ref.read(channelPricesProvider).value ?? const {};
+
+  /// Ganti channel: harga item yang belum diubah sendiri ikut harga channel
+  /// baru (FR-14.1).
+  void _selectChannel(String? channelId, List<ProductView> products) {
+    final byId = {for (final p in products) p.product.id: p.product};
+    final prices = _channelPrices;
+    for (final row in _items) {
+      final product = byId[row.productId];
+      if (product == null) continue;
+      if (row.unitPrice == priceFor(product, _channelId, prices)) {
+        row.price.text = formatRupiahDigits(
+          priceFor(product, channelId, prices),
+        );
+      }
+    }
+    _channelId = channelId;
+    _feeEdited = false;
+  }
+
   Future<void> _addItem(List<ProductView> products) async {
+    final prices = _channelPrices;
     final used = {for (final i in _items) i.productId};
     final picked = await showModalBottomSheet<ProductView>(
       context: context,
@@ -250,7 +275,7 @@ class _OrderFormScreenState extends ConsumerState<OrderFormScreen> {
                       ListTile(
                         title: Text(p.product.name),
                         subtitle: Text(
-                          '${formatRupiah(p.product.sellingPrice)}/pcs · '
+                          '${formatRupiah(priceFor(p.product, _channelId, prices))}/pcs · '
                           '${modeLabel(p.mode).toLowerCase()}'
                           '${p.isReadyStock ? ' · stok ${formatDecimal(p.stock)}' : ''}',
                         ),
@@ -263,7 +288,10 @@ class _OrderFormScreenState extends ConsumerState<OrderFormScreen> {
     if (picked == null) return;
     setState(
       () => _items.add(
-        _ItemRow(picked.product.id, price: picked.product.sellingPrice),
+        _ItemRow(
+          picked.product.id,
+          price: priceFor(picked.product, _channelId, prices),
+        ),
       ),
     );
   }
@@ -380,11 +408,13 @@ class _OrderFormScreenState extends ConsumerState<OrderFormScreen> {
       );
     }
     final products = ref.watch(productsProvider).value ?? const [];
+    // Dimuat sejak awal supaya harga channel siap saat item ditambah.
+    ref.watch(channelPricesProvider);
     final channels = (ref.watch(channelsProvider).value ?? const [])
         .where((c) => c.isActive || c.id == _channelId)
         .toList();
     final byId = {for (final p in products) p.product.id: p};
-    if (!_feeEdited) _fee.text = '${_autoFee(channels)}';
+    if (!_feeEdited) _fee.text = formatRupiahDigits(_autoFee(channels));
     final fee = _feeValue(channels);
     final cogs = _items.fold(
       Decimal.zero,
@@ -426,10 +456,8 @@ class _OrderFormScreenState extends ConsumerState<OrderFormScreen> {
               ChoicePill(
                 label: 'Langsung',
                 selected: _channelId == null,
-                onSelected: () => setState(() {
-                  _channelId = null;
-                  _feeEdited = false;
-                }),
+                onSelected: () =>
+                    setState(() => _selectChannel(null, products)),
               ),
               for (final c in channels)
                 ChoicePill(
@@ -437,10 +465,8 @@ class _OrderFormScreenState extends ConsumerState<OrderFormScreen> {
                       ? '${c.name} · ${formatDecimal(dec(c.commissionPct))}%'
                       : c.name,
                   selected: _channelId == c.id,
-                  onSelected: () => setState(() {
-                    _channelId = c.id;
-                    _feeEdited = false;
-                  }),
+                  onSelected: () =>
+                      setState(() => _selectChannel(c.id, products)),
                 ),
             ],
           ),
@@ -524,6 +550,7 @@ class _OrderFormScreenState extends ConsumerState<OrderFormScreen> {
                   controller: _discount,
                   keyboardType: TextInputType.number,
                   onChanged: (_) => setState(() {}),
+                  inputFormatters: const [RupiahInputFormatter()],
                   decoration: const InputDecoration(
                     labelText: 'Diskon',
                     prefixText: 'Rp ',
@@ -537,6 +564,7 @@ class _OrderFormScreenState extends ConsumerState<OrderFormScreen> {
                     controller: _shipping,
                     keyboardType: TextInputType.number,
                     onChanged: (_) => setState(() {}),
+                    inputFormatters: const [RupiahInputFormatter()],
                     decoration: const InputDecoration(
                       labelText: 'Ongkir',
                       prefixText: 'Rp ',
@@ -552,6 +580,7 @@ class _OrderFormScreenState extends ConsumerState<OrderFormScreen> {
               controller: _fee,
               keyboardType: TextInputType.number,
               onChanged: (_) => setState(() => _feeEdited = true),
+              inputFormatters: const [RupiahInputFormatter()],
               decoration: InputDecoration(
                 labelText: 'Potongan channel',
                 prefixText: 'Rp ',
@@ -578,6 +607,7 @@ class _OrderFormScreenState extends ConsumerState<OrderFormScreen> {
               controller: _paid,
               keyboardType: TextInputType.number,
               onChanged: (_) => setState(() {}),
+              inputFormatters: const [RupiahInputFormatter()],
               decoration: const InputDecoration(
                 labelText: 'DP atau sudah dibayar (opsional)',
                 prefixText: 'Rp ',
@@ -813,6 +843,7 @@ class _OrderFormScreenState extends ConsumerState<OrderFormScreen> {
                     keyboardType: TextInputType.number,
                     textAlign: TextAlign.end,
                     onChanged: (_) => setState(() {}),
+                    inputFormatters: const [RupiahInputFormatter()],
                     decoration: const InputDecoration(
                       isDense: true,
                       prefixText: 'Rp ',
@@ -878,7 +909,7 @@ Future<void> showStockShortDialog(
   InsufficientProductStockException e,
   String productId,
 ) async {
-  final produce = await showDialog<bool>(
+  final produce = await showAppDialog<bool>(
     context: context,
     builder: (context) => AlertDialog(
       title: const Text('Stok menu jadi kurang'),

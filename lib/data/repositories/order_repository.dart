@@ -7,6 +7,7 @@ import '../../domain/costing/costing.dart';
 import '../../domain/orders/orders.dart';
 import '../db/app_database.dart';
 import '../db/decimal_convert.dart';
+import 'cash_repository.dart';
 import 'product_repository.dart';
 import 'stock_repository.dart';
 
@@ -202,15 +203,59 @@ class IngredientNeed {
       : missingQty * dec(ingredient.avgUnitCost!);
 }
 
-/// Kebutuhan produksi untuk satu tanggal (FR-5.5).
+/// Kebutuhan produksi untuk satu tanggal (FR-5.5) atau rentang tanggal
+/// daftar belanja (FR-12.2).
 class ProductionNeeds {
-  const ProductionNeeds({required this.products, required this.ingredients});
+  const ProductionNeeds({
+    required this.products,
+    required this.ingredients,
+    this.orderCount = 0,
+  });
 
   final List<ProductNeed> products;
   final List<IngredientNeed> ingredients;
 
+  /// Jumlah pesanan yang ikut dihitung.
+  final int orderCount;
+
   List<IngredientNeed> get shortages =>
       ingredients.where((i) => i.missingQty > Decimal.zero).toList();
+}
+
+class ItemCorrection {
+  const ItemCorrection({
+    required this.line,
+    required this.oldHpp,
+    required this.newHpp,
+  });
+
+  final OrderLine line;
+  final Decimal oldHpp;
+  final Decimal newHpp;
+}
+
+/// Pesanan selesai yang snapshot HPP-nya berbeda dari hitungan ulang setelah
+/// koreksi harga bahan (FR-9.5).
+class OrderCorrection {
+  const OrderCorrection({required this.view, required this.items});
+
+  final OrderView view;
+  final List<ItemCorrection> items;
+
+  int get oldProfit => view.profit;
+
+  int get newProfit {
+    final changed = {for (final i in items) i.line.item.id: i.newHpp};
+    final cogs = view.lines.fold(
+      Decimal.zero,
+      (sum, l) =>
+          sum +
+          (changed[l.item.id] ?? l.hppPerPcs) * Decimal.fromInt(l.item.qty),
+    );
+    return view.itemsRevenue - view.order.channelFee - toRupiah(cogs);
+  }
+
+  int get profitDelta => newProfit - oldProfit;
 }
 
 /// Stok produk jadi kurang untuk penjualan dan usaha tidak mengizinkan stok
@@ -338,14 +383,8 @@ class OrderRepository {
           updatedAt: Value(_now()),
         ),
       );
-      await (_db.delete(
-        _db.orderItems,
-      )..where((t) => t.orderId.equals(orderId))).go();
-      await _writeItems(orderId, input.items);
-      await (_db.delete(
-        _db.orderReminders,
-      )..where((t) => t.orderId.equals(orderId))).go();
-      await _writeReminders(
+      await _replaceItems(orderId, input.items);
+      await _replaceReminders(
         orderId,
         input.dueAt,
         input.reminders ?? await defaultReminders(order.businessId),
@@ -605,6 +644,7 @@ class OrderRepository {
               kind: kind,
               paidAt: (paidAt ?? _now()).toUtc(),
               note: Value(note),
+              cashAccountId: Value(await _cashAccountFor(orderId, method)),
             ),
           );
       await _refreshPayment(orderId);
@@ -709,13 +749,25 @@ class OrderRepository {
 
   /// Total pcs per menu untuk pesanan tanggal [day] (lokal) dan cukup
   /// tidaknya stok bahan (FR-5.5).
-  Future<ProductionNeeds> productionNeeds(
-    String businessId,
-    DateTime day,
-  ) async {
+  Future<ProductionNeeds> productionNeeds(String businessId, DateTime day) {
     final local = day.toLocal();
     final from = DateTime(local.year, local.month, local.day);
-    final to = from.add(const Duration(days: 1));
+    return productionNeedsBetween(
+      businessId,
+      from,
+      from.add(const Duration(days: 1)),
+    );
+  }
+
+  /// Kebutuhan untuk pesanan berjadwal di `[from, to)`. Dengan [safetyStock],
+  /// stok jaga menu ready stock ikut dihitung, termasuk menu yang tidak
+  /// dipesan (FR-12.2).
+  Future<ProductionNeeds> productionNeedsBetween(
+    String businessId,
+    DateTime from,
+    DateTime to, {
+    bool safetyStock = false,
+  }) async {
     final business = await _business(businessId);
     final rows =
         await (_db.select(_db.orders)..where(
@@ -750,16 +802,37 @@ class OrderRepository {
         );
       }
     }
+    if (safetyStock) {
+      final guarded =
+          await (_db.select(_db.products)..where(
+                (t) =>
+                    t.businessId.equals(businessId) &
+                    t.isActive.equals(true) &
+                    t.safetyStock.isBiggerThanValue(0),
+              ))
+              .get();
+      for (final p in guarded) {
+        if (!_isReadyStock(p, business)) continue;
+        products.putIfAbsent(p.id, () => p);
+        ordered.putIfAbsent(p.id, () => 0);
+      }
+    }
     final needs = <ProductNeed>[];
     final required = <String, Decimal>{};
     final ingredients = <String, Ingredient>{};
     for (final MapEntry(key: id, value: qty) in ordered.entries) {
       final product = products[id]!;
-      final have = _isReadyStock(product, business)
+      final ready = _isReadyStock(product, business);
+      final have = ready
           ? dec(product.currentStock)
           : (made[id] ?? Decimal.zero);
+      final guard = safetyStock && ready
+          ? dec(product.safetyStock)
+          : Decimal.zero;
       final diff =
-          Decimal.fromInt(qty) - (have < Decimal.zero ? Decimal.zero : have);
+          Decimal.fromInt(qty) +
+          guard -
+          (have < Decimal.zero ? Decimal.zero : have);
       final toMake = diff > Decimal.zero ? diff : Decimal.zero;
       needs.add(ProductNeed(product: product, orderedQty: qty, toMake: toMake));
       if (toMake == Decimal.zero) continue;
@@ -776,6 +849,7 @@ class OrderRepository {
     }
     needs.sort((a, b) => a.product.name.compareTo(b.product.name));
     return ProductionNeeds(
+      orderCount: rows.length,
       products: needs,
       ingredients: [
         for (final MapEntry(key: id, value: qty) in required.entries)
@@ -898,6 +972,149 @@ class OrderRepository {
       },
   ];
 
+  // ------------------------------------------- Koreksi HPP (FR-9.5)
+
+  Stream<List<OrderCorrection>> watchCostCorrections(String businessId) =>
+      _watch(() => costCorrections(businessId), extra: [_db.stockMovements]);
+
+  /// Pesanan selesai yang HPP-nya berubah setelah koreksi harga bahan.
+  /// Snapshot tidak diubah otomatis; pengguna memilih lewat [applyCostCorrection].
+  Future<List<OrderCorrection>> costCorrections(String businessId) async {
+    final orders = await listOrders(
+      businessId,
+      statuses: const [OrderStatus.completed],
+      detail: true,
+    );
+    final result = <OrderCorrection>[];
+    for (final view in orders) {
+      if (view.order.voidedAt != null) continue;
+      final items = await _corrections(view);
+      if (items.isNotEmpty) {
+        result.add(OrderCorrection(view: view, items: items));
+      }
+    }
+    result.sort(
+      (a, b) => b.view.order.completedAt!.compareTo(a.view.order.completedAt!),
+    );
+    return result;
+  }
+
+  /// Simpan HPP hasil hitung ulang ke snapshot item pesanan ini.
+  Future<void> applyCostCorrection(String orderId) {
+    return _db.transaction(() async {
+      final view = await loadOrder(orderId);
+      for (final c in await _corrections(view)) {
+        await (_db.update(
+          _db.orderItems,
+        )..where((t) => t.id.equals(c.line.item.id))).write(
+          OrderItemsCompanion(
+            hppPerPcsSnapshot: Value(dbl(c.newHpp)),
+            updatedAt: Value(_now()),
+          ),
+        );
+      }
+    });
+  }
+
+  Future<List<ItemCorrection>> _corrections(OrderView view) async {
+    final orderId = view.order.id;
+    final sales =
+        await (_db.select(_db.productStockMovements)..where(
+              (t) =>
+                  t.refType.equals(orderRef) &
+                  t.refId.equals(orderId) &
+                  t.type.equalsValue(ProductMovementType.sale) &
+                  t.reversalOfId.isNull(),
+            ))
+            .get();
+    final linked = view.productions.where((p) => p.voidedAt == null);
+    final usage =
+        await (_db.select(_db.stockMovements)..where(
+              (t) =>
+                  t.refType.equals(orderRef) &
+                  t.refId.equals(orderId) &
+                  t.reversalOfId.isNull(),
+            ))
+            .get();
+
+    // Pre-order tanpa produksi: selisih harga bahan saat dicatat vs sekarang,
+    // dibagi ke item sesuai takaran resepnya.
+    final usageLines = <OrderLine>[];
+    final recipeUse = <String, Map<String, Decimal>>{};
+    for (final l in view.lines) {
+      final fromStock = sales.any((m) => m.productId == l.product.id);
+      final made = linked.any((p) => p.productId == l.product.id);
+      if (fromStock || made) continue;
+      usageLines.add(l);
+      final costing = await _products.costingOf(l.product.id);
+      final batches = divide(
+        Decimal.fromInt(l.item.qty),
+        dec(l.product.yieldQty),
+      );
+      recipeUse[l.item.id] = {
+        for (final r in costing.lines)
+          r.ingredient.id: dec(r.item.qtyBase) * batches,
+      };
+    }
+    final usageDelta = <String, Decimal>{};
+    for (final m in usage) {
+      final then = await _stock.unitCostAsRecorded(m);
+      final delta = -dec(m.qtyBase) * (dec(m.unitCost) - then);
+      if (delta == Decimal.zero) continue;
+      usageDelta.update(
+        m.ingredientId,
+        (d) => d + delta,
+        ifAbsent: () => delta,
+      );
+    }
+
+    final corrections = <ItemCorrection>[];
+    for (final l in view.lines) {
+      final snapshot = l.item.hppPerPcsSnapshot;
+      if (snapshot == null) continue;
+      final qty = Decimal.fromInt(l.item.qty);
+      Decimal? recalculated;
+      final mine = sales.where((m) => m.productId == l.product.id).toList();
+      final made = linked.where((p) => p.productId == l.product.id).toList();
+      if (mine.isNotEmpty) {
+        var units = Decimal.zero;
+        var cost = Decimal.zero;
+        for (final m in mine) {
+          units += -dec(m.qty);
+          cost += -dec(m.qty) * dec(m.unitCost);
+        }
+        if (units > Decimal.zero && cost > Decimal.zero) {
+          recalculated = divide(cost, units);
+        }
+      } else if (made.isNotEmpty) {
+        final output = made.fold(Decimal.zero, (s, p) => s + dec(p.outputQty));
+        final cost = made.fold(0, (s, p) => s + p.materialCost + p.otherCost);
+        if (output > Decimal.zero) recalculated = divide(rupiah(cost), output);
+      } else if (usageDelta.isNotEmpty) {
+        var delta = Decimal.zero;
+        final use = recipeUse[l.item.id] ?? const <String, Decimal>{};
+        for (final MapEntry(key: ingredientId, value: d)
+            in usageDelta.entries) {
+          final mineUse = use[ingredientId] ?? Decimal.zero;
+          if (mineUse == Decimal.zero) continue;
+          final total = usageLines.fold(
+            Decimal.zero,
+            (s, o) => s + (recipeUse[o.item.id]?[ingredientId] ?? Decimal.zero),
+          );
+          delta += d * divide(mineUse, total);
+        }
+        recalculated = dec(snapshot) + divide(delta, qty);
+      }
+      if (recalculated == null) continue;
+      final change = toRupiah((recalculated - dec(snapshot)) * qty);
+      if (change == 0) continue;
+      corrections.add(
+        ItemCorrection(line: l, oldHpp: dec(snapshot), newHpp: recalculated),
+      );
+    }
+    return corrections;
+  }
+
   // ---------------------------------------------------------- Internal
 
   void _validate(OrderInput input) {
@@ -994,7 +1211,14 @@ class OrderRepository {
                   t.businessId.equals(businessId) & t.orderNo.like('$prefix%'),
             ))
             .get();
-    return rows.length;
+    // Nomor terbesar, bukan jumlah: setelah sinkron dua HP nomor bisa
+    // bolong (FR-10.4).
+    var max = 0;
+    for (final row in rows) {
+      final n = int.tryParse(row.orderNo.substring(prefix.length)) ?? 0;
+      if (n > max) max = n;
+    }
+    return max;
   }
 
   Future<void> _writeItems(String orderId, List<OrderItemInput> items) async {
@@ -1012,6 +1236,88 @@ class OrderRepository {
             ),
           );
     }
+  }
+
+  /// Item dan pengingat pesanan yang diubah diperbarui di tempat: baris yang
+  /// masih ada tetap memakai id-nya, supaya pesanan yang diubah di dua HP
+  /// tidak dobel setelah sinkron (FR-10.4).
+  Future<void> _replaceItems(String orderId, List<OrderItemInput> items) async {
+    final old =
+        await (_db.select(_db.orderItems)
+              ..where((t) => t.orderId.equals(orderId))
+              ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
+            .get();
+    final fresh = <OrderItemInput>[];
+    for (final i in items) {
+      final at = old.indexWhere((o) => o.productId == i.productId);
+      if (at < 0) {
+        fresh.add(i);
+        continue;
+      }
+      final row = old.removeAt(at);
+      if (row.qty != i.qty ||
+          row.unitPrice != i.unitPrice ||
+          row.note != i.note) {
+        await (_db.update(
+          _db.orderItems,
+        )..where((t) => t.id.equals(row.id))).write(
+          OrderItemsCompanion(
+            qty: Value(i.qty),
+            unitPrice: Value(i.unitPrice),
+            lineTotal: Value(i.lineTotal),
+            note: Value(i.note),
+            updatedAt: Value(_now()),
+          ),
+        );
+      }
+    }
+    for (final row in old) {
+      await (_db.delete(
+        _db.orderItems,
+      )..where((t) => t.id.equals(row.id))).go();
+    }
+    await _writeItems(orderId, fresh);
+  }
+
+  Future<void> _replaceReminders(
+    String orderId,
+    DateTime dueAt,
+    List<ReminderInput> reminders,
+  ) async {
+    final old =
+        await (_db.select(_db.orderReminders)
+              ..where((t) => t.orderId.equals(orderId))
+              ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
+            .get();
+    final fresh = <ReminderInput>[];
+    for (final r in reminders) {
+      final remindAt = r.remindAt(dueAt).toUtc();
+      final at = old.indexWhere((o) => o.kind == r.kind);
+      if (at < 0) {
+        fresh.add(r);
+        continue;
+      }
+      final row = old.removeAt(at);
+      // Seperti pengingat baru: dijadwalkan lagi dari awal.
+      if (!row.remindAt.isAtSameMomentAs(remindAt) ||
+          row.status != ReminderStatus.scheduled) {
+        await (_db.update(
+          _db.orderReminders,
+        )..where((t) => t.id.equals(row.id))).write(
+          OrderRemindersCompanion(
+            remindAt: Value(remindAt),
+            status: const Value(ReminderStatus.scheduled),
+            updatedAt: Value(_now()),
+          ),
+        );
+      }
+    }
+    for (final row in old) {
+      await (_db.delete(
+        _db.orderReminders,
+      )..where((t) => t.id.equals(row.id))).go();
+    }
+    await _writeReminders(orderId, dueAt, fresh);
   }
 
   Future<void> _writeReminders(
@@ -1065,7 +1371,7 @@ class OrderRepository {
     String orderId,
     int amount,
     PaymentMethod method,
-  ) => _db
+  ) async => _db
       .into(_db.payments)
       .insert(
         PaymentsCompanion.insert(
@@ -1074,8 +1380,21 @@ class OrderRepository {
           method: method,
           kind: PaymentKind.refund,
           paidAt: _now(),
+          cashAccountId: Value(await _cashAccountFor(orderId, method)),
         ),
       );
+
+  /// Akun kas penerima pembayaran pesanan (FR-15.2).
+  Future<String> _cashAccountFor(String orderId, PaymentMethod method) async {
+    final order = await (_db.select(
+      _db.orders,
+    )..where((t) => t.id.equals(orderId))).getSingle();
+    return CashRepository(_db).accountFor(order.businessId, method);
+  }
+
+  /// Untuk sinkron: cache pembayaran dihitung ulang setelah pesanan atau
+  /// pembayarannya ditarik dari HP lain (FR-10.3).
+  Future<void> refreshPayment(String orderId) => _refreshPayment(orderId);
 
   /// Sisa tagihan dan status bayar dari semua pembayaran yang tidak dibatalkan.
   Future<void> _refreshPayment(String orderId) async {
@@ -1181,10 +1500,14 @@ class OrderRepository {
   Future<Business> _business(String id) =>
       (_db.select(_db.businesses)..where((t) => t.id.equals(id))).getSingle();
 
-  Stream<T> _watch<T>(Future<T> Function() load) async* {
+  Stream<T> _watch<T>(
+    Future<T> Function() load, {
+    List<TableInfo<Table, dynamic>> extra = const [],
+  }) async* {
     yield await load();
     await for (final _ in _db.tableUpdates(
       TableUpdateQuery.onAllTables([
+        ...extra,
         _db.orders,
         _db.orderItems,
         _db.payments,

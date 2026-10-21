@@ -4,15 +4,15 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hpp_app/data/db/app_database.dart';
-import 'package:hpp_app/data/providers.dart';
-import 'package:hpp_app/data/repositories/business_repository.dart';
-import 'package:hpp_app/data/repositories/product_repository.dart';
-import 'package:hpp_app/data/repositories/stock_repository.dart';
-import 'package:hpp_app/presentation/menu/menu_detail_screen.dart';
-import 'package:hpp_app/presentation/menu/menu_form_screen.dart';
-import 'package:hpp_app/presentation/menu/menu_screen.dart';
-import 'package:hpp_app/presentation/theme.dart';
+import 'package:buat_usaha/data/db/app_database.dart';
+import 'package:buat_usaha/data/providers.dart';
+import 'package:buat_usaha/data/repositories/business_repository.dart';
+import 'package:buat_usaha/data/repositories/product_repository.dart';
+import 'package:buat_usaha/data/repositories/stock_repository.dart';
+import 'package:buat_usaha/presentation/menu/menu_detail_screen.dart';
+import 'package:buat_usaha/presentation/menu/menu_form_screen.dart';
+import 'package:buat_usaha/presentation/menu/menu_screen.dart';
+import 'package:buat_usaha/presentation/theme.dart';
 
 Decimal d(String value) => Decimal.parse(value);
 
@@ -150,12 +150,31 @@ void main() {
     await _close(tester, db);
   });
 
+  testWidgets('kartu menu membesar menjadi detail menu (FR-11.8)', (
+    tester,
+  ) async {
+    final db = AppDatabase(NativeDatabase.memory());
+    await tester.runAsync(() => _seed(db));
+    await _pumpScreen(tester, db, const MenuScreen());
+
+    await tester.tap(find.text('Brownies'));
+    for (var i = 0; i < 6; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.text('Saran harga jual'), findsOneWidget);
+
+    await _close(tester, db);
+  });
+
   testWidgets('detail menu: HPP, saran harga, rincian, kapasitas', (
     tester,
   ) async {
     final db = AppDatabase(NativeDatabase.memory());
     final id = (await tester.runAsync(() => _seed(db)))!;
-    await tester.binding.setSurfaceSize(const Size(360, 3000));
+    await tester.binding.setSurfaceSize(const Size(360, 4200));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await _pumpScreen(tester, db, MenuDetailScreen(id: id));
 
@@ -173,6 +192,10 @@ void main() {
     expect(find.text('Bisa jadi 30 pcs'), findsOneWidget);
     expect(find.text('Cokelat (pembatas)'), findsOneWidget);
     expect(find.text('Belum ada produksi.'), findsOneWidget);
+    expect(find.text('Harga per channel'), findsOneWidget);
+    expect(find.text('GoFood'), findsOneWidget);
+    expect(find.text('Riwayat HPP'), findsOneWidget);
+    expect(find.text('Menu dibuat'), findsOneWidget);
     expect(find.text('Catat produksi'), findsOneWidget);
 
     // Target 40 pcs: cokelat kurang 100 g × Rp150.

@@ -1,12 +1,12 @@
 import 'package:decimal/decimal.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hpp_app/data/db/app_database.dart';
-import 'package:hpp_app/data/repositories/day_close_repository.dart';
-import 'package:hpp_app/data/repositories/expense_repository.dart';
-import 'package:hpp_app/data/repositories/order_repository.dart';
-import 'package:hpp_app/data/repositories/product_repository.dart';
-import 'package:hpp_app/data/repositories/report_repository.dart';
-import 'package:hpp_app/domain/costing/costing.dart';
+import 'package:buat_usaha/data/db/app_database.dart';
+import 'package:buat_usaha/data/repositories/day_close_repository.dart';
+import 'package:buat_usaha/data/repositories/expense_repository.dart';
+import 'package:buat_usaha/data/repositories/order_repository.dart';
+import 'package:buat_usaha/data/repositories/product_repository.dart';
+import 'package:buat_usaha/data/repositories/report_repository.dart';
+import 'package:buat_usaha/domain/costing/costing.dart';
 
 import '../support/seed.dart';
 

@@ -1,4 +1,4 @@
-# hpp_app
+# BuatUsaha
 
 Aplikasi Android pribadi untuk menghitung HPP, mencatat stok bahan, laba harian per menu, dan jadwal pesanan. Berjalan offline; biaya Rp0.
 
@@ -33,10 +33,21 @@ Tanpa `android/key.properties`, build release memakai kunci debug dan Gradle men
 ## Build APK
 
 ```bash
-flutter build apk --release --split-per-abi
+& .\tool\build_apk.ps1
 ```
 
-Hasilnya ada di `build/app/outputs/flutter-apk/`. Untuk HP Android modern pakai `app-arm64-v8a-release.apk`.
+Skrip ini menjalankan `flutter build apk --release --split-per-abi` dengan nomor build = jumlah commit dan tanggal build, sama seperti CI. Hasilnya ada di `build/app/outputs/flutter-apk/`. Untuk HP Android modern pakai `app-arm64-v8a-release.apk`.
+
+Jangan pasang APK dari `flutter build apk` biasa di atas versi rilis: nomor build-nya 1, jadi Android menolaknya sebagai versi lama.
+
+## Versi dan rilis
+
+- Nama versi ada di `pubspec.yaml` (`version: 1.0.0+1`; angka setelah `+` diabaikan). Naikkan angka terakhir untuk perbaikan (1.0.1), angka tengah untuk fitur baru (1.1.0).
+- Tulis perubahannya di [CHANGELOG.md](CHANGELOG.md) dengan judul `## <versi> (<tanggal>)` dan poin `- …`. Poin-poin itu tampil di dialog "Versi baru tersedia" di aplikasi.
+- Terbitkan: **Actions › Build APK › Run workflow**, centang **Terbitkan rilis**. Push ke `main` juga selalu menerbitkan rilis. CI membuat GitHub Release `v<versi>` berisi `BuatUsaha-<versi>-arm64-v8a.apk`, `-armeabi-v7a.apk`, `-x86_64.apk`.
+- Rilis gagal bila versi itu sudah pernah dirilis atau CHANGELOG belum berisi bagian versinya; APK tetap ada di Artifacts. Rilis hanya dibuat dari APK bertanda tangan kunci sendiri.
+- Aplikasi memeriksa `releases/latest` repo ini (saat dibuka paling sering sekali per 6 jam, tugas latar tiap 6 jam, dan tombol Pengaturan › Tentang aplikasi › Cek pembaruan), lalu menawarkan **Unduh dan pasang**. Pertama kali, Android meminta izin "pasang dari sumber ini". Data tetap aman karena kunci tanda tangannya sama.
+- Kalau repo ini dijadikan private, API rilis butuh token; halaman unduh perlu dipindah dulu.
 
 ## CI (GitHub Actions)
 
@@ -62,24 +73,49 @@ Membuat base64 dari keystore di PowerShell:
 [Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\Users\<nama>\keys\hpp_app-upload.jks")) | Set-Clipboard
 ```
 
-Tanpa secrets, artefak CI bernama `hpp-app-apk-debug-signed`.
+Tanpa secrets, artefak CI bernama `buatusaha-apk-debug-signed`.
 
-## Laporan crash (Firebase Crashlytics, opsional)
+Hanya APK terbaru yang disimpan: setelah build berhasil, CI menghapus artefak `buatusaha-apk*` dari run sebelumnya (izin `actions: write` di workflow). Jika build gagal, APK lama tetap ada. Artefak terbaru disimpan 14 hari. Biaya Actions untuk repo public ini Rp0; angka di halaman Billing GitHub dipotong penuh oleh kuota gratis.
 
-Aplikasi tetap jalan tanpa ini; Crashlytics hanya aktif jika `android/app/google-services.json` ada. File itu tidak masuk git karena repo ini public.
+## Firebase: akun Google, sinkron, laporan crash
 
-1. Buka [console.firebase.google.com](https://console.firebase.google.com), **Add project** (Google Analytics boleh dimatikan; paket Spark gratis).
-2. Di project itu pilih **Add app › Android**, isi package name `com.hppapp.hpp_app`, lalu unduh `google-services.json`.
-3. Taruh file itu di `android/app/google-services.json` untuk build lokal.
-4. Di menu **Crashlytics**, klik **Get started**. Laporan pertama muncul setelah aplikasi release dibuka sekali, crash, lalu dibuka lagi.
-5. Untuk CI, simpan isinya sebagai secret `GOOGLE_SERVICES_JSON_BASE64`:
+Masuk dengan Google **wajib** saat aplikasi pertama dibuka, jadi `android/app/google-services.json` harus ada di setiap build yang dipasang. Tanpa file itu aplikasi berhenti di layar Masuk dengan pesan "belum tersambung ke Firebase" (APK dari CI tanpa secret `GOOGLE_SERVICES_JSON_BASE64` juga begitu). File itu tidak masuk git karena repo ini public. Semuanya memakai paket Spark (gratis).
+
+1. Buka [console.firebase.google.com](https://console.firebase.google.com), **Add project** (Google Analytics boleh dimatikan).
+2. **Add app › Android**, package name `com.ekagalang.buatusaha`. Di **Project settings › Your apps** tambahkan dua sidik jari SHA-1: kunci release `F5:A3:09:EF:29:9D:4D:82:8E:CE:12:43:6B:36:6C:0B:A8:26:A0:D0` dan kunci debug (`./gradlew signingReport` di folder `android`). Setelah itu unduh `google-services.json` dan taruh di `android/app/`.
+3. **Authentication › Get started › Sign-in method › Google › Enable**, pilih email dukungan, **Save**.
+4. **Firestore Database › Create database**: lokasi `asia-southeast2 (Jakarta)`, mode **production**. Lalu buka tab **Rules**, ganti isinya dengan [firestore.rules](firestore.rules), **Publish**.
+5. **Crashlytics › Get started** (opsional). Laporan pertama muncul setelah aplikasi release dibuka sekali, crash, lalu dibuka lagi. Laporan tidak dikirim dari build debug.
+6. Untuk CI, simpan isi `google-services.json` sebagai secret `GOOGLE_SERVICES_JSON_BASE64` (jalankan dari folder proyek):
 
 ```bash
-[Convert]::ToBase64String([IO.File]::ReadAllBytes("android\app\google-services.json")) | Set-Clipboard
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("$PWD\android\app\google-services.json")) | Set-Clipboard
 ```
 
-Laporan crash tidak dikirim dari build debug.
+Jika `google-services.json` diunduh ulang (mis. setelah menambah SHA-1), ganti juga secret CI-nya.
+
+### Cara kerja sinkron
+
+- **Layar Masuk → Masuk dengan Google.** Akun baru otomatis terdaftar. Masuk pertama kali butuh internet; setelah itu sesi tersimpan dan aplikasi bisa dibuka tanpa internet. Data tetap tersimpan di HP; salinannya ada di Firestore `users/{uid}/{tabel}/{id}`, hanya bisa dibuka akun itu sendiri.
+- Setelah masuk, layar **Menyiapkan** mengunduh data akun (HP baru), mengunggah data HP (pengguna versi lama tanpa akun), menanyakan gabung/ganti bila keduanya berisi data, atau langsung ke onboarding untuk akun baru.
+- **Pengaturan › Akun dan sinkron › Keluar dari akun**: perubahan yang tertunda dikirim dulu, lalu data usaha dan backup otomatis dihapus dari HP dan aplikasi kembali ke layar Masuk. Data di akun tetap ada.
+- Perubahan dikirim ±15 detik setelah tersimpan. Perubahan dari HP lain ditarik saat aplikasi dibuka, kembali dari latar, tiap 30 menit selama dibuka, dan tiap 6 jam di latar belakang. Tanpa internet perubahan menunggu di antrean, lalu dicoba lagi otomatis.
+- Konflik per baris: perubahan terbaru menang. Stok, harga rata-rata, HPP, dan sisa tagihan dihitung ulang di tiap HP dari buku mutasinya.
+- Login pertama: akun kosong → data HP diunggah; HP kosong → data akun diunduh; keduanya berisi data → pilih **Gabungkan keduanya** atau **Pakai data akun** (data HP dicadangkan dulu ke backup otomatis hari ini).
+- Dua HP yang offline membuat pesanan di tanggal yang sama: nomor pesanan yang bentrok diberi nomor berikutnya, sama di kedua HP.
+- **Pulihkan** backup saat login: isi akun ikut diganti isi backup, supaya data yang dipulihkan tidak tertimpa lagi.
+- Kuota gratis Firestore 50.000 baca dan 20.000 tulis per hari, jauh di atas pemakaian satu usaha.
 
 ## Backup data
 
-Data hanya ada di HP. **Pengaturan › Data › Backup** membagikan satu file `.sqlite` (simpan ke Google Drive atau WhatsApp sendiri); **Restore** memulihkannya dan menyimpan data lama sebagai `.bak` di folder aplikasi.
+**Pengaturan › Backup ke file** membagikan satu file `.sqlite` (simpan ke Google Drive atau WhatsApp sendiri); **Pulihkan dari file** memulihkannya dan menyimpan data lama sebagai `.bak` di folder aplikasi. Backup otomatis harian (7 terakhir) ada di **Pengaturan › Backup otomatis di HP**. Sinkron akun Google tidak menggantikan backup: salah input ikut tersinkron ke semua HP.
+
+## Pindah dari aplikasi lama "HPP Usaha"
+
+ID aplikasi berganti dari `com.hppapp.hpp_app` menjadi `com.ekagalang.buatusaha` (20 Okt 2026), jadi Android memasang BuatUsaha sebagai aplikasi baru di samping yang lama:
+
+1. Di aplikasi lama: **Pengaturan › Data › Backup: bagikan file data**, simpan filenya ke Google Drive atau WhatsApp sendiri.
+2. Pasang APK BuatUsaha, pilih **Lewati, ke Beranda** di onboarding, lalu **Pengaturan › Data › Pulihkan dari file** dan pilih file tadi.
+3. Setelah datanya lengkap, hapus aplikasi lama supaya pengingatnya tidak muncul dua kali.
+
+Kunci tanda tangan tetap sama (`hpp_app-upload.jks`), jadi sidik jari SHA-1 untuk Firebase tidak berubah.

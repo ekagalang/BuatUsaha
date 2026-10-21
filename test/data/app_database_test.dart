@@ -3,8 +3,8 @@ import 'dart:io';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hpp_app/data/db/app_database.dart';
-import 'package:hpp_app/data/repositories/business_repository.dart';
+import 'package:buat_usaha/data/db/app_database.dart';
+import 'package:buat_usaha/data/repositories/business_repository.dart';
 
 void main() {
   late AppDatabase db;
@@ -22,7 +22,7 @@ void main() {
     return rows.map((row) => row.read<String>('name')).toList();
   }
 
-  test('membuat 21 tabel MVP', () async {
+  test('membuat 21 tabel MVP + 2 tabel sinkron + 2 tabel belanja + 4 tabel harga dan kas', () async {
     expect(
       await namesOf('table'),
       unorderedEquals([
@@ -47,6 +47,14 @@ void main() {
         'order_reminders',
         'expense_categories',
         'expenses',
+        'sync_outbox',
+        'sync_state',
+        'shopping_lists',
+        'shopping_list_items',
+        'product_channel_prices',
+        'product_hpp_history',
+        'cash_accounts',
+        'cash_entries',
       ]),
     );
   });
@@ -236,27 +244,81 @@ void main() {
     expect(voided.voidReason, 'Salah input');
   });
 
-  test('migrasi skema v1 ke v2 menambah kolom tanpa menghapus data', () async {
-    final dir = Directory.systemTemp.createTempSync('hpp_migrasi');
-    final file = File('${dir.path}/app.sqlite');
-    var old = AppDatabase(NativeDatabase(file));
-    final id = (await BusinessRepository(old).ensureDefault()).id;
-    await old.customStatement(
-      'ALTER TABLE businesses DROP COLUMN onboarded_at',
-    );
-    await old.customStatement('ALTER TABLE expenses DROP COLUMN is_monthly');
-    await old.customStatement('PRAGMA user_version = 1');
-    await old.close();
+  test(
+    'migrasi skema v1 ke v6 menambah kolom dan tabel tanpa menghapus data',
+    () async {
+      final dir = Directory.systemTemp.createTempSync('hpp_migrasi');
+      final file = File('${dir.path}/app.sqlite');
+      var old = AppDatabase(NativeDatabase(file));
+      final id = (await BusinessRepository(old).ensureDefault()).id;
+      // Trigger sinkron (TEMP) menunjuk kolom dan tabel yang akan dibuang
+      // untuk meniru skema v1.
+      final triggers = await old
+          .customSelect(
+            "SELECT name FROM sqlite_temp_master WHERE type = 'trigger'",
+          )
+          .get();
+      for (final t in triggers) {
+        await old.customStatement(
+          'DROP TRIGGER temp.${t.read<String>('name')}',
+        );
+      }
+      await old.customStatement(
+        'ALTER TABLE businesses DROP COLUMN onboarded_at',
+      );
+      await old.customStatement('ALTER TABLE expenses DROP COLUMN is_monthly');
+      await old.customStatement('ALTER TABLE businesses DROP COLUMN owner_uid');
+      await old.customStatement('DROP TABLE sync_outbox');
+      await old.customStatement('DROP TABLE sync_state');
+      await old.customStatement(
+        'ALTER TABLE products DROP COLUMN safety_stock',
+      );
+      await old.customStatement('DROP TABLE shopping_list_items');
+      await old.customStatement('DROP TABLE shopping_lists');
+      for (final c in [
+        'address',
+        'payment_info',
+        'receipt_note',
+        'logo_data',
+        'receipt_size',
+      ]) {
+        await old.customStatement('ALTER TABLE businesses DROP COLUMN $c');
+      }
+      for (final t in [
+        'cash_entries',
+        'cash_accounts',
+        'product_hpp_history',
+        'product_channel_prices',
+      ]) {
+        await old.customStatement('DROP TABLE $t');
+      }
+      for (final t in ['payments', 'purchases', 'expenses']) {
+        await old.customStatement('ALTER TABLE $t DROP COLUMN cash_account_id');
+      }
+      await old.customStatement('PRAGMA user_version = 1');
+      await old.close();
 
-    old = AppDatabase(NativeDatabase(file));
-    final business = await old.select(old.businesses).getSingle();
-    expect(business.id, id);
-    expect(business.onboardedAt, isNull);
-    final columns = await old
-        .customSelect("SELECT name FROM pragma_table_info('expenses')")
-        .get();
-    expect(columns.map((r) => r.read<String>('name')), contains('is_monthly'));
-    await old.close();
-    dir.deleteSync(recursive: true);
-  });
+      old = AppDatabase(NativeDatabase(file));
+      final business = await old.select(old.businesses).getSingle();
+      expect(business.id, id);
+      expect(business.onboardedAt, isNull);
+      expect(business.ownerUid, isNull);
+      expect(business.receiptSize, ReceiptSize.a6);
+      expect(business.paymentInfo, isNull);
+      expect(await old.select(old.syncOutbox).get(), isEmpty);
+      expect(await old.select(old.shoppingLists).get(), isEmpty);
+      // Akun kas bawaan dibuat lagi saat usaha dibuka.
+      await BusinessRepository(old).ensureDefault();
+      expect(await old.select(old.cashAccounts).get(), hasLength(3));
+      final columns = await old
+          .customSelect("SELECT name FROM pragma_table_info('expenses')")
+          .get();
+      expect(
+        columns.map((r) => r.read<String>('name')),
+        contains('is_monthly'),
+      );
+      await old.close();
+      dir.deleteSync(recursive: true);
+    },
+  );
 }
