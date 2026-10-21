@@ -178,6 +178,17 @@ class $BusinessesTable extends Businesses
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _ownerUidMeta = const VerificationMeta(
+    'ownerUid',
+  );
+  @override
+  late final GeneratedColumn<String> ownerUid = GeneratedColumn<String>(
+    'owner_uid',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -195,6 +206,7 @@ class $BusinessesTable extends Businesses
     ownerHourlyWage,
     lastClosedOn,
     onboardedAt,
+    ownerUid,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -309,6 +321,12 @@ class $BusinessesTable extends Businesses
         ),
       );
     }
+    if (data.containsKey('owner_uid')) {
+      context.handle(
+        _ownerUidMeta,
+        ownerUid.isAcceptableOrUnknown(data['owner_uid']!, _ownerUidMeta),
+      );
+    }
     return context;
   }
 
@@ -380,6 +398,10 @@ class $BusinessesTable extends Businesses
         DriftSqlType.dateTime,
         data['${effectivePrefix}onboarded_at'],
       ),
+      ownerUid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}owner_uid'],
+      ),
     );
   }
 
@@ -418,6 +440,10 @@ class Business extends DataClass implements Insertable<Business> {
 
   /// Diisi setelah onboarding selesai atau dilewati (FR-8.4). Skema v2.
   final DateTime? onboardedAt;
+
+  /// uid Firebase pemilik setelah login Google; kosong = mode lokal
+  /// (FR-10.1). Skema v3, tidak ikut disinkron.
+  final String? ownerUid;
   const Business({
     required this.id,
     required this.createdAt,
@@ -434,6 +460,7 @@ class Business extends DataClass implements Insertable<Business> {
     this.ownerHourlyWage,
     this.lastClosedOn,
     this.onboardedAt,
+    this.ownerUid,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -469,6 +496,9 @@ class Business extends DataClass implements Insertable<Business> {
     if (!nullToAbsent || onboardedAt != null) {
       map['onboarded_at'] = Variable<DateTime>(onboardedAt);
     }
+    if (!nullToAbsent || ownerUid != null) {
+      map['owner_uid'] = Variable<String>(ownerUid);
+    }
     return map;
   }
 
@@ -501,6 +531,9 @@ class Business extends DataClass implements Insertable<Business> {
       onboardedAt: onboardedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(onboardedAt),
+      ownerUid: ownerUid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(ownerUid),
     );
   }
 
@@ -527,6 +560,7 @@ class Business extends DataClass implements Insertable<Business> {
       ownerHourlyWage: serializer.fromJson<int?>(json['ownerHourlyWage']),
       lastClosedOn: serializer.fromJson<String?>(json['lastClosedOn']),
       onboardedAt: serializer.fromJson<DateTime?>(json['onboardedAt']),
+      ownerUid: serializer.fromJson<String?>(json['ownerUid']),
     );
   }
   @override
@@ -548,6 +582,7 @@ class Business extends DataClass implements Insertable<Business> {
       'ownerHourlyWage': serializer.toJson<int?>(ownerHourlyWage),
       'lastClosedOn': serializer.toJson<String?>(lastClosedOn),
       'onboardedAt': serializer.toJson<DateTime?>(onboardedAt),
+      'ownerUid': serializer.toJson<String?>(ownerUid),
     };
   }
 
@@ -567,6 +602,7 @@ class Business extends DataClass implements Insertable<Business> {
     Value<int?> ownerHourlyWage = const Value.absent(),
     Value<String?> lastClosedOn = const Value.absent(),
     Value<DateTime?> onboardedAt = const Value.absent(),
+    Value<String?> ownerUid = const Value.absent(),
   }) => Business(
     id: id ?? this.id,
     createdAt: createdAt ?? this.createdAt,
@@ -585,6 +621,7 @@ class Business extends DataClass implements Insertable<Business> {
         : this.ownerHourlyWage,
     lastClosedOn: lastClosedOn.present ? lastClosedOn.value : this.lastClosedOn,
     onboardedAt: onboardedAt.present ? onboardedAt.value : this.onboardedAt,
+    ownerUid: ownerUid.present ? ownerUid.value : this.ownerUid,
   );
   Business copyWithCompanion(BusinessesCompanion data) {
     return Business(
@@ -617,6 +654,7 @@ class Business extends DataClass implements Insertable<Business> {
       onboardedAt: data.onboardedAt.present
           ? data.onboardedAt.value
           : this.onboardedAt,
+      ownerUid: data.ownerUid.present ? data.ownerUid.value : this.ownerUid,
     );
   }
 
@@ -637,7 +675,8 @@ class Business extends DataClass implements Insertable<Business> {
           ..write('timezone: $timezone, ')
           ..write('ownerHourlyWage: $ownerHourlyWage, ')
           ..write('lastClosedOn: $lastClosedOn, ')
-          ..write('onboardedAt: $onboardedAt')
+          ..write('onboardedAt: $onboardedAt, ')
+          ..write('ownerUid: $ownerUid')
           ..write(')'))
         .toString();
   }
@@ -659,6 +698,7 @@ class Business extends DataClass implements Insertable<Business> {
     ownerHourlyWage,
     lastClosedOn,
     onboardedAt,
+    ownerUid,
   );
   @override
   bool operator ==(Object other) =>
@@ -678,7 +718,8 @@ class Business extends DataClass implements Insertable<Business> {
           other.timezone == this.timezone &&
           other.ownerHourlyWage == this.ownerHourlyWage &&
           other.lastClosedOn == this.lastClosedOn &&
-          other.onboardedAt == this.onboardedAt);
+          other.onboardedAt == this.onboardedAt &&
+          other.ownerUid == this.ownerUid);
 }
 
 class BusinessesCompanion extends UpdateCompanion<Business> {
@@ -697,6 +738,7 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
   final Value<int?> ownerHourlyWage;
   final Value<String?> lastClosedOn;
   final Value<DateTime?> onboardedAt;
+  final Value<String?> ownerUid;
   final Value<int> rowid;
   const BusinessesCompanion({
     this.id = const Value.absent(),
@@ -714,6 +756,7 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
     this.ownerHourlyWage = const Value.absent(),
     this.lastClosedOn = const Value.absent(),
     this.onboardedAt = const Value.absent(),
+    this.ownerUid = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   BusinessesCompanion.insert({
@@ -732,6 +775,7 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
     this.ownerHourlyWage = const Value.absent(),
     this.lastClosedOn = const Value.absent(),
     this.onboardedAt = const Value.absent(),
+    this.ownerUid = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : name = Value(name);
   static Insertable<Business> custom({
@@ -750,6 +794,7 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
     Expression<int>? ownerHourlyWage,
     Expression<String>? lastClosedOn,
     Expression<DateTime>? onboardedAt,
+    Expression<String>? ownerUid,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -769,6 +814,7 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
       if (ownerHourlyWage != null) 'owner_hourly_wage': ownerHourlyWage,
       if (lastClosedOn != null) 'last_closed_on': lastClosedOn,
       if (onboardedAt != null) 'onboarded_at': onboardedAt,
+      if (ownerUid != null) 'owner_uid': ownerUid,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -789,6 +835,7 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
     Value<int?>? ownerHourlyWage,
     Value<String?>? lastClosedOn,
     Value<DateTime?>? onboardedAt,
+    Value<String?>? ownerUid,
     Value<int>? rowid,
   }) {
     return BusinessesCompanion(
@@ -807,6 +854,7 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
       ownerHourlyWage: ownerHourlyWage ?? this.ownerHourlyWage,
       lastClosedOn: lastClosedOn ?? this.lastClosedOn,
       onboardedAt: onboardedAt ?? this.onboardedAt,
+      ownerUid: ownerUid ?? this.ownerUid,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -861,6 +909,9 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
     if (onboardedAt.present) {
       map['onboarded_at'] = Variable<DateTime>(onboardedAt.value);
     }
+    if (ownerUid.present) {
+      map['owner_uid'] = Variable<String>(ownerUid.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -885,6 +936,7 @@ class BusinessesCompanion extends UpdateCompanion<Business> {
           ..write('ownerHourlyWage: $ownerHourlyWage, ')
           ..write('lastClosedOn: $lastClosedOn, ')
           ..write('onboardedAt: $onboardedAt, ')
+          ..write('ownerUid: $ownerUid, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -15649,6 +15701,495 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
   }
 }
 
+class $SyncOutboxTable extends SyncOutbox
+    with TableInfo<$SyncOutboxTable, SyncOutboxEntry> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SyncOutboxTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _entityMeta = const VerificationMeta('entity');
+  @override
+  late final GeneratedColumn<String> entity = GeneratedColumn<String>(
+    'table_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _rowIdMeta = const VerificationMeta('rowId');
+  @override
+  late final GeneratedColumn<String> rowId = GeneratedColumn<String>(
+    'row_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _changedAtMeta = const VerificationMeta(
+    'changedAt',
+  );
+  @override
+  late final GeneratedColumn<int> changedAt = GeneratedColumn<int>(
+    'changed_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [entity, rowId, changedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'sync_outbox';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SyncOutboxEntry> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('table_name')) {
+      context.handle(
+        _entityMeta,
+        entity.isAcceptableOrUnknown(data['table_name']!, _entityMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_entityMeta);
+    }
+    if (data.containsKey('row_id')) {
+      context.handle(
+        _rowIdMeta,
+        rowId.isAcceptableOrUnknown(data['row_id']!, _rowIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_rowIdMeta);
+    }
+    if (data.containsKey('changed_at')) {
+      context.handle(
+        _changedAtMeta,
+        changedAt.isAcceptableOrUnknown(data['changed_at']!, _changedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_changedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {entity, rowId};
+  @override
+  SyncOutboxEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SyncOutboxEntry(
+      entity: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}table_name'],
+      )!,
+      rowId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}row_id'],
+      )!,
+      changedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}changed_at'],
+      )!,
+    );
+  }
+
+  @override
+  $SyncOutboxTable createAlias(String alias) {
+    return $SyncOutboxTable(attachedDatabase, alias);
+  }
+}
+
+class SyncOutboxEntry extends DataClass implements Insertable<SyncOutboxEntry> {
+  final String entity;
+  final String rowId;
+
+  /// Waktu perubahan terakhir di HP ini (milidetik epoch); dipakai sebagai
+  /// versi untuk aturan "yang terbaru menang".
+  final int changedAt;
+  const SyncOutboxEntry({
+    required this.entity,
+    required this.rowId,
+    required this.changedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['table_name'] = Variable<String>(entity);
+    map['row_id'] = Variable<String>(rowId);
+    map['changed_at'] = Variable<int>(changedAt);
+    return map;
+  }
+
+  SyncOutboxCompanion toCompanion(bool nullToAbsent) {
+    return SyncOutboxCompanion(
+      entity: Value(entity),
+      rowId: Value(rowId),
+      changedAt: Value(changedAt),
+    );
+  }
+
+  factory SyncOutboxEntry.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SyncOutboxEntry(
+      entity: serializer.fromJson<String>(json['entity']),
+      rowId: serializer.fromJson<String>(json['rowId']),
+      changedAt: serializer.fromJson<int>(json['changedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'entity': serializer.toJson<String>(entity),
+      'rowId': serializer.toJson<String>(rowId),
+      'changedAt': serializer.toJson<int>(changedAt),
+    };
+  }
+
+  SyncOutboxEntry copyWith({String? entity, String? rowId, int? changedAt}) =>
+      SyncOutboxEntry(
+        entity: entity ?? this.entity,
+        rowId: rowId ?? this.rowId,
+        changedAt: changedAt ?? this.changedAt,
+      );
+  SyncOutboxEntry copyWithCompanion(SyncOutboxCompanion data) {
+    return SyncOutboxEntry(
+      entity: data.entity.present ? data.entity.value : this.entity,
+      rowId: data.rowId.present ? data.rowId.value : this.rowId,
+      changedAt: data.changedAt.present ? data.changedAt.value : this.changedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncOutboxEntry(')
+          ..write('entity: $entity, ')
+          ..write('rowId: $rowId, ')
+          ..write('changedAt: $changedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(entity, rowId, changedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SyncOutboxEntry &&
+          other.entity == this.entity &&
+          other.rowId == this.rowId &&
+          other.changedAt == this.changedAt);
+}
+
+class SyncOutboxCompanion extends UpdateCompanion<SyncOutboxEntry> {
+  final Value<String> entity;
+  final Value<String> rowId;
+  final Value<int> changedAt;
+  final Value<int> rowid;
+  const SyncOutboxCompanion({
+    this.entity = const Value.absent(),
+    this.rowId = const Value.absent(),
+    this.changedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SyncOutboxCompanion.insert({
+    required String entity,
+    required String rowId,
+    required int changedAt,
+    this.rowid = const Value.absent(),
+  }) : entity = Value(entity),
+       rowId = Value(rowId),
+       changedAt = Value(changedAt);
+  static Insertable<SyncOutboxEntry> custom({
+    Expression<String>? entity,
+    Expression<String>? rowId,
+    Expression<int>? changedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (entity != null) 'table_name': entity,
+      if (rowId != null) 'row_id': rowId,
+      if (changedAt != null) 'changed_at': changedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SyncOutboxCompanion copyWith({
+    Value<String>? entity,
+    Value<String>? rowId,
+    Value<int>? changedAt,
+    Value<int>? rowid,
+  }) {
+    return SyncOutboxCompanion(
+      entity: entity ?? this.entity,
+      rowId: rowId ?? this.rowId,
+      changedAt: changedAt ?? this.changedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (entity.present) {
+      map['table_name'] = Variable<String>(entity.value);
+    }
+    if (rowId.present) {
+      map['row_id'] = Variable<String>(rowId.value);
+    }
+    if (changedAt.present) {
+      map['changed_at'] = Variable<int>(changedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncOutboxCompanion(')
+          ..write('entity: $entity, ')
+          ..write('rowId: $rowId, ')
+          ..write('changedAt: $changedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SyncStateTable extends SyncState
+    with TableInfo<$SyncStateTable, SyncStateEntry> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SyncStateTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _entityMeta = const VerificationMeta('entity');
+  @override
+  late final GeneratedColumn<String> entity = GeneratedColumn<String>(
+    'table_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _lastPulledAtMeta = const VerificationMeta(
+    'lastPulledAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastPulledAt = GeneratedColumn<DateTime>(
+    'last_pulled_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [entity, lastPulledAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'sync_state';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SyncStateEntry> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('table_name')) {
+      context.handle(
+        _entityMeta,
+        entity.isAcceptableOrUnknown(data['table_name']!, _entityMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_entityMeta);
+    }
+    if (data.containsKey('last_pulled_at')) {
+      context.handle(
+        _lastPulledAtMeta,
+        lastPulledAt.isAcceptableOrUnknown(
+          data['last_pulled_at']!,
+          _lastPulledAtMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {entity};
+  @override
+  SyncStateEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SyncStateEntry(
+      entity: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}table_name'],
+      )!,
+      lastPulledAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_pulled_at'],
+      ),
+    );
+  }
+
+  @override
+  $SyncStateTable createAlias(String alias) {
+    return $SyncStateTable(attachedDatabase, alias);
+  }
+}
+
+class SyncStateEntry extends DataClass implements Insertable<SyncStateEntry> {
+  final String entity;
+  final DateTime? lastPulledAt;
+  const SyncStateEntry({required this.entity, this.lastPulledAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['table_name'] = Variable<String>(entity);
+    if (!nullToAbsent || lastPulledAt != null) {
+      map['last_pulled_at'] = Variable<DateTime>(lastPulledAt);
+    }
+    return map;
+  }
+
+  SyncStateCompanion toCompanion(bool nullToAbsent) {
+    return SyncStateCompanion(
+      entity: Value(entity),
+      lastPulledAt: lastPulledAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastPulledAt),
+    );
+  }
+
+  factory SyncStateEntry.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SyncStateEntry(
+      entity: serializer.fromJson<String>(json['entity']),
+      lastPulledAt: serializer.fromJson<DateTime?>(json['lastPulledAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'entity': serializer.toJson<String>(entity),
+      'lastPulledAt': serializer.toJson<DateTime?>(lastPulledAt),
+    };
+  }
+
+  SyncStateEntry copyWith({
+    String? entity,
+    Value<DateTime?> lastPulledAt = const Value.absent(),
+  }) => SyncStateEntry(
+    entity: entity ?? this.entity,
+    lastPulledAt: lastPulledAt.present ? lastPulledAt.value : this.lastPulledAt,
+  );
+  SyncStateEntry copyWithCompanion(SyncStateCompanion data) {
+    return SyncStateEntry(
+      entity: data.entity.present ? data.entity.value : this.entity,
+      lastPulledAt: data.lastPulledAt.present
+          ? data.lastPulledAt.value
+          : this.lastPulledAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncStateEntry(')
+          ..write('entity: $entity, ')
+          ..write('lastPulledAt: $lastPulledAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(entity, lastPulledAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SyncStateEntry &&
+          other.entity == this.entity &&
+          other.lastPulledAt == this.lastPulledAt);
+}
+
+class SyncStateCompanion extends UpdateCompanion<SyncStateEntry> {
+  final Value<String> entity;
+  final Value<DateTime?> lastPulledAt;
+  final Value<int> rowid;
+  const SyncStateCompanion({
+    this.entity = const Value.absent(),
+    this.lastPulledAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SyncStateCompanion.insert({
+    required String entity,
+    this.lastPulledAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : entity = Value(entity);
+  static Insertable<SyncStateEntry> custom({
+    Expression<String>? entity,
+    Expression<DateTime>? lastPulledAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (entity != null) 'table_name': entity,
+      if (lastPulledAt != null) 'last_pulled_at': lastPulledAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SyncStateCompanion copyWith({
+    Value<String>? entity,
+    Value<DateTime?>? lastPulledAt,
+    Value<int>? rowid,
+  }) {
+    return SyncStateCompanion(
+      entity: entity ?? this.entity,
+      lastPulledAt: lastPulledAt ?? this.lastPulledAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (entity.present) {
+      map['table_name'] = Variable<String>(entity.value);
+    }
+    if (lastPulledAt.present) {
+      map['last_pulled_at'] = Variable<DateTime>(lastPulledAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncStateCompanion(')
+          ..write('entity: $entity, ')
+          ..write('lastPulledAt: $lastPulledAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -15678,6 +16219,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $ExpenseCategoriesTable expenseCategories =
       $ExpenseCategoriesTable(this);
   late final $ExpensesTable expenses = $ExpensesTable(this);
+  late final $SyncOutboxTable syncOutbox = $SyncOutboxTable(this);
+  late final $SyncStateTable syncState = $SyncStateTable(this);
   late final Index stockMovementsIngredientTime = Index(
     'stock_movements_ingredient_time',
     'CREATE INDEX stock_movements_ingredient_time ON stock_movements (ingredient_id, occurred_at)',
@@ -15732,6 +16275,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     orderReminders,
     expenseCategories,
     expenses,
+    syncOutbox,
+    syncState,
     stockMovementsIngredientTime,
     productStockMovementsProductTime,
     ordersBusinessDue,
@@ -15813,6 +16358,7 @@ typedef $$BusinessesTableCreateCompanionBuilder = BusinessesCompanion Function({
   Value<int?> ownerHourlyWage,
   Value<String?> lastClosedOn,
   Value<DateTime?> onboardedAt,
+  Value<String?> ownerUid,
   Value<int> rowid,
 });
 typedef $$BusinessesTableUpdateCompanionBuilder = BusinessesCompanion Function({
@@ -15831,6 +16377,7 @@ typedef $$BusinessesTableUpdateCompanionBuilder = BusinessesCompanion Function({
   Value<int?> ownerHourlyWage,
   Value<String?> lastClosedOn,
   Value<DateTime?> onboardedAt,
+  Value<String?> ownerUid,
   Value<int> rowid,
 });
 
@@ -16132,6 +16679,11 @@ class $$BusinessesTableFilterComposer
 
   ColumnFilters<DateTime> get onboardedAt => $composableBuilder(
     column: $table.onboardedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get ownerUid => $composableBuilder(
+    column: $table.ownerUid,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -16494,6 +17046,11 @@ class $$BusinessesTableOrderingComposer
     column: $table.onboardedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get ownerUid => $composableBuilder(
+    column: $table.ownerUid,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$BusinessesTableAnnotationComposer
@@ -16564,6 +17121,9 @@ class $$BusinessesTableAnnotationComposer
     column: $table.onboardedAt,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get ownerUid =>
+      $composableBuilder(column: $table.ownerUid, builder: (column) => column);
 
   Expression<T> notificationSettingsRefs<T extends Object>(
     Expression<T> Function($$NotificationSettingsTableAnnotationComposer a) f,
@@ -16898,6 +17458,7 @@ class $$BusinessesTableTableManager
                 Value<int?> ownerHourlyWage = const Value.absent(),
                 Value<String?> lastClosedOn = const Value.absent(),
                 Value<DateTime?> onboardedAt = const Value.absent(),
+                Value<String?> ownerUid = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => BusinessesCompanion(
                 id: id,
@@ -16915,6 +17476,7 @@ class $$BusinessesTableTableManager
                 ownerHourlyWage: ownerHourlyWage,
                 lastClosedOn: lastClosedOn,
                 onboardedAt: onboardedAt,
+                ownerUid: ownerUid,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -16934,6 +17496,7 @@ class $$BusinessesTableTableManager
                 Value<int?> ownerHourlyWage = const Value.absent(),
                 Value<String?> lastClosedOn = const Value.absent(),
                 Value<DateTime?> onboardedAt = const Value.absent(),
+                Value<String?> ownerUid = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => BusinessesCompanion.insert(
                 id: id,
@@ -16951,6 +17514,7 @@ class $$BusinessesTableTableManager
                 ownerHourlyWage: ownerHourlyWage,
                 lastClosedOn: lastClosedOn,
                 onboardedAt: onboardedAt,
+                ownerUid: ownerUid,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -29023,6 +29587,327 @@ typedef $$ExpensesTableProcessedTableManager =
       Expense,
       PrefetchHooks Function({bool businessId, bool categoryId})
     >;
+typedef $$SyncOutboxTableCreateCompanionBuilder = SyncOutboxCompanion Function({
+  required String entity,
+  required String rowId,
+  required int changedAt,
+  Value<int> rowid,
+});
+typedef $$SyncOutboxTableUpdateCompanionBuilder = SyncOutboxCompanion Function({
+  Value<String> entity,
+  Value<String> rowId,
+  Value<int> changedAt,
+  Value<int> rowid,
+});
+
+class $$SyncOutboxTableFilterComposer
+    extends Composer<_$AppDatabase, $SyncOutboxTable> {
+  $$SyncOutboxTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get entity => $composableBuilder(
+    column: $table.entity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get rowId => $composableBuilder(
+    column: $table.rowId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get changedAt => $composableBuilder(
+    column: $table.changedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SyncOutboxTableOrderingComposer
+    extends Composer<_$AppDatabase, $SyncOutboxTable> {
+  $$SyncOutboxTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get entity => $composableBuilder(
+    column: $table.entity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get rowId => $composableBuilder(
+    column: $table.rowId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get changedAt => $composableBuilder(
+    column: $table.changedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SyncOutboxTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SyncOutboxTable> {
+  $$SyncOutboxTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get entity =>
+      $composableBuilder(column: $table.entity, builder: (column) => column);
+
+  GeneratedColumn<String> get rowId =>
+      $composableBuilder(column: $table.rowId, builder: (column) => column);
+
+  GeneratedColumn<int> get changedAt =>
+      $composableBuilder(column: $table.changedAt, builder: (column) => column);
+}
+
+class $$SyncOutboxTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SyncOutboxTable,
+          SyncOutboxEntry,
+          $$SyncOutboxTableFilterComposer,
+          $$SyncOutboxTableOrderingComposer,
+          $$SyncOutboxTableAnnotationComposer,
+          $$SyncOutboxTableCreateCompanionBuilder,
+          $$SyncOutboxTableUpdateCompanionBuilder,
+          (
+            SyncOutboxEntry,
+            BaseReferences<_$AppDatabase, $SyncOutboxTable, SyncOutboxEntry>,
+          ),
+          SyncOutboxEntry,
+          PrefetchHooks Function()
+        > {
+  $$SyncOutboxTableTableManager(_$AppDatabase db, $SyncOutboxTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SyncOutboxTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SyncOutboxTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SyncOutboxTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> entity = const Value.absent(),
+                Value<String> rowId = const Value.absent(),
+                Value<int> changedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SyncOutboxCompanion(
+                entity: entity,
+                rowId: rowId,
+                changedAt: changedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String entity,
+                required String rowId,
+                required int changedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => SyncOutboxCompanion.insert(
+                entity: entity,
+                rowId: rowId,
+                changedAt: changedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SyncOutboxTable, SyncOutboxEntry>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $SyncOutboxTable,
+                    SyncOutboxEntry
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SyncOutboxTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SyncOutboxTable,
+      SyncOutboxEntry,
+      $$SyncOutboxTableFilterComposer,
+      $$SyncOutboxTableOrderingComposer,
+      $$SyncOutboxTableAnnotationComposer,
+      $$SyncOutboxTableCreateCompanionBuilder,
+      $$SyncOutboxTableUpdateCompanionBuilder,
+      (
+        SyncOutboxEntry,
+        BaseReferences<_$AppDatabase, $SyncOutboxTable, SyncOutboxEntry>,
+      ),
+      SyncOutboxEntry,
+      PrefetchHooks Function()
+    >;
+typedef $$SyncStateTableCreateCompanionBuilder = SyncStateCompanion Function({
+  required String entity,
+  Value<DateTime?> lastPulledAt,
+  Value<int> rowid,
+});
+typedef $$SyncStateTableUpdateCompanionBuilder = SyncStateCompanion Function({
+  Value<String> entity,
+  Value<DateTime?> lastPulledAt,
+  Value<int> rowid,
+});
+
+class $$SyncStateTableFilterComposer
+    extends Composer<_$AppDatabase, $SyncStateTable> {
+  $$SyncStateTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get entity => $composableBuilder(
+    column: $table.entity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastPulledAt => $composableBuilder(
+    column: $table.lastPulledAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SyncStateTableOrderingComposer
+    extends Composer<_$AppDatabase, $SyncStateTable> {
+  $$SyncStateTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get entity => $composableBuilder(
+    column: $table.entity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastPulledAt => $composableBuilder(
+    column: $table.lastPulledAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SyncStateTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SyncStateTable> {
+  $$SyncStateTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get entity =>
+      $composableBuilder(column: $table.entity, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastPulledAt => $composableBuilder(
+    column: $table.lastPulledAt,
+    builder: (column) => column,
+  );
+}
+
+class $$SyncStateTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SyncStateTable,
+          SyncStateEntry,
+          $$SyncStateTableFilterComposer,
+          $$SyncStateTableOrderingComposer,
+          $$SyncStateTableAnnotationComposer,
+          $$SyncStateTableCreateCompanionBuilder,
+          $$SyncStateTableUpdateCompanionBuilder,
+          (
+            SyncStateEntry,
+            BaseReferences<_$AppDatabase, $SyncStateTable, SyncStateEntry>,
+          ),
+          SyncStateEntry,
+          PrefetchHooks Function()
+        > {
+  $$SyncStateTableTableManager(_$AppDatabase db, $SyncStateTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SyncStateTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SyncStateTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SyncStateTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> entity = const Value.absent(),
+                Value<DateTime?> lastPulledAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SyncStateCompanion(
+                entity: entity,
+                lastPulledAt: lastPulledAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String entity,
+                Value<DateTime?> lastPulledAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SyncStateCompanion.insert(
+                entity: entity,
+                lastPulledAt: lastPulledAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SyncStateTable, SyncStateEntry>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $SyncStateTable,
+                    SyncStateEntry
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SyncStateTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SyncStateTable,
+      SyncStateEntry,
+      $$SyncStateTableFilterComposer,
+      $$SyncStateTableOrderingComposer,
+      $$SyncStateTableAnnotationComposer,
+      $$SyncStateTableCreateCompanionBuilder,
+      $$SyncStateTableUpdateCompanionBuilder,
+      (
+        SyncStateEntry,
+        BaseReferences<_$AppDatabase, $SyncStateTable, SyncStateEntry>,
+      ),
+      SyncStateEntry,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -29069,4 +29954,8 @@ class $AppDatabaseManager {
       $$ExpenseCategoriesTableTableManager(_db, _db.expenseCategories);
   $$ExpensesTableTableManager get expenses =>
       $$ExpensesTableTableManager(_db, _db.expenses);
+  $$SyncOutboxTableTableManager get syncOutbox =>
+      $$SyncOutboxTableTableManager(_db, _db.syncOutbox);
+  $$SyncStateTableTableManager get syncState =>
+      $$SyncStateTableTableManager(_db, _db.syncState);
 }

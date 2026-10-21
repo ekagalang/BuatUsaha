@@ -22,7 +22,7 @@ void main() {
     return rows.map((row) => row.read<String>('name')).toList();
   }
 
-  test('membuat 21 tabel MVP', () async {
+  test('membuat 21 tabel MVP + 2 tabel sinkron', () async {
     expect(
       await namesOf('table'),
       unorderedEquals([
@@ -47,6 +47,8 @@ void main() {
         'order_reminders',
         'expense_categories',
         'expenses',
+        'sync_outbox',
+        'sync_state',
       ]),
     );
   });
@@ -236,27 +238,38 @@ void main() {
     expect(voided.voidReason, 'Salah input');
   });
 
-  test('migrasi skema v1 ke v2 menambah kolom tanpa menghapus data', () async {
-    final dir = Directory.systemTemp.createTempSync('hpp_migrasi');
-    final file = File('${dir.path}/app.sqlite');
-    var old = AppDatabase(NativeDatabase(file));
-    final id = (await BusinessRepository(old).ensureDefault()).id;
-    await old.customStatement(
-      'ALTER TABLE businesses DROP COLUMN onboarded_at',
-    );
-    await old.customStatement('ALTER TABLE expenses DROP COLUMN is_monthly');
-    await old.customStatement('PRAGMA user_version = 1');
-    await old.close();
+  test(
+    'migrasi skema v1 ke v3 menambah kolom dan tabel tanpa menghapus data',
+    () async {
+      final dir = Directory.systemTemp.createTempSync('hpp_migrasi');
+      final file = File('${dir.path}/app.sqlite');
+      var old = AppDatabase(NativeDatabase(file));
+      final id = (await BusinessRepository(old).ensureDefault()).id;
+      await old.customStatement(
+        'ALTER TABLE businesses DROP COLUMN onboarded_at',
+      );
+      await old.customStatement('ALTER TABLE expenses DROP COLUMN is_monthly');
+      await old.customStatement('ALTER TABLE businesses DROP COLUMN owner_uid');
+      await old.customStatement('DROP TABLE sync_outbox');
+      await old.customStatement('DROP TABLE sync_state');
+      await old.customStatement('PRAGMA user_version = 1');
+      await old.close();
 
-    old = AppDatabase(NativeDatabase(file));
-    final business = await old.select(old.businesses).getSingle();
-    expect(business.id, id);
-    expect(business.onboardedAt, isNull);
-    final columns = await old
-        .customSelect("SELECT name FROM pragma_table_info('expenses')")
-        .get();
-    expect(columns.map((r) => r.read<String>('name')), contains('is_monthly'));
-    await old.close();
-    dir.deleteSync(recursive: true);
-  });
+      old = AppDatabase(NativeDatabase(file));
+      final business = await old.select(old.businesses).getSingle();
+      expect(business.id, id);
+      expect(business.onboardedAt, isNull);
+      expect(business.ownerUid, isNull);
+      expect(await old.select(old.syncOutbox).get(), isEmpty);
+      final columns = await old
+          .customSelect("SELECT name FROM pragma_table_info('expenses')")
+          .get();
+      expect(
+        columns.map((r) => r.read<String>('name')),
+        contains('is_monthly'),
+      );
+      await old.close();
+      dir.deleteSync(recursive: true);
+    },
+  );
 }

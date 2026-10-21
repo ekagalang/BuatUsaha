@@ -59,6 +59,22 @@ class BackupService {
     }
   }
 
+  /// Salinan [backup] yang dilepas dari akun: uid pemilik, antrean kirim,
+  /// dan batas tarik dihapus. Tanpa ini sinkron berikutnya akan menimpa
+  /// data yang baru dipulihkan dengan isi akun.
+  static Future<File> detached(File backup) async {
+    final copy = await backup.copy('${backup.path}.restore');
+    final db = AppDatabase(NativeDatabase(copy));
+    try {
+      await db.customStatement('UPDATE businesses SET owner_uid = NULL');
+      await db.delete(db.syncOutbox).go();
+      await db.delete(db.syncState).go();
+    } finally {
+      await db.close();
+    }
+    return copy;
+  }
+
   /// Mengganti database aplikasi dengan [backup]. Database yang sedang
   /// dipakai harus sudah ditutup; data lama disimpan sebagai `.bak`.
   static Future<void> replaceDatabase(File backup, {File? target}) async {

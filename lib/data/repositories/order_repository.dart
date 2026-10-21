@@ -374,14 +374,8 @@ class OrderRepository {
           updatedAt: Value(_now()),
         ),
       );
-      await (_db.delete(
-        _db.orderItems,
-      )..where((t) => t.orderId.equals(orderId))).go();
-      await _writeItems(orderId, input.items);
-      await (_db.delete(
-        _db.orderReminders,
-      )..where((t) => t.orderId.equals(orderId))).go();
-      await _writeReminders(
+      await _replaceItems(orderId, input.items);
+      await _replaceReminders(
         orderId,
         input.dueAt,
         input.reminders ?? await defaultReminders(order.businessId),
@@ -1173,7 +1167,14 @@ class OrderRepository {
                   t.businessId.equals(businessId) & t.orderNo.like('$prefix%'),
             ))
             .get();
-    return rows.length;
+    // Nomor terbesar, bukan jumlah: setelah sinkron dua HP nomor bisa
+    // bolong (FR-10.4).
+    var max = 0;
+    for (final row in rows) {
+      final n = int.tryParse(row.orderNo.substring(prefix.length)) ?? 0;
+      if (n > max) max = n;
+    }
+    return max;
   }
 
   Future<void> _writeItems(String orderId, List<OrderItemInput> items) async {
@@ -1191,6 +1192,88 @@ class OrderRepository {
             ),
           );
     }
+  }
+
+  /// Item dan pengingat pesanan yang diubah diperbarui di tempat: baris yang
+  /// masih ada tetap memakai id-nya, supaya pesanan yang diubah di dua HP
+  /// tidak dobel setelah sinkron (FR-10.4).
+  Future<void> _replaceItems(String orderId, List<OrderItemInput> items) async {
+    final old =
+        await (_db.select(_db.orderItems)
+              ..where((t) => t.orderId.equals(orderId))
+              ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
+            .get();
+    final fresh = <OrderItemInput>[];
+    for (final i in items) {
+      final at = old.indexWhere((o) => o.productId == i.productId);
+      if (at < 0) {
+        fresh.add(i);
+        continue;
+      }
+      final row = old.removeAt(at);
+      if (row.qty != i.qty ||
+          row.unitPrice != i.unitPrice ||
+          row.note != i.note) {
+        await (_db.update(
+          _db.orderItems,
+        )..where((t) => t.id.equals(row.id))).write(
+          OrderItemsCompanion(
+            qty: Value(i.qty),
+            unitPrice: Value(i.unitPrice),
+            lineTotal: Value(i.lineTotal),
+            note: Value(i.note),
+            updatedAt: Value(_now()),
+          ),
+        );
+      }
+    }
+    for (final row in old) {
+      await (_db.delete(
+        _db.orderItems,
+      )..where((t) => t.id.equals(row.id))).go();
+    }
+    await _writeItems(orderId, fresh);
+  }
+
+  Future<void> _replaceReminders(
+    String orderId,
+    DateTime dueAt,
+    List<ReminderInput> reminders,
+  ) async {
+    final old =
+        await (_db.select(_db.orderReminders)
+              ..where((t) => t.orderId.equals(orderId))
+              ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
+            .get();
+    final fresh = <ReminderInput>[];
+    for (final r in reminders) {
+      final remindAt = r.remindAt(dueAt).toUtc();
+      final at = old.indexWhere((o) => o.kind == r.kind);
+      if (at < 0) {
+        fresh.add(r);
+        continue;
+      }
+      final row = old.removeAt(at);
+      // Seperti pengingat baru: dijadwalkan lagi dari awal.
+      if (!row.remindAt.isAtSameMomentAs(remindAt) ||
+          row.status != ReminderStatus.scheduled) {
+        await (_db.update(
+          _db.orderReminders,
+        )..where((t) => t.id.equals(row.id))).write(
+          OrderRemindersCompanion(
+            remindAt: Value(remindAt),
+            status: const Value(ReminderStatus.scheduled),
+            updatedAt: Value(_now()),
+          ),
+        );
+      }
+    }
+    for (final row in old) {
+      await (_db.delete(
+        _db.orderReminders,
+      )..where((t) => t.id.equals(row.id))).go();
+    }
+    await _writeReminders(orderId, dueAt, fresh);
   }
 
   Future<void> _writeReminders(
@@ -1255,6 +1338,10 @@ class OrderRepository {
           paidAt: _now(),
         ),
       );
+
+  /// Untuk sinkron: cache pembayaran dihitung ulang setelah pesanan atau
+  /// pembayarannya ditarik dari HP lain (FR-10.3).
+  Future<void> refreshPayment(String orderId) => _refreshPayment(orderId);
 
   /// Sisa tagihan dan status bayar dari semua pembayaran yang tidak dibatalkan.
   Future<void> _refreshPayment(String orderId) async {

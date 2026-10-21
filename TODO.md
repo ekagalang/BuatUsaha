@@ -6,8 +6,8 @@ Checklist pengerjaan, disusun mengikuti roadmap di PRD bagian 12. Diperbarui set
 - **Mockup:** https://claude.ai/artifact/MKtkZPSUxqnebpadio2pYR
 - **Desain:** [Design.md](Design.md)
 
-**Terakhir diperbarui:** 20 Oktober 2026
-**Posisi sekarang:** MVP selesai dan dipasang di HP (APK release kunci sendiri; CI dengan secrets terverifikasi). Perbaikan setelah MVP selesai di `dev`. Berikutnya: konfirmasi PRD Firebase + setup project Firebase oleh pengguna, lalu fase 2a (akun & sinkron); uji pakai sendiri berjalan.
+**Terakhir diperbarui:** 21 Oktober 2026
+**Posisi sekarang:** MVP selesai dan dipasang di HP. Fase 2a (login Google + sinkron Firestore) selesai dibuat, lulus test dengan Firestore tiruan, dan sudah di `dev`. Berikutnya: pengguna mengaktifkan Authentication › Google, membuat Firestore + memasang `firestore.rules`, lalu mencoba login di HP; uji pakai sendiri berjalan.
 
 Tanda: `[x]` selesai · `[ ]` belum · "kalkulator ✓" = rumusnya sudah ada dan lulus test di `lib/domain/costing/`, tetapi penyimpanan ke database dan layarnya belum.
 
@@ -141,8 +141,24 @@ Desain di-acc lewat mockup baris "Perbaikan, akun & sinkron" di canvas.
 - [x] PRD/ERD diperbarui: bagian 5.10 (FR-10.x), 11.5, dan perubahan bagian 1, 4, 8, 9, 12, 13, 14 (20 Okt 2026)
 - [x] Mockup Pengaturan akun & sinkron di-acc
 - [x] Pengguna mengonfirmasi PRD final untuk Firebase (20 Okt 2026)
-- [ ] Pengguna membuat project Firebase: aplikasi Android `com.ekagalang.buatusaha`, sidik jari SHA-1 kunci release + debug, aktifkan Authentication › Google dan Cloud Firestore; `google-services.json` di `android/app/` dan secret CI `GOOGLE_SERVICES_JSON_BASE64`
-- [ ] Login Google (FR-10.1), sinkron outbox/tarik per tabel (FR-10.2–10.4), gabung/ganti data saat login pertama (FR-10.5, 10.6), status sinkron dan keluar akun (FR-10.7, 10.8), Security Rules (FR-10.9)
+- [x] Pengguna membuat project Firebase: aplikasi Android `com.ekagalang.buatusaha`, sidik jari SHA-1 kunci release + debug, `google-services.json` di `android/app/` (dicek: paket dan kedua sidik jari benar)
+- [ ] Pengguna mengaktifkan Authentication › Google, membuat Cloud Firestore (asia-southeast2) dan menempel `firestore.rules` di tab Rules (README › Firebase)
+- [ ] Pengguna mengisi secret CI `GOOGLE_SERVICES_JSON_BASE64` (perintah di README)
+- [x] Skema v3: `sync_outbox`, `sync_state`, `businesses.owner_uid`; trigger SQLite sementara mencatat baris yang berubah, kolom cache dan kolom khusus HP tidak memicu kiriman (`lib/data/sync/sync_schema.dart`)
+- [x] Mesin sinkron (`sync_engine.dart`): kirim induk dulu dalam batch, tombstone untuk baris terhapus; tarik anak dulu lalu terapkan induk dulu; perubahan terbaru menang (FR-10.2–10.4); cache dihitung ulang setelah tarik (`cache_rebuilder.dart`)
+- [x] Bentrok kunci unik dua HP offline: nomor pesanan diberi nomor berikutnya, resep/satuan/pengaturan notifikasi memakai aturan id yang sama di kedua HP; id notifikasi pengingat dibuat sendiri di tiap HP
+- [x] Ubah menu dan pesanan memperbarui resep, biaya lain, item, dan pengingat di tempat (id tetap) supaya tidak dobel setelah sinkron; nomor pesanan baru = nomor terbesar + 1
+- [x] Login pertama: akun kosong → unggah; HP kosong → unduh (FR-10.6); keduanya berisi → dialog Gabungkan / Pakai data akun dengan backup otomatis dulu (FR-10.5); data HP dari akun yang sama digabung tanpa bertanya
+- [x] Login Google (google_sign_in 7 + Firebase Auth), dokumen `users/{uid}`; sinkron otomatis ±15 detik setelah perubahan, saat dibuka/kembali dari latar, tiap 30 menit, tiap 6 jam di WorkManager, coba lagi 30 detik–15 menit (`sync_controller.dart`, `background_tasks.dart`)
+- [x] Pengaturan › Akun dan sinkron sesuai mockup `AkunData`: kartu belum masuk / sudah masuk, Tersinkron / Belum terkirim, sinkron terakhir, menunggu dikirim, pesan gagal, Sinkron sekarang (FR-10.7)
+- [x] Keluar akun: data tetap di HP atau dihapus dari HP (FR-10.8); dialognya memakai pola dialog mockup `AkunData` (belum ada di mockup)
+- [x] Pulihkan backup saat login: isi akun ikut diganti isi backup, tetap jalan walau sempat offline (FR-10.11, baru)
+- [x] `firestore.rules` (FR-10.9), README › Firebase dan cara kerja sinkron, PRD 5.10 dan 11.5 diselaraskan
+- [x] 152 test lulus: 14 test mesin sinkron dua HP dengan Firestore tiruan, 6 widget test layar akun (termasuk huruf 130% di 360 dp)
+- [x] Build APK release lulus dengan `google-services.json` (arm64 25,9 MB, armeabi-v7a 23,8 MB, x86_64 27,3 MB)
+- [x] Di-commit dan di-push ke `dev` (21 Okt 2026)
+- [ ] Login dari onboarding (FR-10.1 menyebut onboarding; belum ada desainnya)
+- [ ] Uji di HP dengan Firebase sungguhan: login, unggah, HP kedua unduh, offline lalu online
 
 ## Uji pakai sendiri (minggu 12)
 
@@ -163,7 +179,7 @@ Desain di-acc lewat mockup baris "Perbaikan, akun & sinkron" di canvas.
 
 ## Catatan teknis untuk dipantau
 
-- [ ] Plugin `workmanager_android` masih memakai Kotlin Gradle Plugin; Flutter versi mendatang akan menolak build. Cek versi baru plugin sebelum upgrade Flutter.
+- [ ] Plugin `workmanager_android`, `firebase_core`, dan `firebase_crashlytics` masih memakai Kotlin Gradle Plugin; Flutter versi mendatang akan menolak build. Cek versi baru plugin sebelum upgrade Flutter.
 - [ ] Jika aplikasi crash di Android 12L ke atas setelah desugaring, tambahkan `androidx.window` (lihat README flutter_local_notifications).
 
 ## Fase 3 — opsional (minggu 19–26)

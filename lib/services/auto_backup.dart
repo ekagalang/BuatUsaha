@@ -39,6 +39,22 @@ class AutoBackup {
     return file;
   }
 
+  /// Backup hari ini dibuat ulang sekarang, mis. sebelum data HP diganti
+  /// data akun (FR-10.5). Muncul di daftar backup otomatis.
+  static Future<File> snapshot(
+    AppDatabase db, {
+    DateTime? now,
+    Directory? into,
+  }) async {
+    final dir = into ?? await folder();
+    final file = File(
+      '${dir.path}${Platform.pathSeparator}$_prefix${dayKey(now ?? DateTime.now())}.sqlite',
+    );
+    if (file.existsSync()) file.deleteSync();
+    await db.customStatement('VACUUM INTO ?', [file.path]);
+    return file;
+  }
+
   /// Backup otomatis, terbaru di atas.
   static Future<List<File>> list({Directory? into}) async {
     final dir = into ?? await folder();

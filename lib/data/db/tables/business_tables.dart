@@ -31,6 +31,10 @@ class Businesses extends Table with EntityColumns {
 
   /// Diisi setelah onboarding selesai atau dilewati (FR-8.4). Skema v2.
   DateTimeColumn get onboardedAt => dateTime().nullable()();
+
+  /// uid Firebase pemilik setelah login Google; kosong = mode lokal
+  /// (FR-10.1). Skema v3, tidak ikut disinkron.
+  TextColumn get ownerUid => text().nullable()();
 }
 
 /// Pengaturan notifikasi, 1:1 dengan [Businesses].

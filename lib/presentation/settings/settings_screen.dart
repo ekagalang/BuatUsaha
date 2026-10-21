@@ -15,14 +15,16 @@ import '../../data/providers.dart';
 import '../../services/auto_backup.dart';
 import '../../services/backup_service.dart';
 import '../../services/local_notifications.dart';
+import '../../services/sync_controller.dart';
 import '../common/format.dart';
 import '../common/rupiah_input.dart';
 import '../common/widgets.dart';
 import '../menu/menu_labels.dart';
 import '../theme.dart';
+import 'account_section.dart';
 
-/// Pengaturan: profil usaha, harga, stok, notifikasi, channel, backup
-/// (FR-6.8, FR-8.1–8.3).
+/// Pengaturan: profil usaha, harga, stok, notifikasi, channel, akun dan
+/// sinkron, backup (FR-6.8, FR-8.1–8.3, FR-10.7).
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
@@ -46,6 +48,8 @@ class SettingsScreen extends ConsumerWidget {
                 _NotificationSection(settings: settings),
                 const SizedBox(height: 24),
                 const _ChannelSection(),
+                const SizedBox(height: 24),
+                const AccountSection(),
                 const SizedBox(height: 24),
                 const _DataSection(),
                 const SizedBox(height: 24),
@@ -905,6 +909,7 @@ class _DataSectionState extends ConsumerState<_DataSection> {
     try {
       final name = await BackupService.inspect(file);
       if (!mounted) return;
+      final signedIn = ref.read(syncControllerProvider).user != null;
       final ok = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
@@ -912,7 +917,8 @@ class _DataSectionState extends ConsumerState<_DataSection> {
           content: Text(
             'Data di HP ini akan diganti dengan backup "$name"'
             '${when == null ? '' : ' (${when.toLowerCase()})'}. Data sekarang '
-            'disimpan sebagai cadangan .bak di folder aplikasi.',
+            'disimpan sebagai cadangan .bak di folder aplikasi.'
+            '${signedIn ? ' Isi akun Google juga diganti dengan backup ini.' : ''}',
           ),
           actions: [
             TextButton(
@@ -931,12 +937,17 @@ class _DataSectionState extends ConsumerState<_DataSection> {
         ),
       );
       if (ok != true) return;
+      // Dilepas dari akun dulu, supaya sinkron tidak menimpanya lagi.
+      final restored = await BackupService.detached(file);
       await ref.read(notificationSyncProvider).dispose();
       await ref.read(appDatabaseProvider).closeOnce();
-      await BackupService.replaceDatabase(file);
+      await BackupService.replaceDatabase(restored);
+      restored.deleteSync();
       ref.invalidate(appDatabaseProvider);
       ref.read(notificationSyncProvider).start();
+      final sync = ref.read(syncControllerProvider.notifier);
       router.go('/beranda');
+      await sync.afterRestore();
       messenger.showSnackBar(
         const SnackBar(content: Text('Data dipulihkan dari backup.')),
       );

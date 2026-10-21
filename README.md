@@ -64,25 +64,36 @@ Membuat base64 dari keystore di PowerShell:
 
 Tanpa secrets, artefak CI bernama `buatusaha-apk-debug-signed`.
 
-## Laporan crash (Firebase Crashlytics, opsional)
+## Firebase: akun Google, sinkron, laporan crash
 
-Aplikasi tetap jalan tanpa ini; Crashlytics hanya aktif jika `android/app/google-services.json` ada. File itu tidak masuk git karena repo ini public.
+Semua fitur Firebase hanya aktif jika `android/app/google-services.json` ada. Tanpa file itu aplikasi tetap jalan penuh dalam mode lokal dan tombol **Masuk dengan Google** tidak aktif. File itu tidak masuk git karena repo ini public. Semuanya memakai paket Spark (gratis).
 
-1. Buka [console.firebase.google.com](https://console.firebase.google.com), **Add project** (Google Analytics boleh dimatikan; paket Spark gratis).
-2. Di project itu pilih **Add app › Android**, isi package name `com.ekagalang.buatusaha`, lalu unduh `google-services.json`.
-3. Taruh file itu di `android/app/google-services.json` untuk build lokal.
-4. Di menu **Crashlytics**, klik **Get started**. Laporan pertama muncul setelah aplikasi release dibuka sekali, crash, lalu dibuka lagi.
-5. Untuk CI, simpan isinya sebagai secret `GOOGLE_SERVICES_JSON_BASE64`:
+1. Buka [console.firebase.google.com](https://console.firebase.google.com), **Add project** (Google Analytics boleh dimatikan).
+2. **Add app › Android**, package name `com.ekagalang.buatusaha`. Di **Project settings › Your apps** tambahkan dua sidik jari SHA-1: kunci release `F5:A3:09:EF:29:9D:4D:82:8E:CE:12:43:6B:36:6C:0B:A8:26:A0:D0` dan kunci debug (`./gradlew signingReport` di folder `android`). Setelah itu unduh `google-services.json` dan taruh di `android/app/`.
+3. **Authentication › Get started › Sign-in method › Google › Enable**, pilih email dukungan, **Save**.
+4. **Firestore Database › Create database**: lokasi `asia-southeast2 (Jakarta)`, mode **production**. Lalu buka tab **Rules**, ganti isinya dengan [firestore.rules](firestore.rules), **Publish**.
+5. **Crashlytics › Get started** (opsional). Laporan pertama muncul setelah aplikasi release dibuka sekali, crash, lalu dibuka lagi. Laporan tidak dikirim dari build debug.
+6. Untuk CI, simpan isi `google-services.json` sebagai secret `GOOGLE_SERVICES_JSON_BASE64` (jalankan dari folder proyek):
 
 ```bash
-[Convert]::ToBase64String([IO.File]::ReadAllBytes("android\app\google-services.json")) | Set-Clipboard
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("$PWD\android\app\google-services.json")) | Set-Clipboard
 ```
 
-Laporan crash tidak dikirim dari build debug.
+Jika `google-services.json` diunduh ulang (mis. setelah menambah SHA-1), ganti juga secret CI-nya.
+
+### Cara kerja sinkron
+
+- **Pengaturan › Akun dan sinkron › Masuk dengan Google.** Data tetap tersimpan di HP; salinannya ada di Firestore `users/{uid}/{tabel}/{id}`, hanya bisa dibuka akun itu sendiri.
+- Perubahan dikirim ±15 detik setelah tersimpan. Perubahan dari HP lain ditarik saat aplikasi dibuka, kembali dari latar, tiap 30 menit selama dibuka, dan tiap 6 jam di latar belakang. Tanpa internet perubahan menunggu di antrean, lalu dicoba lagi otomatis.
+- Konflik per baris: perubahan terbaru menang. Stok, harga rata-rata, HPP, dan sisa tagihan dihitung ulang di tiap HP dari buku mutasinya.
+- Login pertama: akun kosong → data HP diunggah; HP kosong → data akun diunduh; keduanya berisi data → pilih **Gabungkan keduanya** atau **Pakai data akun** (data HP dicadangkan dulu ke backup otomatis hari ini).
+- Dua HP yang offline membuat pesanan di tanggal yang sama: nomor pesanan yang bentrok diberi nomor berikutnya, sama di kedua HP.
+- **Pulihkan** backup saat login: isi akun ikut diganti isi backup, supaya data yang dipulihkan tidak tertimpa lagi.
+- Kuota gratis Firestore 50.000 baca dan 20.000 tulis per hari, jauh di atas pemakaian satu usaha.
 
 ## Backup data
 
-Data hanya ada di HP. **Pengaturan › Data › Backup** membagikan satu file `.sqlite` (simpan ke Google Drive atau WhatsApp sendiri); **Restore** memulihkannya dan menyimpan data lama sebagai `.bak` di folder aplikasi.
+**Pengaturan › Backup ke file** membagikan satu file `.sqlite` (simpan ke Google Drive atau WhatsApp sendiri); **Pulihkan dari file** memulihkannya dan menyimpan data lama sebagai `.bak` di folder aplikasi. Backup otomatis harian (7 terakhir) ada di **Pengaturan › Backup otomatis di HP**. Sinkron akun Google tidak menggantikan backup: salah input ikut tersinkron ke semua HP.
 
 ## Pindah dari aplikasi lama "HPP Usaha"
 

@@ -754,6 +754,11 @@ class StockRepository {
     }
   }
 
+  /// Untuk sinkron: cache bahan dihitung ulang setelah mutasinya ditarik
+  /// dari HP lain (FR-10.3).
+  Future<void> recomputeIngredient(String ingredientId) =>
+      _recompute(ingredientId);
+
   Future<void> _recomputeAll(Iterable<String> ingredientIds) async {
     for (final id in ingredientIds) {
       await _recompute(id);
