@@ -178,6 +178,12 @@ Login tidak lagi opsional: aplikasi dibuka → layar Masuk dulu, terasa seperti 
 - [ ] Uji di HP: pasang APK baru, masuk dengan Google, data HP terunggah, keluar lalu masuk lagi
 - [ ] Sebelum dikomersialkan: Kebijakan privasi dan Ketentuan layanan, menu Hapus akun dan semua data, paket Blaze bila kuota terlewati
 
+## CI (21 Okt 2026)
+
+- [x] Pengguna mengisi secret `GOOGLE_SERVICES_JSON_BASE64`, mengaktifkan Authentication › Google, membuat Firestore + Rules, dan memasang APK masuk wajib
+- [x] Build APK menghapus APK dari build sebelumnya setelah upload berhasil (hanya satu APK terbaru di Actions, disimpan 14 hari); di-commit dan di-push ke `dev`
+- [ ] Dicek saat CI berikutnya dijalankan pengguna: langkah "Hapus APK dari build sebelumnya" hijau dan hanya ada satu artefak
+
 ## Uji pakai sendiri (minggu 12)
 
 - [x] Build APK release dengan keystore sendiri (arm64 24,8 MB, armeabi-v7a 22,6 MB, x86_64 26,3 MB)

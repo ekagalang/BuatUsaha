@@ -7,6 +7,10 @@
 #   ANDROID_KEY_PASSWORD      sandi kunci (PKCS12: sama dengan sandi keystore)
 # Tanpa secrets, APK memakai kunci debug dan artefaknya diberi akhiran
 # "debug-signed": cukup untuk dicoba, jangan dipasang permanen.
+#   GOOGLE_SERVICES_JSON_BASE64 isi android/app/google-services.json dalam
+#                               base64; tanpa ini APK berhenti di layar Masuk.
+# Setiap build yang berhasil menghapus APK dari build sebelumnya, jadi di
+# Actions hanya ada satu APK terbaru (disimpan 14 hari).
 name: Build APK
 
 # Hanya berjalan saat push/merge ke main, atau dijalankan manual dari tab
@@ -25,6 +29,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # actions: write untuk menghapus APK dari build sebelumnya.
+    permissions:
+      contents: read
+      actions: write
     env:
       HAS_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
       HAS_FIREBASE: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 != '' }}
@@ -64,7 +72,7 @@ jobs:
             "$RUNNER_TEMP/upload.jks" "$KEYSTORE_PASSWORD" "$KEY_ALIAS" "$KEY_PASSWORD" \
             > android/key.properties
 
-      - name: Pasang konfigurasi Firebase Crashlytics dari secret
+      - name: Pasang konfigurasi Firebase (login, sinkron, crash) dari secret
         if: env.HAS_FIREBASE == 'true'
         env:
           GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
@@ -78,3 +86,23 @@ jobs:
           name: ${{ env.HAS_KEYSTORE == 'true' && 'buatusaha-apk' || 'buatusaha-apk-debug-signed' }}
           path: build/app/outputs/flutter-apk/app-*-release.apk
           retention-days: 14
+
+      # Hanya APK terbaru yang disimpan. Dijalankan setelah upload berhasil,
+      # jadi bila build gagal APK lama tetap ada.
+      - name: Hapus APK dari build sebelumnya
+        # Gagal menghapus tidak membatalkan build yang sudah berhasil.
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          gh api --paginate "repos/$REPO/actions/artifacts?per_page=100" \
+            --jq ".artifacts[]
+              | select(.name | startswith(\"buatusaha-apk\"))
+              | select(.workflow_run.id != $RUN_ID)
+              | .id" |
+          while read -r id; do
+            echo "Menghapus artifact $id"
+            gh api -X DELETE "repos/$REPO/actions/artifacts/$id"
+          done

@@ -64,6 +64,8 @@ Membuat base64 dari keystore di PowerShell:
 
 Tanpa secrets, artefak CI bernama `buatusaha-apk-debug-signed`.
 
+Hanya APK terbaru yang disimpan: setelah build berhasil, CI menghapus artefak `buatusaha-apk*` dari run sebelumnya (izin `actions: write` di workflow). Jika build gagal, APK lama tetap ada. Artefak terbaru disimpan 14 hari. Biaya Actions untuk repo public ini Rp0; angka di halaman Billing GitHub dipotong penuh oleh kuota gratis.
+
 ## Firebase: akun Google, sinkron, laporan crash
 
 Masuk dengan Google **wajib** saat aplikasi pertama dibuka, jadi `android/app/google-services.json` harus ada di setiap build yang dipasang. Tanpa file itu aplikasi berhenti di layar Masuk dengan pesan "belum tersambung ke Firebase" (APK dari CI tanpa secret `GOOGLE_SERVICES_JSON_BASE64` juga begitu). File itu tidak masuk git karena repo ini public. Semuanya memakai paket Spark (gratis).
