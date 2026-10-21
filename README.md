@@ -1,10 +1,152 @@
 # BuatUsaha
 
-Aplikasi Android pribadi untuk menghitung HPP, mencatat stok bahan, laba harian per menu, dan jadwal pesanan. Berjalan offline; biaya Rp0.
+Aplikasi Android untuk usaha makanan rumahan (kue, brownies, katering kecil). Isinya: menghitung HPP per pcs dari resep, mencatat stok bahan dan belanja, mengatur pesanan dan pembayaran, serta melihat untung-rugi harian sampai arus kas. Versi terbaru: **1.3.0**.
+
+- **Jalan tanpa internet.** Semua data tersimpan di HP; internet hanya untuk masuk pertama kali, sinkron, dan cek versi baru.
+- **Masuk dengan akun Google.** Data tersalin ke akun, jadi bisa dibuka di HP lain dan tidak hilang saat ganti HP.
+- **Biaya Rp0.** Memakai Firebase paket gratis (Spark) dan GitHub gratis. APK dipasang langsung, tanpa Play Store.
+- **Angka tidak dihapus diam-diam.** Transaksi yang salah dibatalkan dengan alasan, bukan dihapus, dan laporan menyesuaikan sendiri.
+
+Dokumen lain:
 
 - PRD & ERD: https://claude.ai/code/artifact/4cee3d90-44fd-445d-8a6e-7c3dbf36470e
 - Desain: [Design.md](Design.md) · Mockup: https://claude.ai/artifact/MKtkZPSUxqnebpadio2pYR
-- Progres: [TODO.md](TODO.md)
+- Progres pekerjaan: [TODO.md](TODO.md) · Catatan rilis: [CHANGELOG.md](CHANGELOG.md)
+
+## Fitur
+
+Navigasi bawah berisi lima tab: **Beranda, Pesanan, Menu, Bahan, Laporan**. Pengaturan dibuka dari Beranda.
+
+### Beranda
+
+- Status hari ini: omzet, laba, dan pesanan yang harus diselesaikan.
+- Catat cepat: pesanan, penjualan langsung, belanja, produksi, pengeluaran, Tutup hari.
+- Pesanan hari ini dan besok, laba bulan ini, nilai modal bahan dan menu jadi.
+- Perlu perhatian: pesanan terlambat, stok menipis, bahan yang perlu dibeli untuk 3 hari ke depan, HPP pesanan lama yang perlu dihitung ulang.
+- Kartu "Versi baru tersedia" bila ada pembaruan aplikasi.
+
+### Pesanan
+
+- Pesanan baru dengan pelanggan (dipakai ulang lewat nama atau nomor WhatsApp), item, diskon, ongkir, jadwal, dan ambil sendiri/diantar. Nomor otomatis `PO-yyMMdd-NNN`.
+- Penjualan langsung: langsung tercatat selesai dan lunas.
+- Status Baru → Diproses → Siap → Selesai, tanda Terlambat, dan pembatalan.
+- Pembayaran DP dan pelunasan (Tunai, Transfer, QRIS, Lainnya); sisa tagihan dan status bayar dihitung otomatis.
+- Channel penjualan (WhatsApp, Instagram, GoFood, GrabFood, ShopeeFood, Shopee, atau tambah sendiri). Potongan channel otomatis dan bisa diubah per pesanan. Harga item ikut harga khusus channel itu.
+- Laba per pesanan: omzet item − potongan channel − HPP.
+- Kalender bulanan dan daftar Terlambat / Hari ini / Besok / 7 hari.
+- Kebutuhan produksi untuk tanggal tertentu, bahan yang kurang, dan tombol Buat daftar belanja.
+- **Nota:** kirim ke WhatsApp pelanggan, bagikan teks, atau PDF ukuran A6 / struk 58 mm yang bisa dicetak. Isinya memuat logo, alamat, dan info pembayaran usaha.
+- Koreksi pesanan yang sudah selesai: omzet dibalik, uang dikembalikan, barang kembali ke stok atau dicatat dibuang.
+
+### Menu dan HPP
+
+- Resep per menu: takaran bahan per resep, hasil berapa pcs, biaya lain (gas, kemasan) per resep atau per pcs, dan jam kerja pemilik × upah per jam.
+- HPP per pcs dihitung otomatis dan selalu terbaru setiap harga bahan, resep, atau upah berubah. Statusnya: Lengkap, Perkiraan, atau Belum lengkap.
+- Saran harga jual dari markup target atau margin, dibulatkan, dengan peringatan bila harga di bawah HPP atau di bawah target.
+- **Harga per channel** dengan saran harga supaya laba per pcs sama dengan jual langsung setelah komisi.
+- **Riwayat HPP** dengan grafik dan sebab perubahannya (harga bahan, resep, upah).
+- Kapasitas: bisa jadi berapa pcs dari stok sekarang, bahan pembatasnya, dan kekurangan untuk target tertentu.
+- **Simulasi harga bahan:** bila harga bahan naik atau turun, terlihat HPP baru, laba, dan saran harga per menu, tanpa menyimpan apa pun.
+- Mode stok per menu: **ready stock** (dibuat dulu, stok menu jadi berkurang saat terjual) atau **pre-order** (bahan dipotong saat pesanan selesai). Ready stock bisa punya stok jaga.
+- Catat produksi (boleh setengah resep, pemakaian bahan aktual), riwayat produksi, stok menu jadi, dan sisa yang dibuang.
+
+### Bahan dan stok
+
+- Daftar bahan dengan stok, harga rata-rata, nilai modal, saringan menipis atau belum ada harga.
+- Satuan beli bawaan (kg, ons, liter, lusin) dan satuan khusus (mis. 1 pack = 200 g).
+- Belanja banyak item sekaligus. Harga rata-rata tertimbang dihitung otomatis, dengan pratinjau sebelum disimpan. Pilihan akun kas pembayarnya.
+- Stok awal dan harga perkiraan, penyesuaian stok, stock opname, bahan rusak, stok minimum, dan kartu stok per bahan.
+- Ubah belanja dengan pratinjau dampaknya ke harga rata-rata, HPP menu, dan pesanan.
+- **Daftar belanja otomatis** dari pesanan hari ini, 3 hari, atau 7 hari ke depan, ditambah stok jaga dan stok minimum. Jumlah dibulatkan ke satuan beli dan diberi perkiraan harga. Barang dicentang saat dibeli, lalu dicatat jadi belanja sekali ketuk; daftarnya juga bisa dibagikan ke WhatsApp.
+
+### Laporan, kas, dan ekspor
+
+- Ringkasan harian per menu: dibuat, terjual, sisa disimpan/dibuang, omzet, potongan, HPP, rugi sisa, laba, dan menu yang paling menekan laba.
+- Laporan hari, minggu, bulan, atau rentang: omzet, potongan channel, HPP, laba kotor dan margin, rugi produk dan bahan, pengeluaran, laba bersih, tren harian, menu terlaris dan paling untung, per channel, ongkir terpisah.
+- Pengeluaran operasional per kategori, termasuk pengeluaran bulanan (sewa, gaji) yang hanya masuk laporan bulanan.
+- Tutup hari: sisa menu ready stock disimpan atau dibuang beserta alasannya, dengan tanda lewat umur simpan.
+- **Kas:** saldo Tunai, Bank, dan QRIS/e-wallet dihitung otomatis dari pembayaran pesanan, belanja, dan pengeluaran. Catat juga modal masuk, ambil pribadi, pindah antar akun, dan koreksi saldo. Laporan kas bulanan dilengkapi penjelasan kenapa laba berbeda dengan kas.
+- **Ekspor:** ringkasan PDF dan empat file CSV (pesanan, item terjual, belanja, pengeluaran) yang langsung rapi di Excel atau Google Sheets.
+
+### Pengaturan, akun, dan data
+
+- Profil usaha: nama, WhatsApp, alamat, logo, info pembayaran, catatan kaki nota, dan ukuran nota.
+- Harga: pembulatan saran harga, markup bawaan, dan upah per jam pemilik. Stok: mode stok bawaan dan izin stok minus.
+- Channel penjualan beserta komisi dan biaya per pesanan; akun kas dan cara bayar yang masuk ke tiap akun.
+- Akun Google dan sinkron, backup ke file, backup otomatis harian (7 terakhir), dan pemulihan.
+- Notifikasi per jenis, jam ringkasan dan Tutup hari, jam tenang, serta panduan izin baterai untuk Xiaomi, Oppo, Vivo, dan Samsung.
+- Tentang aplikasi: versi, Cek pembaruan, catatan rilis, dan lisensi.
+
+### Notifikasi
+
+- Pengingat pesanan H-1 pukul 08.00 dan 2 jam sebelum jadwal; bisa diubah, ditambah, atau dimatikan per pesanan.
+- Ringkasan harian, stok menipis (sekali per bahan), pengingat pelunasan, dan pengingat Tutup hari pukul 20.00 bila masih ada sisa.
+- Pemberitahuan versi baru. Ketuk notifikasi langsung membuka pesanan, bahan, atau layar yang dimaksud.
+
+### Pembaruan aplikasi
+
+Aplikasi memeriksa versi baru di GitHub Releases. Pembaruan diunduh dan dipasang dari dalam aplikasi, dan data tetap aman karena kunci tanda tangannya sama.
+
+### Tampilan
+
+Perpindahan layar, tab, dan kartu memakai animasi halus. Semua animasi mati bila pengaturan Android "hapus animasi" aktif. Layar diuji di lebar 360 dp dengan huruf 130%.
+
+## Memasang di HP
+
+1. Unduh `BuatUsaha-<versi>-arm64-v8a.apk` dari [Releases](https://github.com/ekagalang/BuatUsaha/releases/latest). Untuk HP 32-bit lama, pakai `armeabi-v7a`.
+2. Buka filenya dan izinkan "pasang dari sumber ini" bila diminta.
+3. Masuk dengan Google, isi profil usaha, dan buat menu pertama; contoh brownies tersedia dan bisa diedit.
+4. Versi berikutnya muncul sendiri sebagai kartu di Beranda dan notifikasi, lalu tinggal **Unduh dan pasang**.
+
+## Riwayat versi
+
+Salinan dari [CHANGELOG.md](CHANGELOG.md). Saat rilis, CHANGELOG.md tetap menjadi sumbernya, jadi perbarui keduanya.
+
+### 1.3.0 (21 Oktober 2026)
+
+- Harga jual per channel (GoFood, GrabFood, dll.) dengan saran harga supaya laba sama dengan jual langsung
+- Pesanan lewat channel otomatis memakai harga channel
+- Riwayat HPP per menu dengan grafik dan sebab perubahannya
+- Simulasi kenaikan harga bahan: HPP, laba, dan saran harga baru per menu
+- Kas: saldo Tunai, Bank, QRIS/e-wallet dari pembayaran, belanja, dan pengeluaran
+- Catat modal masuk, ambil pribadi, pindah akun, dan koreksi saldo
+- Laporan kas bulanan dan penjelasan kenapa laba beda dengan kas
+
+### 1.2.0 (21 Oktober 2026)
+
+- Nota pesanan: kirim ke WhatsApp pelanggan, bagikan teks, atau PDF ukuran A6/struk 58 mm
+- Nota memuat logo, alamat, dan info pembayaran usaha; tanda LUNAS bila sudah dibayar
+- Profil usaha: logo, alamat, info pembayaran, catatan kaki nota, ukuran nota
+- Ekspor laporan periode: ringkasan PDF dan data CSV (pesanan, item terjual, belanja, pengeluaran) untuk Excel/Sheets
+- Cetak nota dan laporan lewat layanan cetak Android
+
+### 1.1.0 (21 Oktober 2026)
+
+- Daftar belanja otomatis dari pesanan hari ini, 3 hari, atau 7 hari ke depan
+- Stok jaga per menu ready stock dan bahan di bawah stok minimum ikut dihitung
+- Jumlah dibulatkan ke satuan beli (mis. 2 pack × 200 g) dengan perkiraan harga
+- Centang saat dibeli, lalu catat jadi belanja sekali ketuk
+- Tambah barang lain dan bagikan daftar ke WhatsApp
+- Kartu Perlu dibeli di Beranda dan Bahan, tombol Buat daftar belanja di Kebutuhan produksi
+
+### 1.0.0 (21 Oktober 2026)
+
+- Masuk dengan akun Google; data tersimpan di HP dan tersinkron ke akunmu, bisa dibuka di HP lain
+- HPP per pcs otomatis dari resep, stok bahan dan nilai modal, produksi, stok menu jadi
+- Pesanan dan penjualan langsung, channel dan potongannya, pengingat pesanan
+- Laporan untung-rugi harian dan bulanan, Tutup hari, pengeluaran
+- Backup otomatis harian dan backup ke file
+- Pemberitahuan versi baru: unduh dan pasang pembaruan langsung dari aplikasi
+- Perpindahan layar, tab, dan kartu yang lebih halus
+
+### Sebelum 1.0.0
+
+Belum ada rilis bernomor; APK dipasang langsung dari build lokal atau CI.
+
+- **19–20 Okt 2026, MVP:** bahan dan stok, menu dan HPP, pesanan dan notifikasi, laporan, Tutup hari, backup, onboarding, Crashlytics.
+- **20 Okt 2026, perbaikan setelah MVP:** koreksi harga bahan menghitung ulang HPP produksi dan pesanan, ubah belanja dengan pratinjau, titik ribuan saat mengetik nominal, ikon cupcake, backup otomatis harian.
+- **20 Okt 2026, ganti nama:** aplikasi "HPP Usaha" (`com.hppapp.hpp_app`) menjadi BuatUsaha (`com.ekagalang.buatusaha`).
+- **21 Okt 2026, akun dan sinkron:** masuk wajib dengan Google, sinkron Firestore antar-HP, keluar akun menghapus data dari HP.
 
 ## Pengembangan
 
@@ -42,8 +184,8 @@ Jangan pasang APK dari `flutter build apk` biasa di atas versi rilis: nomor buil
 
 ## Versi dan rilis
 
-- Nama versi ada di `pubspec.yaml` (`version: 1.0.0+1`; angka setelah `+` diabaikan). Naikkan angka terakhir untuk perbaikan (1.0.1), angka tengah untuk fitur baru (1.1.0).
-- Tulis perubahannya di [CHANGELOG.md](CHANGELOG.md) dengan judul `## <versi> (<tanggal>)` dan poin `- …`. Poin-poin itu tampil di dialog "Versi baru tersedia" di aplikasi.
+- Nama versi ada di `pubspec.yaml` (`version: 1.3.0+1`; angka setelah `+` diabaikan). Naikkan angka terakhir untuk perbaikan (1.3.1), angka tengah untuk fitur baru (1.4.0).
+- Tulis perubahannya di [CHANGELOG.md](CHANGELOG.md) dengan judul `## <versi> (<tanggal>)` dan poin `- …`. Poin-poin itu tampil di dialog "Versi baru tersedia" di aplikasi. Salin juga ke bagian Riwayat versi di README ini.
 - Terbitkan: **Actions › Build APK › Run workflow**, centang **Terbitkan rilis**. Push ke `main` juga selalu menerbitkan rilis. CI membuat GitHub Release `v<versi>` berisi `BuatUsaha-<versi>-arm64-v8a.apk`, `-armeabi-v7a.apk`, `-x86_64.apk`.
 - Rilis gagal bila versi itu sudah pernah dirilis atau CHANGELOG belum berisi bagian versinya; APK tetap ada di Artifacts. Rilis hanya dibuat dari APK bertanda tangan kunci sendiri.
 - Aplikasi memeriksa `releases/latest` repo ini (saat dibuka paling sering sekali per 6 jam, tugas latar tiap 6 jam, dan tombol Pengaturan › Tentang aplikasi › Cek pembaruan), lalu menawarkan **Unduh dan pasang**. Pertama kali, Android meminta izin "pasang dari sumber ini". Data tetap aman karena kunci tanda tangannya sama.

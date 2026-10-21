@@ -183,6 +183,13 @@ Login tidak lagi opsional: aplikasi dibuka → layar Masuk dulu, terasa seperti 
 - [x] Pengguna mengisi secret `GOOGLE_SERVICES_JSON_BASE64`, mengaktifkan Authentication › Google, membuat Firestore + Rules, dan memasang APK masuk wajib
 - [x] Build APK menghapus APK dari build sebelumnya setelah upload berhasil (hanya satu APK terbaru di Actions, disimpan 14 hari); di-commit dan di-push ke `dev`
 - [ ] Dicek saat CI berikutnya dijalankan pengguna: langkah "Hapus APK dari build sebelumnya" hijau dan hanya ada satu artefak
+- [x] Tes unduhan pembaruan gagal di CI Linux (potongan unduhan tergabung jadi satu): server tes diberi jeda antar potongan; di-push ke `dev` (ebf1ab8)
+- [ ] CI hijau setelah `dev` di-merge lagi ke `main` (pengguna)
+
+## README (21 Okt 2026)
+
+- [x] README ditulis ulang: penjelasan aplikasi, fitur per tab, cara memasang, riwayat versi 1.0.0–1.3.0 dan sebelum 1.0.0; bagian pengembang tetap
+- [ ] Commit + push ke `dev` (pengguna memutuskan)
 
 ## Uji pakai sendiri (minggu 12)
 
