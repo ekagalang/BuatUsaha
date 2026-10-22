@@ -1,6 +1,6 @@
 # BuatUsaha
 
-Aplikasi Android untuk usaha makanan rumahan (kue, brownies, katering kecil). Isinya: menghitung HPP per pcs dari resep, mencatat stok bahan dan belanja, mengatur pesanan dan pembayaran, serta melihat untung-rugi harian sampai arus kas. Versi terbaru: **1.3.0**.
+Aplikasi Android untuk usaha makanan rumahan (kue, brownies, katering kecil). Isinya: menghitung HPP per pcs dari resep, mencatat stok bahan dan belanja, mengatur pesanan dan pembayaran, serta melihat untung-rugi harian sampai arus kas. Versi terbaru: **1.4.0**.
 
 - **Jalan tanpa internet.** Semua data tersimpan di HP; internet hanya untuk masuk pertama kali, sinkron, dan cek versi baru.
 - **Masuk dengan akun Google.** Data tersalin ke akun, jadi bisa dibuka di HP lain dan tidak hilang saat ganti HP.
@@ -49,6 +49,9 @@ Navigasi bawah berisi lima tab: **Beranda, Pesanan, Menu, Bahan, Laporan**. Peng
 - **Simulasi harga bahan:** bila harga bahan naik atau turun, terlihat HPP baru, laba, dan saran harga per menu, tanpa menyimpan apa pun.
 - Mode stok per menu: **ready stock** (dibuat dulu, stok menu jadi berkurang saat terjual) atau **pre-order** (bahan dipotong saat pesanan selesai). Ready stock bisa punya stok jaga.
 - Catat produksi (boleh setengah resep, pemakaian bahan aktual), riwayat produksi, stok menu jadi, dan sisa yang dibuang.
+- **Draf otomatis**: menu yang sedang dibuat atau diubah tersimpan sebagai draf di HP; lanjutkan dari bagian Draf di layar Menu.
+- Arsipkan, pulihkan, atau hapus menu. Menu yang sudah pernah terjual tetap tercatat di laporan lama.
+- Takaran resep bisa dalam satuan dapur: sdm, sdt, gelas, atau satuan buatan sendiri (1 siung = 5 g).
 
 ### Bahan dan stok
 
@@ -56,6 +59,10 @@ Navigasi bawah berisi lima tab: **Beranda, Pesanan, Menu, Bahan, Laporan**. Peng
 - Satuan beli bawaan (kg, ons, liter, lusin) dan satuan khusus (mis. 1 pack = 200 g).
 - Belanja banyak item sekaligus. Harga rata-rata tertimbang dihitung otomatis, dengan pratinjau sebelum disimpan. Pilihan akun kas pembayarnya.
 - Stok awal dan harga perkiraan, penyesuaian stok, stock opname, bahan rusak, stok minimum, dan kartu stok per bahan.
+- **Isi stok awal** tanpa terhitung laba, dan peringatan bila opname dipakai untuk stok pertama.
+- Ubah bahan kapan saja, termasuk cara hitung (berat, volume, jumlah) dengan konversi otomatis; nama satuan bebas (butir, lembar, botol).
+- Arsipkan, pulihkan, atau hapus bahan, dengan pilihan untuk sisa stok dan resep yang memakainya.
+- Satuan beli dengan isi (1 pack isi 10 butir) dibuat langsung dari form Belanja; harga per satuan dihitung otomatis.
 - Ubah belanja dengan pratinjau dampaknya ke harga rata-rata, HPP menu, dan pesanan.
 - **Daftar belanja otomatis** dari pesanan hari ini, 3 hari, atau 7 hari ke depan, ditambah stok jaga dan stok minimum. Jumlah dibulatkan ke satuan beli dan diberi perkiraan harga. Barang dicentang saat dibeli, lalu dicatat jadi belanja sekali ketuk; daftarnya juga bisa dibagikan ke WhatsApp.
 
@@ -72,7 +79,7 @@ Navigasi bawah berisi lima tab: **Beranda, Pesanan, Menu, Bahan, Laporan**. Peng
 
 - Profil usaha: nama, WhatsApp, alamat, logo, info pembayaran, catatan kaki nota, dan ukuran nota.
 - Harga: pembulatan saran harga, markup bawaan, dan upah per jam pemilik. Stok: mode stok bawaan dan izin stok minus.
-- Channel penjualan beserta komisi dan biaya per pesanan; akun kas dan cara bayar yang masuk ke tiap akun.
+- Channel penjualan beserta komisi %, potongan Rupiah per pcs, dan biaya per pesanan; akun kas dan cara bayar yang masuk ke tiap akun.
 - Akun Google dan sinkron, backup ke file, backup otomatis harian (7 terakhir), dan pemulihan.
 - Notifikasi per jenis, jam ringkasan dan Tutup hari, jam tenang, serta panduan izin baterai untuk Xiaomi, Oppo, Vivo, dan Samsung.
 - Tentang aplikasi: versi, Cek pembaruan, catatan rilis, dan lisensi.
@@ -89,7 +96,7 @@ Aplikasi memeriksa versi baru di GitHub Releases. Pembaruan diunduh dan dipasang
 
 ### Tampilan
 
-Perpindahan layar, tab, dan kartu memakai animasi halus. Semua animasi mati bila pengaturan Android "hapus animasi" aktif. Layar diuji di lebar 360 dp dengan huruf 130%.
+Perpindahan layar, tab, dan kartu memakai animasi halus. Semua animasi mati bila pengaturan Android "hapus animasi" aktif. Di tablet (lebar 600 dp ke atas) navigasi bawah diganti rel navigasi di kiri. Saat mendatar, Pesanan, Menu, dan Bahan menampilkan daftar dan detail berdampingan; Beranda dan Laporan dibagi dua kolom; kartu menu tersusun dalam kisi; form dan detail dibatasi lebar baca 720 dp di tengah. Layar diuji di lebar 360 dp dengan huruf 130%, serta di tablet 800×1280 dan 1280×800.
 
 ## Memasang di HP
 
@@ -101,6 +108,19 @@ Perpindahan layar, tab, dan kartu memakai animasi halus. Semua animasi mati bila
 ## Riwayat versi
 
 Salinan dari [CHANGELOG.md](CHANGELOG.md). Saat rilis, CHANGELOG.md tetap menjadi sumbernya, jadi perbarui keduanya.
+
+### 1.4.0 (22 Oktober 2026)
+
+- Draf menu otomatis: menu yang sedang dibuat atau diubah tidak hilang saat keluar form
+- Ubah, arsipkan, pulihkan, dan hapus bahan; ganti cara hitung bahan dengan konversi
+- Arsipkan, pulihkan, dan hapus menu; pesanan yang berjalan tetap aman
+- Nama satuan bebas (butir, lembar, …), satuan beli dengan isi dan harga per satuan otomatis
+- Satuan dapur di resep (sdm, sdt, gelas, atau buatan sendiri)
+- Potongan channel dalam Rupiah per pcs
+- Isi stok awal tanpa terhitung laba; stok dari opname pertama di data lama otomatis jadi stok awal
+- Penyesuaian stok ikut dihitung di laporan
+- Pesan jelas saat memulihkan backup dari aplikasi versi lebih baru
+- Tampilan tablet: rel navigasi di kiri, daftar dan detail berdampingan saat mendatar, Beranda dan Laporan dua kolom, kartu menu dalam kisi, form tidak melebar
 
 ### 1.3.0 (21 Oktober 2026)
 
@@ -184,7 +204,7 @@ Jangan pasang APK dari `flutter build apk` biasa di atas versi rilis: nomor buil
 
 ## Versi dan rilis
 
-- Nama versi ada di `pubspec.yaml` (`version: 1.3.0+1`; angka setelah `+` diabaikan). Naikkan angka terakhir untuk perbaikan (1.3.1), angka tengah untuk fitur baru (1.4.0).
+- Nama versi ada di `pubspec.yaml` (`version: 1.4.0+1`; angka setelah `+` diabaikan). Naikkan angka terakhir untuk perbaikan (1.4.1), angka tengah untuk fitur baru (1.5.0).
 - Tulis perubahannya di [CHANGELOG.md](CHANGELOG.md) dengan judul `## <versi> (<tanggal>)` dan poin `- …`. Poin-poin itu tampil di dialog "Versi baru tersedia" di aplikasi. Salin juga ke bagian Riwayat versi di README ini.
 - Terbitkan: **Actions › Build APK › Run workflow**, centang **Terbitkan rilis**. Push ke `main` juga selalu menerbitkan rilis. CI membuat GitHub Release `v<versi>` berisi `BuatUsaha-<versi>-arm64-v8a.apk`, `-armeabi-v7a.apk`, `-x86_64.apk`.
 - Rilis gagal bila versi itu sudah pernah dirilis atau CHANGELOG belum berisi bagian versinya; APK tetap ada di Artifacts. Rilis hanya dibuat dari APK bertanda tangan kunci sendiri.

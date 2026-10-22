@@ -8,6 +8,7 @@ import '../../domain/stock/units.dart';
 import '../db/app_database.dart';
 import '../db/decimal_convert.dart';
 import 'order_repository.dart';
+import 'stock_repository.dart' show IngredientUnitLabel;
 
 /// Satu bahan yang perlu dibeli (FR-12.2, FR-12.3).
 class ShoppingSuggestion {
@@ -141,7 +142,10 @@ class ShoppingRepository {
     for (final ingredient in ingredients) {
       final need = required[ingredient.id] ?? Decimal.zero;
       final stock = _floor0(dec(ingredient.currentStock));
-      final minimum = dec(ingredient.minStock);
+      // Bahan yang diarsipkan hanya masuk bila masih dibutuhkan pesanan.
+      final minimum = ingredient.archivedAt == null
+          ? dec(ingredient.minStock)
+          : Decimal.zero;
       final shortage = need + minimum - stock;
       if (shortage <= Decimal.zero) continue;
       final unit = purchaseUnitFor(ingredient, [
@@ -202,10 +206,7 @@ class ShoppingRepository {
       });
     final first = sorted.firstOrNull;
     if (first == null) {
-      return UnitOption(
-        name: ingredient.baseUnit.code,
-        factorToBase: Decimal.one,
-      );
+      return UnitOption(name: ingredient.unitLabel, factorToBase: Decimal.one);
     }
     return UnitOption(
       name: first.unitName,

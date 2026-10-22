@@ -5,7 +5,7 @@ publish_to: 'none'
 # perbaikan, tengah untuk fitur baru. Nomor build (+1) ditimpa jumlah commit
 # oleh tool/build_apk.ps1 dan CI; jangan pasang APK hasil `flutter build`
 # biasa di atas versi rilis karena nomor build-nya lebih kecil.
-version: 1.3.0+1
+version: 1.4.0+1
 
 environment:
   sdk: ^3.13.1

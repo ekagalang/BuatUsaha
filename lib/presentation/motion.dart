@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'common/format.dart';
+import 'layout.dart';
 import 'theme.dart';
 
 /// Token gerak (Design.md bagian Gerak, PRD FR-11.6–11.10). Semua animasi
@@ -207,6 +208,7 @@ class ContainerToDetail extends StatelessWidget {
     required this.open,
     this.radius = 16,
     this.bordered = true,
+    this.detailId,
   });
 
   /// Isi kartu; panggil `openContainer` saat diketuk.
@@ -218,8 +220,29 @@ class ContainerToDetail extends StatelessWidget {
   /// `false` untuk baris di dalam kartu bersama (mis. daftar bahan).
   final bool bordered;
 
+  /// Di layar lebar dengan [ListDetailScope], detail dibuka di panel kanan
+  /// dan kartu yang terpilih disorot (FR-21.3).
+  final String? detailId;
+
   @override
   Widget build(BuildContext context) {
+    final scope = detailId == null ? null : ListDetailScope.maybeOf(context);
+    if (scope != null) {
+      final selected = scope.selectedId == detailId;
+      return Material(
+        color: selected ? AppColors.primaryContainer : AppColors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radius),
+          side: selected
+              ? const BorderSide(color: AppColors.primary, width: 1.5)
+              : bordered
+              ? const BorderSide(color: AppColors.border)
+              : BorderSide.none,
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: closed(context, () => scope.select(detailId!, open)),
+      );
+    }
     return OpenContainer<void>(
       useRootNavigator: true,
       transitionDuration: Motion.of(context, Motion.slow),

@@ -5,6 +5,7 @@ import '../../services/app_updates.dart';
 import '../../services/update_controller.dart';
 import '../common/brand_marks.dart';
 import '../common/format.dart';
+import '../layout.dart';
 import '../theme.dart';
 import '../update/update_widgets.dart';
 
@@ -22,7 +23,10 @@ class AboutScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Tentang aplikasi')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+        padding: readablePadding(
+          context,
+          const EdgeInsets.fromLTRB(20, 8, 20, 24),
+        ),
         children: [
           Center(
             child: Container(

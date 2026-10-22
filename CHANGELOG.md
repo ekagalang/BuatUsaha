@@ -2,6 +2,19 @@
 
 Satu bagian per versi, terbaru di atas. Judul bagian `## <versi> (<tanggal>)` dipakai CI sebagai catatan GitHub Release, dan poin-poinnya tampil di dialog "Versi baru tersedia" di aplikasi.
 
+## 1.4.0 (2026-10-22)
+
+- Draf menu otomatis: menu yang sedang dibuat atau diubah tidak hilang saat keluar form
+- Ubah, arsipkan, pulihkan, dan hapus bahan; ganti cara hitung bahan dengan konversi
+- Arsipkan, pulihkan, dan hapus menu; pesanan yang berjalan tetap aman
+- Nama satuan bebas (butir, lembar, …), satuan beli dengan isi dan harga per satuan otomatis
+- Satuan dapur di resep (sdm, sdt, gelas, atau buatan sendiri)
+- Potongan channel dalam Rupiah per pcs
+- Isi stok awal tanpa terhitung laba; stok dari opname pertama di data lama otomatis jadi stok awal
+- Penyesuaian stok ikut dihitung di laporan
+- Pesan jelas saat memulihkan backup dari aplikasi versi lebih baru
+- Tampilan tablet: rel navigasi di kiri, daftar dan detail berdampingan saat mendatar, Beranda dan Laporan dua kolom, kartu menu dalam kisi, form tidak melebar
+
 ## 1.3.0 (2026-10-21)
 
 - Harga jual per channel (GoFood, GrabFood, dll.) dengan saran harga supaya laba sama dengan jual langsung

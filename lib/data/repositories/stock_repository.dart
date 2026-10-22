@@ -13,6 +13,17 @@ const _purchaseItemRef = 'purchase_item';
 
 DateTime _now() => DateTime.now().toUtc();
 
+extension IngredientUnitLabel on Ingredient {
+  /// Nama satuan dasar yang tampil: g, ml, atau nama satuan jumlah bahan ini
+  /// (butir, lembar, …; bawaan pcs) (FR-20.3).
+  String get unitLabel {
+    final count = countUnit?.trim();
+    return baseUnit == BaseUnit.pcs && count != null && count.isNotEmpty
+        ? count
+        : baseUnit.code;
+  }
+}
+
 /// Satu baris belanja dalam satuan beli (FR-1.3).
 class PurchaseLineInput {
   const PurchaseLineInput({
@@ -66,6 +77,10 @@ class IngredientView {
   }
 
   bool get isLow => isLowStock(stock: stock, minStock: minStock);
+
+  /// Diarsipkan: tidak tampil di daftar dan pilihan, tetap dihitung di nilai
+  /// modal (FR-20.2).
+  bool get isArchived => ingredient.archivedAt != null;
 
   /// Nilai modal sisa bahan ini (stok × harga rata-rata).
   int get value => totalStockValue([
@@ -152,8 +167,10 @@ class StockRepository {
     IngredientCategory? category,
     Decimal? minStock,
     String? note,
+    String? countUnit,
   }) {
     return _db.transaction(() async {
+      final unit = countUnit?.trim();
       await (_db.update(_db.ingredients)..where((t) => t.id.equals(id))).write(
         IngredientsCompanion(
           name: name == null ? const Value.absent() : Value(name.trim()),
@@ -162,10 +179,114 @@ class StockRepository {
               ? const Value.absent()
               : Value(dbl(minStock)),
           note: note == null ? const Value.absent() : Value(note),
+          countUnit: unit == null
+              ? const Value.absent()
+              : Value(
+                  unit.isEmpty || unit.toLowerCase() == 'pcs' ? null : unit,
+                ),
           updatedAt: Value(_now()),
         ),
       );
       return _recompute(id);
+    });
+  }
+
+  /// Belum ada stok, transaksi, atau resep yang memakai bahan ini: cara
+  /// hitungnya bisa diganti tanpa konversi.
+  Future<bool> needsConversion(String ingredientId) async {
+    final ingredient = await _ingredient(ingredientId);
+    if (ingredient.currentStock != 0) return true;
+    final moved =
+        await (_db.select(_db.stockMovements)
+              ..where(
+                (t) =>
+                    t.ingredientId.equals(ingredientId) &
+                    t.qtyBase.equals(0).not(),
+              )
+              ..limit(1))
+            .getSingleOrNull();
+    if (moved != null) return true;
+    final inRecipe =
+        await (_db.select(_db.recipeItems)
+              ..where((t) => t.ingredientId.equals(ingredientId))
+              ..limit(1))
+            .getSingleOrNull();
+    return inRecipe != null;
+  }
+
+  /// Ganti cara hitung bahan (FR-20.2). [factor] = jumlah satuan baru per 1
+  /// satuan lama (1 butir = 60 g → 60). Stok, mutasi, belanja, satuan beli,
+  /// takaran resep, dan daftar belanja dikonversi, lalu harga rata-rata dan
+  /// HPP dihitung ulang.
+  Future<Ingredient> changeBaseUnit(
+    String ingredientId,
+    BaseUnit unit, {
+    Decimal? factor,
+  }) {
+    final f = dbl(factor ?? Decimal.one);
+    if (f <= 0) throw ArgumentError.value(factor, 'factor', 'harus > 0');
+    return _db.transaction(() async {
+      final args = [f, f, f, f, ingredientId];
+      await _db.customStatement(
+        'UPDATE stock_movements SET qty_base = qty_base * ?, '
+        'unit_cost = unit_cost / ?, balance_after = balance_after * ?, '
+        'avg_cost_after = avg_cost_after / ? WHERE ingredient_id = ?',
+        args,
+      );
+      await _db.customStatement(
+        'UPDATE purchase_items SET qty_base = qty_base * ?, '
+        'factor_to_base = factor_to_base * ?, '
+        'unit_cost_base = unit_cost_base / ? WHERE ingredient_id = ?',
+        [f, f, f, ingredientId],
+      );
+      await _db.customStatement(
+        'UPDATE ingredient_units SET factor_to_base = factor_to_base * ? '
+        'WHERE ingredient_id = ?',
+        [f, ingredientId],
+      );
+      await _db.customStatement(
+        'UPDATE recipe_items SET qty_base = qty_base * ? '
+        'WHERE ingredient_id = ?',
+        [f, ingredientId],
+      );
+      await _db.customStatement(
+        'UPDATE recipe_items SET unit_factor = unit_factor * ? '
+        'WHERE ingredient_id = ? AND unit_factor IS NOT NULL',
+        [f, ingredientId],
+      );
+      await _db.customStatement(
+        'UPDATE shopping_list_items SET factor_to_base = factor_to_base * ? '
+        'WHERE ingredient_id = ?',
+        [f, ingredientId],
+      );
+      final ingredient = await _ingredient(ingredientId);
+      await (_db.update(
+        _db.ingredients,
+      )..where((t) => t.id.equals(ingredientId))).write(
+        IngredientsCompanion(
+          baseUnit: Value(unit),
+          minStock: Value(ingredient.minStock * f),
+          countUnit: unit == BaseUnit.pcs
+              ? const Value.absent()
+              : const Value(null),
+          updatedAt: Value(_now()),
+        ),
+      );
+      _db.markTablesUpdated([
+        _db.stockMovements,
+        _db.purchaseItems,
+        _db.ingredientUnits,
+        _db.recipeItems,
+        _db.shoppingListItems,
+      ]);
+      final result = await _recompute(ingredientId);
+      final products = await (_db.select(
+        _db.recipeItems,
+      )..where((t) => t.ingredientId.equals(ingredientId))).get();
+      for (final p in {for (final r in products) r.productId}) {
+        await refreshProductHpp(_db, p, cause: HppChangeCause.recipe);
+      }
+      return result;
     });
   }
 
@@ -205,41 +326,294 @@ class StockRepository {
     });
   }
 
+  /// Bahan yang belum punya transaksi selain stok awal atau harga perkiraan;
+  /// stoknya boleh diisi sebagai stok awal (FR-20.6).
+  Future<bool> canSetInitialStock(String ingredientId) async =>
+      (await _ledgerRows(ingredientId))
+          .every((r) => r.type == MovementType.opening);
+
+  /// Isi atau ganti stok awal bahan yang belum punya transaksi: masuk nilai
+  /// modal, tidak dihitung laba (FR-20.6). [qtyBase] 0 = hanya harga.
+  Future<Ingredient> setInitialStock(
+    String ingredientId, {
+    required Decimal qtyBase,
+    required Decimal unitCost,
+    DateTime? at,
+  }) {
+    if (qtyBase < Decimal.zero) {
+      throw ArgumentError.value(qtyBase, 'qtyBase', 'harus ≥ 0');
+    }
+    if (unitCost <= Decimal.zero) {
+      throw ArgumentError.value(unitCost, 'unitCost', 'harus > 0');
+    }
+    return _db.transaction(() async {
+      final rows = await _ledgerRows(ingredientId);
+      if (rows.any((r) => r.type != MovementType.opening)) {
+        throw StateError(
+          'Bahan ini sudah punya transaksi; pakai Penyesuaian atau Stock '
+          'opname.',
+        );
+      }
+      final when = (at ?? rows.firstOrNull?.occurredAt ?? _now()).toUtc();
+      for (final r in rows) {
+        await (_db.delete(
+          _db.stockMovements,
+        )..where((t) => t.id.equals(r.id))).go();
+      }
+      if (qtyBase > Decimal.zero) {
+        await _insertOpening(ingredientId, qtyBase, unitCost, when);
+      } else {
+        await _insertEstimate(ingredientId, unitCost, when);
+      }
+      return _recompute(ingredientId);
+    });
+  }
+
+  /// Perbaikan sekali setelah update ke skema v7 (FR-20.6): bahan yang
+  /// riwayatnya hanya harga perkiraan lalu opname/penyesuaian (stok pertama
+  /// diisi lewat opname) diberi satu stok awal, dan opname/penyesuaiannya
+  /// dibatalkan, sehingga stok itu tidak lagi terhitung laba. Id baris baru
+  /// tetap (dari id baris asal) supaya dua HP yang sama-sama memperbaiki
+  /// tidak membuat baris ganda. Mengembalikan jumlah bahan yang diperbaiki.
+  Future<int> runOpeningFix(String businessId) async {
+    final flag =
+        await (_db.select(_db.syncState)
+              ..where((t) => t.entity.equals(AppDatabase.openingFixKey)))
+            .getSingleOrNull();
+    if (flag == null) return 0;
+    final before = flag.lastPulledAt ?? _now();
+    var fixed = 0;
+    await _db.transaction(() async {
+      final ingredients = await (_db.select(
+        _db.ingredients,
+      )..where((t) => t.businessId.equals(businessId))).get();
+      for (final i in ingredients) {
+        if (await _fixOpening(i, before)) fixed++;
+      }
+      await (_db.delete(
+        _db.syncState,
+      )..where((t) => t.entity.equals(AppDatabase.openingFixKey))).go();
+    });
+    return fixed;
+  }
+
+  Future<bool> _fixOpening(Ingredient ingredient, DateTime before) async {
+    final rows = await _ledgerRows(ingredient.id);
+    final counts = <StockMovement>[];
+    for (final r in rows) {
+      if (!r.createdAt.isBefore(before) || r.reversalOfId != null) {
+        return false;
+      }
+      switch (r.type) {
+        case MovementType.opening:
+          if (r.qtyBase != 0) return false;
+        case MovementType.opname || MovementType.adjustment:
+          counts.add(r);
+        default:
+          return false;
+      }
+    }
+    if (counts.isEmpty) return false;
+    final stock = dec(ingredient.currentStock);
+    final avg = ingredient.avgUnitCost;
+    if (stock < Decimal.zero || (stock > Decimal.zero && avg == null)) {
+      return false;
+    }
+    if (stock > Decimal.zero) {
+      final unitCost = dec(avg!);
+      await _db
+          .into(_db.stockMovements)
+          .insert(
+            StockMovementsCompanion.insert(
+              id: Value('${counts.first.id}-awal'),
+              ingredientId: ingredient.id,
+              type: MovementType.opening,
+              qtyBase: dbl(stock),
+              unitCost: dbl(unitCost),
+              value: toRupiah(stock * unitCost),
+              balanceAfter: 0,
+              avgCostAfter: 0,
+              occurredAt: counts.first.occurredAt,
+              note: const Value('Stok awal (dari stock opname)'),
+            ),
+            mode: InsertMode.insertOrIgnore,
+          );
+    }
+    for (final r in counts) {
+      await _db
+          .into(_db.stockMovements)
+          .insert(
+            StockMovementsCompanion.insert(
+              id: Value('${r.id}-batal'),
+              ingredientId: r.ingredientId,
+              type: r.type,
+              qtyBase: -r.qtyBase,
+              unitCost: r.unitCost,
+              value: -r.value,
+              balanceAfter: 0,
+              avgCostAfter: 0,
+              reversalOfId: Value(r.id),
+              occurredAt: r.occurredAt,
+              note: const Value('Dijadikan stok awal'),
+            ),
+            mode: InsertMode.insertOrIgnore,
+          );
+    }
+    await _recompute(ingredient.id);
+    return true;
+  }
+
   Future<void> addCustomUnit(
     String ingredientId, {
     required String unitName,
     required Decimal factorToBase,
+    bool forRecipe = false,
   }) {
     if (factorToBase <= Decimal.zero) {
       throw ArgumentError.value(factorToBase, 'factorToBase', 'harus > 0');
     }
-    return _db
+    final name = unitName.trim();
+    if (name.isEmpty) throw ArgumentError('Nama satuan belum diisi.');
+    return _db.transaction(() async {
+      // Nama yang sama di bahan ini (tanpa beda huruf/spasi) = satuan yang
+      // sama: isinya diperbarui (FR-20.3).
+      final same = [
+        for (final u in await _units(ingredientId))
+          if (normalizeUnitName(u.unitName) == normalizeUnitName(name)) u,
+      ];
+      if (same.isEmpty) {
+        await _db
+            .into(_db.ingredientUnits)
+            .insert(
+              IngredientUnitsCompanion.insert(
+                ingredientId: ingredientId,
+                unitName: name,
+                factorToBase: dbl(factorToBase),
+                forRecipe: Value(forRecipe),
+              ),
+            );
+        return;
+      }
+      await (_db.update(
+        _db.ingredientUnits,
+      )..where((t) => t.id.equals(same.first.id))).write(
+        IngredientUnitsCompanion(
+          factorToBase: Value(dbl(factorToBase)),
+          hidden: const Value(false),
+          forRecipe: Value(same.first.forRecipe && forRecipe),
+          updatedAt: Value(_now()),
+        ),
+      );
+    });
+  }
+
+  /// Sembunyikan atau tampilkan satuan bawaan (kg, lusin, …) atau satuan
+  /// buatan sendiri di bahan ini (FR-20.3).
+  Future<void> setUnitHidden(
+    String ingredientId,
+    String unitName, {
+    required bool hidden,
+  }) async {
+    final ingredient = await _ingredient(ingredientId);
+    final rows = await _units(ingredientId);
+    final row = rows
+        .where(
+          (u) => normalizeUnitName(u.unitName) == normalizeUnitName(unitName),
+        )
+        .firstOrNull;
+    if (row != null) {
+      await (_db.update(
+        _db.ingredientUnits,
+      )..where((t) => t.id.equals(row.id))).write(
+        IngredientUnitsCompanion(
+          hidden: Value(hidden),
+          updatedAt: Value(_now()),
+        ),
+      );
+      return;
+    }
+    if (!hidden) return;
+    final builtIn = builtInUnits(ingredient.baseUnit)
+        .where((u) => u.$1 == normalizeUnitName(unitName))
+        .firstOrNull;
+    if (builtIn == null) return;
+    await _db
         .into(_db.ingredientUnits)
         .insert(
           IngredientUnitsCompanion.insert(
             ingredientId: ingredientId,
-            unitName: unitName.trim(),
-            factorToBase: dbl(factorToBase),
+            unitName: builtIn.$1,
+            factorToBase: builtIn.$2.toDouble(),
+            hidden: const Value(true),
           ),
         );
   }
 
-  /// Satuan beli bawaan + konversi khusus bahan ini (FR-1.2).
-  Future<List<UnitOption>> unitOptions(String ingredientId) async {
+  Future<List<IngredientUnit>> _units(String ingredientId) =>
+      (_db.select(_db.ingredientUnits)
+            ..where((t) => t.ingredientId.equals(ingredientId))
+            ..orderBy([(t) => OrderingTerm.asc(t.unitName)]))
+          .get();
+
+  Stream<List<IngredientUnit>> watchUnits(String ingredientId) =>
+      (_db.select(_db.ingredientUnits)
+            ..where((t) => t.ingredientId.equals(ingredientId))
+            ..orderBy([(t) => OrderingTerm.asc(t.unitName)]))
+          .watch();
+
+  /// Satuan beli bawaan + konversi khusus bahan ini (FR-1.2). Dengan
+  /// [forRecipe], satuan resep dan satuan dapur baku ikut (FR-20.3). Satuan
+  /// yang disembunyikan tidak ikut.
+  Future<List<UnitOption>> unitOptions(
+    String ingredientId, {
+    bool forRecipe = false,
+  }) async {
     final ingredient = await _ingredient(ingredientId);
-    final custom =
-        await (_db.select(_db.ingredientUnits)
-              ..where((t) => t.ingredientId.equals(ingredientId))
-              ..orderBy([(t) => OrderingTerm.asc(t.unitName)]))
+    final rows = await _units(ingredientId);
+    final hidden = {
+      for (final u in rows)
+        if (u.hidden) normalizeUnitName(u.unitName),
+    };
+    return [
+      for (final o in unitOptionsFor(
+        ingredient.baseUnit,
+        [
+          for (final u in rows)
+            if (!u.hidden && (forRecipe || !u.forRecipe))
+              UnitOption(
+                name: u.unitName,
+                factorToBase: dec(u.factorToBase),
+                isCustom: true,
+                forRecipe: u.forRecipe,
+              ),
+        ],
+        ingredient.unitLabel,
+        forRecipe,
+      ))
+        if (!hidden.contains(normalizeUnitName(o.name))) o,
+    ];
+  }
+
+  /// Nama satuan yang pernah dipakai di usaha ini, untuk saran saat membuat
+  /// satuan baru (FR-20.3).
+  Future<List<String>> unitLibrary(String businessId) async {
+    final rows =
+        await (_db.select(_db.ingredientUnits).join([
+              innerJoin(
+                _db.ingredients,
+                _db.ingredients.id.equalsExp(_db.ingredientUnits.ingredientId),
+              ),
+            ])..where(
+              _db.ingredients.businessId.equals(businessId) &
+                  _db.ingredientUnits.hidden.equals(false),
+            ))
             .get();
-    return unitOptionsFor(ingredient.baseUnit, [
-      for (final u in custom)
-        UnitOption(
-          name: u.unitName,
-          factorToBase: dec(u.factorToBase),
-          isCustom: true,
-        ),
-    ]);
+    final names = <String, String>{};
+    for (final r in rows) {
+      final name = r.readTable(_db.ingredientUnits).unitName;
+      names.putIfAbsent(normalizeUnitName(name), () => name);
+    }
+    return names.values.toList()..sort();
   }
 
   Stream<List<IngredientView>> watchIngredients(String businessId) {

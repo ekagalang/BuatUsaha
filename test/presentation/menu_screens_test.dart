@@ -14,6 +14,8 @@ import 'package:buat_usaha/presentation/menu/menu_form_screen.dart';
 import 'package:buat_usaha/presentation/menu/menu_screen.dart';
 import 'package:buat_usaha/presentation/theme.dart';
 
+import '../support/screen.dart';
+
 Decimal d(String value) => Decimal.parse(value);
 
 /// Brownies 20 pcs: bahan Rp64.000 + gas Rp5.000 + upah 1,5 jam × Rp15.000
@@ -102,8 +104,10 @@ Future<String> _seed(AppDatabase db) async {
 Future<void> _pumpScreen(
   WidgetTester tester,
   AppDatabase db,
-  Widget screen,
-) async {
+  Widget screen, {
+  Size size = const Size(360, 1200),
+}) async {
+  setScreenSize(tester, size);
   await tester.pumpWidget(
     ProviderScope(
       overrides: [appDatabaseProvider.overrideWithValue(db)],
@@ -121,6 +125,13 @@ Future<void> _pumpScreen(
 /// Drift menjadwalkan timer nol detik saat stream ditutup; habiskan dulu,
 /// lalu tutup database di luar waktu palsu test.
 Future<void> _close(WidgetTester tester, AppDatabase db) async {
+  // Kueri yang masih berjalan (mis. satuan resep) diselesaikan dulu.
+  for (var i = 0; i < 6; i++) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+    );
+    await tester.pump();
+  }
   await tester.pumpWidget(const SizedBox());
   await tester.pump(Duration.zero);
   await tester.runAsync(db.close);
@@ -174,9 +185,12 @@ void main() {
   ) async {
     final db = AppDatabase(NativeDatabase.memory());
     final id = (await tester.runAsync(() => _seed(db)))!;
-    await tester.binding.setSurfaceSize(const Size(360, 4200));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    await _pumpScreen(tester, db, MenuDetailScreen(id: id));
+    await _pumpScreen(
+      tester,
+      db,
+      MenuDetailScreen(id: id),
+      size: const Size(360, 4200),
+    );
 
     expect(
       find.text('Ready stock · 1 resep = 20 pcs · umur simpan 3 hari'),
@@ -215,9 +229,12 @@ void main() {
   ) async {
     final db = AppDatabase(NativeDatabase.memory());
     final id = (await tester.runAsync(() => _seed(db)))!;
-    await tester.binding.setSurfaceSize(const Size(360, 2400));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    await _pumpScreen(tester, db, MenuFormScreen(id: id));
+    await _pumpScreen(
+      tester,
+      db,
+      MenuFormScreen(id: id),
+      size: const Size(360, 2400),
+    );
 
     expect(find.text('Ubah resep'), findsOneWidget);
     expect(find.widgetWithText(TextField, 'Brownies'), findsOneWidget);

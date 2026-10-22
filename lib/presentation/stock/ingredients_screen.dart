@@ -7,11 +7,12 @@ import '../../data/providers.dart';
 import '../../data/repositories/stock_repository.dart';
 import '../common/format.dart';
 import '../common/widgets.dart';
+import '../layout.dart';
 import '../motion.dart';
 import 'ingredient_detail_screen.dart';
 import '../theme.dart';
 
-enum _Filter { all, low, noPrice }
+enum _Filter { all, low, noPrice, archived }
 
 /// Tab Bahan: nilai modal sisa bahan dan daftar bahan (mockup `Bahan`).
 class IngredientsScreen extends ConsumerStatefulWidget {
@@ -27,7 +28,7 @@ class _IngredientsScreenState extends ConsumerState<IngredientsScreen> {
   @override
   Widget build(BuildContext context) {
     final ingredients = ref.watch(ingredientsProvider);
-    return Scaffold(
+    final scaffold = Scaffold(
       appBar: AppBar(
         title: const Text('Bahan'),
         actions: [
@@ -53,6 +54,16 @@ class _IngredientsScreenState extends ConsumerState<IngredientsScreen> {
         data: (list) => list.isEmpty ? const _EmptyState() : _content(list),
       ),
     );
+    // Tablet mendatar: daftar dan detail berdampingan (FR-21.3).
+    final first = ingredients.value?.where((v) => !v.isArchived).firstOrNull;
+    return ListDetailLayout(
+      list: scaffold,
+      emptyText: 'Pilih bahan untuk melihat detailnya.',
+      initialId: first?.ingredient.id,
+      initialDetail: first == null
+          ? null
+          : (_) => IngredientDetailScreen(id: first.ingredient.id),
+    );
   }
 
   Widget _content(List<IngredientView> list) {
@@ -64,6 +75,8 @@ class _IngredientsScreenState extends ConsumerState<IngredientsScreen> {
       });
     final shown = sorted.where(
       (v) => switch (_filter) {
+        _Filter.archived => v.isArchived,
+        _ when v.isArchived => false,
         _Filter.all => true,
         _Filter.low => v.isLow,
         _Filter.noPrice => v.avgUnitCost == null,
@@ -80,10 +93,15 @@ class _IngredientsScreenState extends ConsumerState<IngredientsScreen> {
           spacing: 8,
           runSpacing: 8,
           children: [
-            for (final (filter, label) in const [
+            for (final (filter, label) in [
               (_Filter.all, 'Semua'),
               (_Filter.low, 'Menipis'),
               (_Filter.noPrice, 'Belum ada harga'),
+              if (sorted.any((v) => v.isArchived))
+                (
+                  _Filter.archived,
+                  'Diarsipkan (${sorted.where((v) => v.isArchived).length})',
+                ),
             ])
               ChoicePill(
                 label: label,
@@ -103,20 +121,31 @@ class _IngredientsScreenState extends ConsumerState<IngredientsScreen> {
             ),
           )
         else
-          Card(
-            clipBehavior: Clip.antiAlias,
-            child: Column(
-              children: [
-                for (final (i, view) in shown.indexed) ...[
-                  if (i > 0) const Divider(height: 1),
-                  StaggeredEntrance(
-                    key: ValueKey(view.ingredient.id),
-                    index: i,
-                    child: _IngredientRow(view),
-                  ),
-                ],
-              ],
-            ),
+          _IngredientCards(
+            children: [
+              for (final (i, view) in shown.indexed)
+                StaggeredEntrance(
+                  key: ValueKey(view.ingredient.id),
+                  index: i,
+                  child: view.isArchived
+                      ? ArchivedTile(
+                          name: view.ingredient.name,
+                          meta:
+                              'Diarsipkan ${formatShortDate(view.ingredient.archivedAt!)} · '
+                              'stok ${formatQty(view.stock, view.ingredient.unitLabel)}',
+                          onTap: () =>
+                              context.push('/bahan/${view.ingredient.id}'),
+                          onRestore: () => runWithSnack(
+                            context,
+                            () => ref
+                                .read(archiveRepositoryProvider)
+                                .restoreIngredient(view.ingredient.id),
+                            '${view.ingredient.name} dipulihkan.',
+                          ),
+                        )
+                      : _IngredientRow(view),
+                ),
+            ],
           ),
         const SizedBox(height: 12),
         const Text(
@@ -129,6 +158,46 @@ class _IngredientsScreenState extends ConsumerState<IngredientsScreen> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Baris bahan dalam satu kartu; di tablet tegak dibagi dua kartu
+/// berdampingan (FR-21.5).
+class _IngredientCards extends StatelessWidget {
+  const _IngredientCards({required this.children});
+
+  final List<Widget> children;
+
+  Widget _card(List<Widget> rows) => Card(
+    clipBehavior: Clip.antiAlias,
+    child: Column(
+      children: [
+        for (final (i, r) in rows.indexed) ...[
+          if (i > 0) const Divider(height: 1),
+          r,
+        ],
+      ],
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 560 || children.length < 2) {
+          return _card(children);
+        }
+        final half = (children.length / 2).ceil();
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: _card(children.sublist(0, half))),
+            const SizedBox(width: 12),
+            Expanded(child: _card(children.sublist(half))),
+          ],
+        );
+      },
     );
   }
 }
@@ -211,8 +280,10 @@ class _ValueHero extends StatelessWidget {
   Widget build(BuildContext context) {
     final total = list.fold(0, (sum, v) => sum + v.value);
     final top = list.isEmpty ? null : list.first;
-    final lowCount = list.where((v) => v.isLow).length;
-    final noPriceCount = list.where((v) => v.avgUnitCost == null).length;
+    final lowCount = list.where((v) => !v.isArchived && v.isLow).length;
+    final noPriceCount = list
+        .where((v) => !v.isArchived && v.avgUnitCost == null)
+        .length;
     const muted = TextStyle(fontSize: 12, color: AppColors.onPrimaryMuted);
     const strong = TextStyle(
       fontSize: 15,
@@ -291,7 +362,7 @@ class _IngredientRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ingredient = view.ingredient;
-    final unit = ingredient.baseUnit.code;
+    final unit = ingredient.unitLabel;
     final avg = view.avgUnitCost;
     final details = [
       formatQty(view.stock, unit),
@@ -308,6 +379,7 @@ class _IngredientRow extends StatelessWidget {
     return ContainerToDetail(
       radius: 0,
       bordered: false,
+      detailId: ingredient.id,
       open: (_) => IngredientDetailScreen(id: ingredient.id),
       closed: (context, open) => InkWell(
         onTap: open,

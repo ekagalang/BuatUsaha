@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,15 +17,29 @@ import '../common/format.dart';
 import '../common/rupiah_input.dart';
 import '../common/widgets.dart';
 import '../motion.dart';
+import '../layout.dart';
 import '../theme.dart';
+import '../stock/ingredient_manage.dart' show editUnit;
+import 'menu_drafts.dart';
 import 'menu_labels.dart';
 
 class _RecipeRow {
-  _RecipeRow(this.ingredientId, [String qty = ''])
+  _RecipeRow(this.ingredientId, [String qty = '', this.unit])
     : qty = TextEditingController(text: qty);
 
   final String ingredientId;
   final TextEditingController qty;
+
+  /// Satuan takaran yang diketik; `null` = satuan dasar (FR-20.3).
+  UnitOption? unit;
+  List<UnitOption> units = const [];
+
+  /// Takaran dalam satuan dasar bahan.
+  Decimal? get qtyBase {
+    final q = parseDecimalInput(qty.text);
+    if (q == null) return null;
+    return q * (unit?.factorToBase ?? Decimal.one);
+  }
 }
 
 class _CostRow {
@@ -56,10 +73,13 @@ const _costPresets = [
 /// Menu baru atau ubah resep: takaran bahan, biaya lain, upah pemilik, harga
 /// jual, dan HPP yang langsung terhitung (mockup `FormResep`, FR-2.1–2.7).
 class MenuFormScreen extends ConsumerStatefulWidget {
-  const MenuFormScreen({super.key, this.id});
+  const MenuFormScreen({super.key, this.id, this.draftId});
 
   /// `null` = menu baru.
   final String? id;
+
+  /// Lanjutkan draf menu baru ini (FR-20.1).
+  final String? draftId;
 
   @override
   ConsumerState<MenuFormScreen> createState() => _MenuFormScreenState();
@@ -79,13 +99,177 @@ class _MenuFormScreenState extends ConsumerState<MenuFormScreen> {
 
   /// `null` = belum dipilih; dipakai mode bawaan usaha.
   StockDeductMode? _mode;
-  late bool _loading = widget.id != null;
+  late bool _loading = widget.id != null || widget.draftId != null;
   var _saving = false;
+
+  /// Draf otomatis (FR-20.1): id draf, isian saat dibuka (pembanding), dan
+  /// draf perubahan yang belum dipakai (banner di Ubah resep).
+  late final String _draftId =
+      widget.id ??
+      widget.draftId ??
+      'baru-${DateTime.now().millisecondsSinceEpoch}';
+  String? _baseline;
+  MenuDraft? _pendingDraft;
+  Timer? _draftTimer;
+  var _saved = false;
+  ScaffoldMessengerState? _messenger;
+  GoRouter? _router;
+  late final MenuDraftsNotifier _drafts;
 
   @override
   void initState() {
     super.initState();
-    if (widget.id != null) _load(widget.id!);
+    _drafts = ref.read(menuDraftsProvider.notifier);
+    for (final c in [
+      _name,
+      _yield,
+      _shelfLife,
+      _safetyStock,
+      _category,
+      _price,
+      _markup,
+      _laborHours,
+    ]) {
+      c.addListener(_scheduleDraft);
+    }
+    if (widget.id != null) {
+      _load(widget.id!);
+    } else if (widget.draftId != null) {
+      _openDraft(widget.draftId!);
+    } else {
+      _baseline = jsonEncode(_snapshot());
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _messenger = ScaffoldMessenger.maybeOf(context);
+    _router = GoRouter.maybeOf(context);
+  }
+
+  Future<void> _openDraft(String id) async {
+    final draft = await _drafts.find(id);
+    if (!mounted) return;
+    if (draft != null) _apply(draft.data);
+    setState(() => _loading = false);
+    _baseline = jsonEncode(_snapshot());
+    await _loadAllUnits();
+  }
+
+  /// Isian form apa adanya, untuk draf.
+  Map<String, dynamic> _snapshot() => {
+    'name': _name.text,
+    'yield': _yield.text,
+    'shelfLife': _shelfLife.text,
+    'safetyStock': _safetyStock.text,
+    'category': _category.text,
+    'price': _price.text,
+    'markup': _markup.text,
+    'laborHours': _laborHours.text,
+    'mode': _mode?.code,
+    'recipe': [
+      for (final r in _recipe)
+        {
+          'ingredientId': r.ingredientId,
+          'qty': r.qty.text,
+          'unitName': r.unit?.name,
+          'unitFactor': r.unit?.factorToBase.toString(),
+        },
+    ],
+    'costs': [
+      for (final c in _costs)
+        {
+          'name': c.name.text,
+          'amount': c.amount.text,
+          'costType': c.costType.code,
+          'basis': c.basis.code,
+        },
+    ],
+  };
+
+  void _apply(Map<String, dynamic> data) {
+    String text(String key) => data[key] as String? ?? '';
+    _name.text = text('name');
+    _yield.text = text('yield');
+    _shelfLife.text = text('shelfLife');
+    _safetyStock.text = text('safetyStock');
+    _category.text = text('category');
+    _price.text = text('price');
+    _markup.text = text('markup');
+    _laborHours.text = text('laborHours');
+    _mode = StockDeductMode.values
+        .where((m) => m.code == data['mode'])
+        .firstOrNull;
+    for (final r in _recipe) {
+      r.qty.dispose();
+    }
+    _recipe.clear();
+    for (final raw in data['recipe'] as List? ?? const []) {
+      final r = Map<String, dynamic>.from(raw as Map);
+      final factor = Decimal.tryParse(r['unitFactor'] as String? ?? '');
+      final name = r['unitName'] as String?;
+      final row = _RecipeRow(
+        r['ingredientId'] as String,
+        r['qty'] as String? ?? '',
+        name == null || factor == null
+            ? null
+            : UnitOption(name: name, factorToBase: factor),
+      );
+      _hook(row.qty);
+      _recipe.add(row);
+    }
+    for (final c in _costs) {
+      c.dispose();
+    }
+    _costs.clear();
+    for (final raw in data['costs'] as List? ?? const []) {
+      final c = Map<String, dynamic>.from(raw as Map);
+      final row = _CostRow(
+        name: c['name'] as String? ?? '',
+        amount: c['amount'] as String? ?? '',
+        costType: CostType.values.firstWhere(
+          (t) => t.code == c['costType'],
+          orElse: () => CostType.other,
+        ),
+        basis: CostBasis.values.firstWhere(
+          (b) => b.code == c['basis'],
+          orElse: () => CostBasis.perBatch,
+        ),
+      );
+      _hook(row.name);
+      _hook(row.amount);
+      _costs.add(row);
+    }
+  }
+
+  final _hooked = <TextEditingController>{};
+
+  void _hook(TextEditingController c) {
+    if (_hooked.add(c)) c.addListener(_scheduleDraft);
+  }
+
+  /// Simpan draf 1 detik setelah perubahan terakhir.
+  void _scheduleDraft() {
+    if (_loading || _saved || _baseline == null) return;
+    _draftTimer?.cancel();
+    _draftTimer = Timer(const Duration(seconds: 1), _writeDraft);
+  }
+
+  /// `true` bila ada perubahan yang disimpan sebagai draf.
+  bool _writeDraft() {
+    if (_saved || _baseline == null) return false;
+    final data = _snapshot();
+    if (jsonEncode(data) == _baseline) return false;
+    _drafts.save(
+      MenuDraft(
+        id: _draftId,
+        productId: widget.id,
+        savedAt: DateTime.now(),
+        data: data,
+      ),
+    );
+    return true;
   }
 
   Future<void> _load(String id) async {
@@ -106,8 +290,16 @@ class _MenuFormScreenState extends ConsumerState<MenuFormScreen> {
           : formatDecimal(input.targetMarkupPct!);
       _mode = input.stockDeductMode;
       for (final r in input.recipe) {
+        final factor = r.unitFactor;
+        final unit =
+            r.unitName == null || factor == null || factor <= Decimal.zero
+            ? null
+            : UnitOption(name: r.unitName!, factorToBase: factor);
+        final qty = unit == null
+            ? r.qtyBase
+            : divide(r.qtyBase, unit.factorToBase);
         _recipe.add(
-          _RecipeRow(r.ingredientId, formatDecimal(r.qtyBase, maxDecimals: 3)),
+          _RecipeRow(r.ingredientId, formatDecimal(qty, maxDecimals: 3), unit),
         );
       }
       for (final c in input.costs) {
@@ -126,10 +318,129 @@ class _MenuFormScreenState extends ConsumerState<MenuFormScreen> {
       }
       _loading = false;
     });
+    for (final r in _recipe) {
+      _hook(r.qty);
+    }
+    for (final c in _costs) {
+      _hook(c.name);
+      _hook(c.amount);
+    }
+    _baseline = jsonEncode(_snapshot());
+    final draft = await _drafts.find(_draftId);
+    if (mounted && draft != null) setState(() => _pendingDraft = draft);
+    await _loadAllUnits();
+  }
+
+  /// Banner "Ada perubahan belum disimpan" di Ubah resep.
+  Future<void> _useDraft(bool use) async {
+    final draft = _pendingDraft;
+    if (draft == null) return;
+    setState(() {
+      _pendingDraft = null;
+      if (use) _apply(draft.data);
+    });
+    if (!use) {
+      await _drafts.remove(draft.id);
+      return;
+    }
+    await _loadAllUnits();
+  }
+
+  /// Satuan semua baris resep sekaligus.
+  Future<void> _loadAllUnits() async {
+    final rows = [..._recipe];
+    final stock = ref.read(stockRepositoryProvider);
+    final units = await Future.wait([
+      for (final r in rows) stock.unitOptions(r.ingredientId, forRecipe: true),
+    ]);
+    if (!mounted) return;
+    setState(() {
+      for (final (i, r) in rows.indexed) {
+        r.units = units[i];
+      }
+    });
+  }
+
+  /// Satuan takaran yang bisa dipilih untuk baris resep (FR-20.3).
+  Future<void> _loadUnits(_RecipeRow row) async {
+    final units = await ref
+        .read(stockRepositoryProvider)
+        .unitOptions(row.ingredientId, forRecipe: true);
+    if (!mounted) return;
+    setState(() => row.units = units);
+  }
+
+  /// Pilih satuan takaran; satuan dapur yang belum punya konversi untuk
+  /// bahan ini ditanya sekali ("1 sdm = … g").
+  Future<void> _pickUnit(
+    _RecipeRow row,
+    IngredientView view,
+    String name,
+  ) async {
+    final known = row.units
+        .where((u) => normalizeUnitName(u.name) == normalizeUnitName(name))
+        .firstOrNull;
+    final base = known != null && known.factorToBase == Decimal.one
+        ? null
+        : known;
+    if (known != null) {
+      _switchUnit(row, base);
+      return;
+    }
+    final saved = await editUnit(
+      context,
+      ref,
+      view.ingredient,
+      forRecipe: true,
+      name: name.isEmpty ? null : name,
+      askFactor: name.isNotEmpty,
+    );
+    if (saved == null || !mounted) return;
+    await _loadUnits(row);
+    _switchUnit(row, saved);
+  }
+
+  /// Ganti satuan sambil mempertahankan takaran dalam satuan dasar.
+  void _switchUnit(_RecipeRow row, UnitOption? unit) {
+    final base = row.qtyBase;
+    setState(() {
+      row.unit = unit;
+      if (base != null) {
+        row.qty.text = formatDecimal(
+          unit == null ? base : divide(base, unit.factorToBase),
+          maxDecimals: 3,
+        );
+      }
+    });
   }
 
   @override
   void dispose() {
+    _draftTimer?.cancel();
+    // Keluar dari form dengan perubahan belum disimpan: jadi draf (FR-20.1).
+    if (!_loading && _writeDraft()) {
+      final router = _router;
+      final path = widget.id == null
+          ? '/menu/baru?draf=${Uri.encodeComponent(_draftId)}'
+          : '/menu/${widget.id}/ubah';
+      final messenger = _messenger;
+      // Setelah frame ini: saat form ditutup karena seluruh aplikasi ditutup,
+      // messenger sudah tidak ada dan snackbar dilewati.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (messenger == null || !messenger.mounted) return;
+        messenger.showSnackBar(
+          SnackBar(
+            content: const Text('Disimpan sebagai draf'),
+            action: router == null
+                ? null
+                : SnackBarAction(
+                    label: 'Lanjutkan',
+                    onPressed: () => router.push(path),
+                  ),
+          ),
+        );
+      });
+    }
     for (final c in [
       _name,
       _yield,
@@ -162,7 +473,7 @@ class _MenuFormScreenState extends ConsumerState<MenuFormScreen> {
     final lines = <RecipeLine>[];
     for (final r in _recipe) {
       final v = byId[r.ingredientId];
-      final qty = parseDecimalInput(r.qty.text);
+      final qty = r.qtyBase;
       if (v == null || qty == null || qty <= Decimal.zero) continue;
       lines.add(
         RecipeLine(
@@ -248,7 +559,9 @@ class _MenuFormScreenState extends ConsumerState<MenuFormScreen> {
       if (created == null || !mounted) return;
       id = created;
     }
-    setState(() => _recipe.add(_RecipeRow(id)));
+    final row = _RecipeRow(id);
+    setState(() => _recipe.add(row));
+    await _loadUnits(row);
   }
 
   Future<void> _editWage(Business business) async {
@@ -289,10 +602,12 @@ class _MenuFormScreenState extends ConsumerState<MenuFormScreen> {
       targetMarkupPct: parseDecimalInput(_markup.text),
       recipe: [
         for (final r in _recipe)
-          if ((parseDecimalInput(r.qty.text) ?? Decimal.zero) > Decimal.zero)
+          if ((r.qtyBase ?? Decimal.zero) > Decimal.zero)
             RecipeInput(
               ingredientId: r.ingredientId,
-              qtyBase: parseDecimalInput(r.qty.text)!,
+              qtyBase: r.qtyBase!,
+              unitName: r.unit?.name,
+              unitFactor: r.unit?.factorToBase,
             ),
       ],
       costs: [
@@ -318,10 +633,14 @@ class _MenuFormScreenState extends ConsumerState<MenuFormScreen> {
       final repo = ref.read(productRepositoryProvider);
       if (widget.id == null) {
         final id = await repo.createProduct(business.id, input);
+        _saved = true;
+        await _drafts.remove(_draftId);
         if (!mounted) return;
         context.pushReplacement('/menu/$id');
       } else {
         await repo.updateProduct(widget.id!, input);
+        _saved = true;
+        await _drafts.remove(_draftId);
         if (!mounted) return;
         context.pop();
       }
@@ -350,12 +669,67 @@ class _MenuFormScreenState extends ConsumerState<MenuFormScreen> {
     const number = TextInputType.numberWithOptions(decimal: true);
     final (statusLabel, statusKind) = hppStatusPill(preview.status);
     final hpp = preview.hpp;
+    for (final r in _recipe) {
+      _hook(r.qty);
+    }
+    for (final c in _costs) {
+      _hook(c.name);
+      _hook(c.amount);
+    }
+    // Perubahan lewat pilihan (mode, satuan, baris) juga masuk draf.
+    _scheduleDraft();
+    final pending = _pendingDraft;
 
     return Scaffold(
       appBar: AppBar(title: Text(title)),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+        padding: readablePadding(
+          context,
+          const EdgeInsets.fromLTRB(20, 4, 20, 24),
+        ),
         children: [
+          if (pending != null) ...[
+            Container(
+              padding: const EdgeInsets.fromLTRB(14, 12, 8, 6),
+              decoration: BoxDecoration(
+                color: AppColors.primaryContainer,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Ada perubahan belum disimpan dari '
+                    '${formatShortDate(pending.savedAt)} '
+                    '${formatTime(pending.savedAt)}.',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.onPrimaryContainer,
+                    ),
+                  ),
+                  Wrap(
+                    alignment: WrapAlignment.end,
+                    spacing: 4,
+                    children: [
+                      TextButton(
+                        onPressed: () => _useDraft(false),
+                        child: const Text('Buang draf'),
+                      ),
+                      FilledButton(
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size(0, 40),
+                        ),
+                        onPressed: () => _useDraft(true),
+                        child: const Text('Pakai draf'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
           TextField(
             controller: _name,
             textCapitalization: TextCapitalization.sentences,
@@ -454,7 +828,10 @@ class _MenuFormScreenState extends ConsumerState<MenuFormScreen> {
             ),
           const SizedBox(height: 8),
           OutlinedButton.icon(
-            onPressed: () => _addIngredient(ingredients),
+            onPressed: () => _addIngredient([
+              for (final v in ingredients)
+                if (!v.isArchived) v,
+            ]),
             icon: const Icon(Icons.add),
             label: const Text('Tambah bahan'),
           ),
@@ -621,7 +998,7 @@ class _MenuFormScreenState extends ConsumerState<MenuFormScreen> {
   }
 
   Widget _recipeRow(_RecipeRow row, IngredientView? v) {
-    final unit = v?.ingredient.baseUnit.code ?? '';
+    final unit = v?.ingredient.unitLabel ?? '';
     final avg = v?.avgUnitCost;
     final (note, color) = v == null
         ? ('Memuat…', AppColors.textMuted)
@@ -633,50 +1010,114 @@ class _MenuFormScreenState extends ConsumerState<MenuFormScreen> {
             '${formatUnitPrice(avg, unit)} · stok ${formatQty(v.stock, unit)}',
             AppColors.textMuted,
           );
+    final base = row.qtyBase;
+    final converted = row.unit != null && base != null && v != null;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 4, 8),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  v?.ingredient.name ?? '…',
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      v?.ingredient.name ?? '…',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(note, style: TextStyle(fontSize: 12, color: color)),
+                  ],
+                ),
+              ),
+              SizedBox(
+                width: 72,
+                child: TextField(
+                  controller: row.qty,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  textAlign: TextAlign.end,
+                  onChanged: (_) => setState(() {}),
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    hintText: '0',
                   ),
                 ),
-                Text(note, style: TextStyle(fontSize: 12, color: color)),
-              ],
-            ),
-          ),
-          SizedBox(
-            width: 104,
-            child: TextField(
-              controller: row.qty,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
               ),
+              if (v == null)
+                Padding(
+                  padding: const EdgeInsets.only(left: 6),
+                  child: Text(unit),
+                )
+              else
+                _unitMenu(row, v),
+              IconButton(
+                tooltip: 'Hapus dari resep',
+                onPressed: () => setState(() {
+                  _recipe.remove(row);
+                  row.qty.dispose();
+                }),
+                icon: const Icon(Icons.close, size: 20),
+              ),
+            ],
+          ),
+          if (converted)
+            Text(
+              [
+                '= ${formatQty(base, unit)}',
+                if (avg != null)
+                  '${formatRupiah(toRupiah(base * avg))} per resep',
+              ].join(' · '),
               textAlign: TextAlign.end,
-              onChanged: (_) => setState(() {}),
-              decoration: InputDecoration(
-                isDense: true,
-                hintText: '0',
-                suffixText: unit,
-              ),
+              style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Pilihan satuan takaran: satuan dasar, satuan bahan ini, dan satuan dapur
+  /// (sdt, sdm, gelas) yang ditanya konversinya bila belum ada (FR-20.3).
+  Widget _unitMenu(_RecipeRow row, IngredientView v) {
+    final names = [
+      for (final u in row.units) u.name,
+      for (final k in kitchenUnits)
+        if (!row.units.any((u) => normalizeUnitName(u.name) == k)) k,
+    ];
+    final current = row.unit?.name ?? v.ingredient.unitLabel;
+    return PopupMenuButton<String>(
+      tooltip: 'Satuan takaran',
+      onSelected: (name) => _pickUnit(row, v, name),
+      itemBuilder: (_) => [
+        for (final n in names)
+          PopupMenuItem(
+            value: n,
+            child: Text(
+              row.units.any((u) => u.name == n) ? n : '$n (isi konversi)',
             ),
           ),
-          IconButton(
-            tooltip: 'Hapus dari resep',
-            onPressed: () => setState(() {
-              _recipe.remove(row);
-              row.qty.dispose();
-            }),
-            icon: const Icon(Icons.close, size: 20),
-          ),
-        ],
+        const PopupMenuItem(value: '', child: Text('+ Satuan resep lain')),
+      ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              current,
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                color: AppColors.primary,
+              ),
+            ),
+            const Icon(Icons.arrow_drop_down, color: AppColors.primary),
+          ],
+        ),
       ),
     );
   }
@@ -881,8 +1322,8 @@ class _IngredientPickerState extends State<_IngredientPicker> {
                     ListTile(
                       title: Text(v.ingredient.name),
                       subtitle: Text(
-                        '${formatUnitPrice(v.avgUnitCost, v.ingredient.baseUnit.code)}'
-                        ' · stok ${formatQty(v.stock, v.ingredient.baseUnit.code)}',
+                        '${formatUnitPrice(v.avgUnitCost, v.ingredient.unitLabel)}'
+                        ' · stok ${formatQty(v.stock, v.ingredient.unitLabel)}',
                       ),
                       onTap: () => Navigator.pop(context, v.ingredient.id),
                     ),

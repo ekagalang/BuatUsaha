@@ -6,6 +6,7 @@ import '../../data/repositories/order_repository.dart';
 import '../../domain/costing/costing.dart';
 import '../common/format.dart';
 import '../common/widgets.dart';
+import '../layout.dart';
 import '../theme.dart';
 
 /// Pesanan selesai yang HPP-nya berubah setelah koreksi harga bahan; pengguna
@@ -48,7 +49,10 @@ class _CostCorrectionScreenState extends ConsumerState<CostCorrectionScreen> {
       body: corrections.isLoading && list.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : ListView(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+              padding: readablePadding(
+                context,
+                const EdgeInsets.fromLTRB(20, 4, 20, 24),
+              ),
               children: [
                 const Text(
                   'Harga bahan dikoreksi sesudah pesanan ini selesai. Pesanan '

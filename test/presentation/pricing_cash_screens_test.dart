@@ -12,6 +12,7 @@ import 'package:buat_usaha/presentation/menu/price_simulation_screen.dart';
 import 'package:buat_usaha/presentation/orders/order_form_screen.dart';
 import 'package:buat_usaha/presentation/theme.dart';
 
+import '../support/screen.dart';
 import '../support/seed.dart';
 
 void main() {
@@ -33,8 +34,7 @@ void main() {
     double textScale = 1,
     double height = 2400,
   }) async {
-    await tester.binding.setSurfaceSize(Size(360, height));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+    setScreenSize(tester, Size(360, height));
     final router = GoRouter(
       routes: [GoRoute(path: '/', builder: (_, _) => home)],
     );

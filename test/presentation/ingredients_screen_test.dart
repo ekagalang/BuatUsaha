@@ -11,6 +11,8 @@ import 'package:buat_usaha/data/repositories/stock_repository.dart';
 import 'package:buat_usaha/presentation/stock/ingredients_screen.dart';
 import 'package:buat_usaha/presentation/theme.dart';
 
+import '../support/screen.dart';
+
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
 
@@ -44,6 +46,7 @@ void main() {
       );
     });
 
+    setScreenSize(tester, const Size(360, 1200));
     await tester.pumpWidget(
       ProviderScope(
         overrides: [appDatabaseProvider.overrideWithValue(db)],

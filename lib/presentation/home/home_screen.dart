@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/providers.dart';
+import '../../data/repositories/stock_repository.dart' show IngredientUnitLabel;
 import '../../data/repositories/order_repository.dart';
 import '../../data/repositories/product_repository.dart';
 import '../../domain/enums.dart';
@@ -10,6 +11,7 @@ import '../common/format.dart';
 import '../common/widgets.dart';
 import '../orders/orders_screen.dart' show OrderCard;
 import '../reports/expenses_screen.dart';
+import '../layout.dart';
 import '../motion.dart';
 import '../theme.dart';
 import '../update/update_widgets.dart';
@@ -67,17 +69,38 @@ class HomeScreen extends ConsumerWidget {
           // Versi baru tersedia (FR-11.4), di atas status hari ini.
           const UpdateCard(),
           const SizedBox(height: 12),
-          _TodayHero(day: today),
-          const SizedBox(height: 20),
-          const SectionTitle('Catat cepat'),
-          const SizedBox(height: 8),
-          const _QuickActions(),
-          const SizedBox(height: 20),
-          _OrdersToday(day: today),
-          const SizedBox(height: 20),
-          _Values(day: today),
-          const SizedBox(height: 20),
-          const _Attention(),
+          // Tablet: status di kiri, catat cepat dan pesanan di kanan
+          // (FR-21.4); di HP bertumpuk seperti biasa.
+          TwoColumns(
+            left: [
+              _TodayHero(day: today),
+              const SizedBox(height: 20),
+              _Values(day: today),
+              const SizedBox(height: 20),
+              const _Attention(),
+            ],
+            right: [
+              const SectionTitle('Catat cepat'),
+              const SizedBox(height: 8),
+              const _QuickActions(),
+              const SizedBox(height: 20),
+              _OrdersToday(day: today),
+              const SizedBox(height: 20),
+            ],
+            narrow: [
+              _TodayHero(day: today),
+              const SizedBox(height: 20),
+              const SectionTitle('Catat cepat'),
+              const SizedBox(height: 8),
+              const _QuickActions(),
+              const SizedBox(height: 20),
+              _OrdersToday(day: today),
+              const SizedBox(height: 20),
+              _Values(day: today),
+              const SizedBox(height: 20),
+              const _Attention(),
+            ],
+          ),
         ],
       ),
     );
@@ -217,15 +240,16 @@ class _QuickActions extends ConsumerWidget {
         () => context.push('/tutup-hari'),
       ),
     ];
-    return GridView.count(
-      crossAxisCount: 3,
+    return GridView(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 8,
-      crossAxisSpacing: 8,
-      // Lebih tinggi saat huruf sistem diperbesar.
-      childAspectRatio: (1.15 / MediaQuery.textScalerOf(context).scale(1))
-          .clamp(0.6, 1.15),
+      // Tinggi tetap (ikut besar huruf), tidak bergantung lebar kolom.
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        mainAxisSpacing: 8,
+        crossAxisSpacing: 8,
+        mainAxisExtent: 60 + MediaQuery.textScalerOf(context).scale(36),
+      ),
       children: [
         for (final (label, icon, onTap) in actions)
           Pressable(
@@ -263,7 +287,9 @@ class _QuickActions extends ConsumerWidget {
   /// Catat produksi lewat detail menu ready stock.
   Future<void> _pickMenu(BuildContext context, WidgetRef ref) async {
     final menus = (ref.read(productsProvider).value ?? const <ProductView>[])
-        .where((p) => p.isReadyStock && p.costing.lines.isNotEmpty)
+        .where(
+          (p) => !p.isArchived && p.isReadyStock && p.costing.lines.isNotEmpty,
+        )
         .toList();
     if (menus.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -453,8 +479,8 @@ class _Attention extends ConsumerWidget {
       for (final i in ingredients.where((i) => i.isLow))
         (
           '${i.ingredient.name} menipis',
-          'Sisa ${formatQty(i.stock, i.ingredient.baseUnit.code)}, batas '
-              'minimum ${formatQty(i.minStock, i.ingredient.baseUnit.code)}',
+          'Sisa ${formatQty(i.stock, i.ingredient.unitLabel)}, batas '
+              'minimum ${formatQty(i.minStock, i.ingredient.unitLabel)}',
           '/bahan/${i.ingredient.id}',
         ),
       for (final p in products.where(

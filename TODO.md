@@ -189,7 +189,7 @@ Login tidak lagi opsional: aplikasi dibuka → layar Masuk dulu, terasa seperti 
 ## README (21 Okt 2026)
 
 - [x] README ditulis ulang: penjelasan aplikasi, fitur per tab, cara memasang, riwayat versi 1.0.0–1.3.0 dan sebelum 1.0.0; bagian pengembang tetap
-- [ ] Commit + push ke `dev` (pengguna memutuskan)
+- [x] Commit + push ke `dev` (3587150)
 
 ## Uji pakai sendiri (minggu 12)
 
@@ -256,8 +256,38 @@ Rincian FR-11 sampai FR-19 ada di PRD tab "Rencana fase 2b". Setiap sprint: rinc
   - [x] Test: 10 data, 5 layar (termasuk huruf 130%), 1 sinkron dua HP + peleburan akun; 224 tes lulus
   - [x] Versi 1.3.0 dan CHANGELOG
   - [x] Build APK lokal 1.3.0 (build 14)
-  - [ ] Commit + push ke dev, rilis 1.3.0 (pengguna)
+  - [x] Commit + push ke dev (5d850f7)
+  - [ ] Rilis 1.3.0 (pengguna)
   - [ ] Coba di HP: harga GoFood, simulasi, isi saldo awal akun kas lalu cocokkan dengan uang sebenarnya (pengguna)
+- [ ] **Perbaikan uji pakai** (FR-20.1–20.7, rilis 1.4.0, skema v7), dari masukan pengguna 22 Okt 2026:
+  - [x] Diselidiki dari backup pengguna: laba bersih naik Rp178.386 karena stok pertama diisi lewat Stock opname (selisih lebih dihitung laba); penyesuaian stok Rp−2.179 mengubah nilai modal tetapi tidak masuk laporan
+  - [x] Pemulihan backup milik pengguna lain ke akun yang berisi data lain berhasil di uji komputer; eror di HP belum bisa ditiru
+  - [x] Dirinci di PRD ("Perbaikan uji pakai"): draf menu, kelola/arsip bahan, satuan bebas + isi kemasan + satuan dapur, hapus/arsip menu, potongan channel Rupiah per pcs, stok awal + perbaikan data lama, pemulihan backup
+  - [x] Mockup baris "Perbaikan uji pakai" di canvas: `DrafMenu`, `KelolaBahan`, `SatuanBahan`, `HapusMenuChannel`
+  - [x] Revisi atas permintaan pengguna (fleksibel, tidak membatasi): cara hitung bahan bisa diganti dengan konversi, hapus/arsip jadi pilihan (termasuk bahan di resep, menu dengan pesanan terbuka, sisa stok), draf menu tanpa batas, konversi satuan dapur bisa diubah, satuan bawaan bisa disembunyikan, nama mirip ditawarkan bukan dipaksa; PRD dan 4 mockup diperbarui
+  - [x] Mockup hasil revisi di-acc pengguna (22 Okt 2026)
+  - [x] Skema v7: `ingredients.count_unit`, `archived_at`; `products.archived_at`; `recipe_items.unit_name`, `unit_factor`; `sales_channels.fee_per_pcs`; `ingredient_units.hidden`, `for_recipe`; penanda perbaikan stok awal di `sync_state`
+  - [x] Stok awal: Isi/Ubah stok awal, tawaran saat opname/penyesuaian di bahan stok 0, perbaikan data lama sekali jalan (id baris tetap, aman di dua HP), penyesuaian stok ikut rugi/selisih bahan
+  - [x] Potongan channel Rupiah per pcs: Pengaturan › Channel, form pesanan, saran harga channel
+  - [x] Ubah bahan (termasuk ganti cara hitung dengan konversi), arsip/pulihkan/hapus bahan dan menu dengan pilihan sisa stok dan resep; saringan Diarsipkan di Bahan dan Menu
+  - [x] Satuan: nama satuan jumlah bebas di semua layar, satuan beli dengan isi + harga per satuan di form Belanja, satuan dapur di resep, satuan bawaan bisa disembunyikan, nama mirip ditawarkan
+  - [x] Draf menu otomatis (lokal HP): bagian Draf di Menu, banner Pakai/Buang draf di Ubah resep, snackbar saat keluar form
+  - [x] Pengaman backup: versi lebih baru ditolak dengan pesan jelas, tanggal backup tampil sebelum diganti
+  - [x] Test: 14 data + 5 layar (termasuk huruf 130%); 243 tes lulus
+  - [x] Versi 1.4.0, CHANGELOG, README, Design.md bagian 18
+  - [x] Build APK lokal 1.4.0 (build 17)
+  - [ ] Commit + push ke dev, rilis 1.4.0 (pengguna)
+  - [ ] Pesan eror dan versi aplikasi saat impor backup pengguna lain (pengguna)
+- [x] **Tampilan tablet** (FR-21.1–21.7, permintaan pengguna 22 Okt 2026): di tablet tampil seperti HP yang melebar
+  - [x] Dirinci di PRD ("Tampilan tablet"): ukuran ringkas/sedang/lebar, rel navigasi, daftar + detail berdampingan, Beranda/Laporan dua kolom, kisi kartu, form lebar baca 720 dp
+  - [x] Mockup baris "Tampilan tablet" di canvas: `TabletBeranda`, `TabletPesanan` (bisa diklik), `TabletMenuTegak`, `TabletForm`
+  - [x] Mockup di-acc pengguna (22 Okt 2026)
+  - [x] Kode: `layout.dart` (ukuran jendela, lebar baca, kisi, dua kolom, daftar + detail), rel navigasi, Beranda/Laporan dua kolom, 16 layar form/detail dengan lebar baca
+  - [x] Ketahuan saat tes dan sudah diperbaiki: bar tombol bawah sempat memenuhi layar di form, kotak Catat cepat terpotong di kolom kanan
+  - [x] Test: 7 tes tablet (1280×800, 720×1280 huruf 130%, HP 360); tes lama pakai `setScreenSize`; 250 tes lulus
+  - [x] Masuk versi 1.4.0 (belum dirilis): CHANGELOG, README, Design.md bagian 19
+  - [x] Build APK lokal 1.4.0 (build 17) dengan tampilan tablet
+  - [ ] Coba di tablet tegak dan mendatar (pengguna)
 - [ ] **S6 Sub-resep dan paket/hampers** (FR-16.x)
 - [ ] **S7 Siap komersial:** Kebijakan privasi dan Ketentuan layanan di GitHub Pages, Hapus akun dan semua data, halaman cara hapus akun (FR-17.x)
 - [ ] **S8 Mode gelap dan kunci PIN/sidik jari** (FR-18.x)

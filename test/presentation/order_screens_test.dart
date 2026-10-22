@@ -10,11 +10,11 @@ import 'package:buat_usaha/presentation/orders/order_form_screen.dart';
 import 'package:buat_usaha/presentation/orders/orders_screen.dart';
 import 'package:buat_usaha/presentation/theme.dart';
 
+import '../support/screen.dart';
 import '../support/seed.dart';
 
 Future<void> _pump(WidgetTester tester, AppDatabase db, Widget screen) async {
-  await tester.binding.setSurfaceSize(const Size(360, 2600));
-  addTearDown(() => tester.binding.setSurfaceSize(null));
+  setScreenSize(tester, const Size(360, 2600));
   await tester.pumpWidget(
     ProviderScope(
       overrides: [appDatabaseProvider.overrideWithValue(db)],

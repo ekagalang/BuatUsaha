@@ -10,6 +10,7 @@ import '../../domain/stock/units.dart';
 import '../common/format.dart';
 import '../common/rupiah_input.dart';
 import '../common/widgets.dart';
+import '../layout.dart';
 import '../theme.dart';
 import 'labels.dart';
 
@@ -137,7 +138,10 @@ class _IngredientFormScreenState extends ConsumerState<IngredientFormScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Bahan baru')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+        padding: readablePadding(
+          context,
+          const EdgeInsets.fromLTRB(20, 4, 20, 24),
+        ),
         children: [
           TextField(
             controller: _name,

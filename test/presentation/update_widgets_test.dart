@@ -6,6 +6,7 @@ import 'package:buat_usaha/presentation/theme.dart';
 import 'package:buat_usaha/presentation/update/update_widgets.dart';
 import 'package:buat_usaha/services/update_controller.dart';
 
+import '../support/screen.dart';
 import '../support/fake_updates.dart';
 
 Future<void> _settle(WidgetTester tester) async {
@@ -188,8 +189,7 @@ void main() {
       original?.call(details);
     };
     addTearDown(() => FlutterError.onError = original);
-    await tester.binding.setSurfaceSize(const Size(360, 1200));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+    setScreenSize(tester, const Size(360, 1200));
 
     final c = await pump(tester, beranda(), textScale: 1.3);
     await c.read(updateControllerProvider.notifier).check();

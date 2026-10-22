@@ -2218,6 +2218,28 @@ class $IngredientsTable extends Ingredients
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _countUnitMeta = const VerificationMeta(
+    'countUnit',
+  );
+  @override
+  late final GeneratedColumn<String> countUnit = GeneratedColumn<String>(
+    'count_unit',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _archivedAtMeta = const VerificationMeta(
+    'archivedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> archivedAt = GeneratedColumn<DateTime>(
+    'archived_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2234,6 +2256,8 @@ class $IngredientsTable extends Ingredients
     priceIsEstimate,
     lowStockNotified,
     note,
+    countUnit,
+    archivedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2332,6 +2356,18 @@ class $IngredientsTable extends Ingredients
         note.isAcceptableOrUnknown(data['note']!, _noteMeta),
       );
     }
+    if (data.containsKey('count_unit')) {
+      context.handle(
+        _countUnitMeta,
+        countUnit.isAcceptableOrUnknown(data['count_unit']!, _countUnitMeta),
+      );
+    }
+    if (data.containsKey('archived_at')) {
+      context.handle(
+        _archivedAtMeta,
+        archivedAt.isAcceptableOrUnknown(data['archived_at']!, _archivedAtMeta),
+      );
+    }
     return context;
   }
 
@@ -2401,6 +2437,14 @@ class $IngredientsTable extends Ingredients
         DriftSqlType.string,
         data['${effectivePrefix}note'],
       ),
+      countUnit: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}count_unit'],
+      ),
+      archivedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}archived_at'],
+      ),
     );
   }
 
@@ -2439,6 +2483,14 @@ class Ingredient extends DataClass implements Insertable<Ingredient> {
   final bool priceIsEstimate;
   final bool lowStockNotified;
   final String? note;
+
+  /// Nama satuan untuk bahan yang dihitung per jumlah (butir, lembar, …);
+  /// kosong = pcs (FR-20.3). Skema v7.
+  final String? countUnit;
+
+  /// Diarsipkan: disembunyikan dari daftar dan pilihan, bisa dipulihkan
+  /// (FR-20.2). Dihapus padahal punya riwayat memakai `deletedAt`. Skema v7.
+  final DateTime? archivedAt;
   const Ingredient({
     required this.id,
     required this.createdAt,
@@ -2454,6 +2506,8 @@ class Ingredient extends DataClass implements Insertable<Ingredient> {
     required this.priceIsEstimate,
     required this.lowStockNotified,
     this.note,
+    this.countUnit,
+    this.archivedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2486,6 +2540,12 @@ class Ingredient extends DataClass implements Insertable<Ingredient> {
     if (!nullToAbsent || note != null) {
       map['note'] = Variable<String>(note);
     }
+    if (!nullToAbsent || countUnit != null) {
+      map['count_unit'] = Variable<String>(countUnit);
+    }
+    if (!nullToAbsent || archivedAt != null) {
+      map['archived_at'] = Variable<DateTime>(archivedAt);
+    }
     return map;
   }
 
@@ -2509,6 +2569,12 @@ class Ingredient extends DataClass implements Insertable<Ingredient> {
       priceIsEstimate: Value(priceIsEstimate),
       lowStockNotified: Value(lowStockNotified),
       note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      countUnit: countUnit == null && nullToAbsent
+          ? const Value.absent()
+          : Value(countUnit),
+      archivedAt: archivedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(archivedAt),
     );
   }
 
@@ -2532,6 +2598,8 @@ class Ingredient extends DataClass implements Insertable<Ingredient> {
       priceIsEstimate: serializer.fromJson<bool>(json['priceIsEstimate']),
       lowStockNotified: serializer.fromJson<bool>(json['lowStockNotified']),
       note: serializer.fromJson<String?>(json['note']),
+      countUnit: serializer.fromJson<String?>(json['countUnit']),
+      archivedAt: serializer.fromJson<DateTime?>(json['archivedAt']),
     );
   }
   @override
@@ -2552,6 +2620,8 @@ class Ingredient extends DataClass implements Insertable<Ingredient> {
       'priceIsEstimate': serializer.toJson<bool>(priceIsEstimate),
       'lowStockNotified': serializer.toJson<bool>(lowStockNotified),
       'note': serializer.toJson<String?>(note),
+      'countUnit': serializer.toJson<String?>(countUnit),
+      'archivedAt': serializer.toJson<DateTime?>(archivedAt),
     };
   }
 
@@ -2570,6 +2640,8 @@ class Ingredient extends DataClass implements Insertable<Ingredient> {
     bool? priceIsEstimate,
     bool? lowStockNotified,
     Value<String?> note = const Value.absent(),
+    Value<String?> countUnit = const Value.absent(),
+    Value<DateTime?> archivedAt = const Value.absent(),
   }) => Ingredient(
     id: id ?? this.id,
     createdAt: createdAt ?? this.createdAt,
@@ -2585,6 +2657,8 @@ class Ingredient extends DataClass implements Insertable<Ingredient> {
     priceIsEstimate: priceIsEstimate ?? this.priceIsEstimate,
     lowStockNotified: lowStockNotified ?? this.lowStockNotified,
     note: note.present ? note.value : this.note,
+    countUnit: countUnit.present ? countUnit.value : this.countUnit,
+    archivedAt: archivedAt.present ? archivedAt.value : this.archivedAt,
   );
   Ingredient copyWithCompanion(IngredientsCompanion data) {
     return Ingredient(
@@ -2612,6 +2686,10 @@ class Ingredient extends DataClass implements Insertable<Ingredient> {
           ? data.lowStockNotified.value
           : this.lowStockNotified,
       note: data.note.present ? data.note.value : this.note,
+      countUnit: data.countUnit.present ? data.countUnit.value : this.countUnit,
+      archivedAt: data.archivedAt.present
+          ? data.archivedAt.value
+          : this.archivedAt,
     );
   }
 
@@ -2631,7 +2709,9 @@ class Ingredient extends DataClass implements Insertable<Ingredient> {
           ..write('avgUnitCost: $avgUnitCost, ')
           ..write('priceIsEstimate: $priceIsEstimate, ')
           ..write('lowStockNotified: $lowStockNotified, ')
-          ..write('note: $note')
+          ..write('note: $note, ')
+          ..write('countUnit: $countUnit, ')
+          ..write('archivedAt: $archivedAt')
           ..write(')'))
         .toString();
   }
@@ -2652,6 +2732,8 @@ class Ingredient extends DataClass implements Insertable<Ingredient> {
     priceIsEstimate,
     lowStockNotified,
     note,
+    countUnit,
+    archivedAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -2670,7 +2752,9 @@ class Ingredient extends DataClass implements Insertable<Ingredient> {
           other.avgUnitCost == this.avgUnitCost &&
           other.priceIsEstimate == this.priceIsEstimate &&
           other.lowStockNotified == this.lowStockNotified &&
-          other.note == this.note);
+          other.note == this.note &&
+          other.countUnit == this.countUnit &&
+          other.archivedAt == this.archivedAt);
 }
 
 class IngredientsCompanion extends UpdateCompanion<Ingredient> {
@@ -2688,6 +2772,8 @@ class IngredientsCompanion extends UpdateCompanion<Ingredient> {
   final Value<bool> priceIsEstimate;
   final Value<bool> lowStockNotified;
   final Value<String?> note;
+  final Value<String?> countUnit;
+  final Value<DateTime?> archivedAt;
   final Value<int> rowid;
   const IngredientsCompanion({
     this.id = const Value.absent(),
@@ -2704,6 +2790,8 @@ class IngredientsCompanion extends UpdateCompanion<Ingredient> {
     this.priceIsEstimate = const Value.absent(),
     this.lowStockNotified = const Value.absent(),
     this.note = const Value.absent(),
+    this.countUnit = const Value.absent(),
+    this.archivedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   IngredientsCompanion.insert({
@@ -2721,6 +2809,8 @@ class IngredientsCompanion extends UpdateCompanion<Ingredient> {
     this.priceIsEstimate = const Value.absent(),
     this.lowStockNotified = const Value.absent(),
     this.note = const Value.absent(),
+    this.countUnit = const Value.absent(),
+    this.archivedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : businessId = Value(businessId),
        name = Value(name),
@@ -2740,6 +2830,8 @@ class IngredientsCompanion extends UpdateCompanion<Ingredient> {
     Expression<bool>? priceIsEstimate,
     Expression<bool>? lowStockNotified,
     Expression<String>? note,
+    Expression<String>? countUnit,
+    Expression<DateTime>? archivedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2757,6 +2849,8 @@ class IngredientsCompanion extends UpdateCompanion<Ingredient> {
       if (priceIsEstimate != null) 'price_is_estimate': priceIsEstimate,
       if (lowStockNotified != null) 'low_stock_notified': lowStockNotified,
       if (note != null) 'note': note,
+      if (countUnit != null) 'count_unit': countUnit,
+      if (archivedAt != null) 'archived_at': archivedAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2776,6 +2870,8 @@ class IngredientsCompanion extends UpdateCompanion<Ingredient> {
     Value<bool>? priceIsEstimate,
     Value<bool>? lowStockNotified,
     Value<String?>? note,
+    Value<String?>? countUnit,
+    Value<DateTime?>? archivedAt,
     Value<int>? rowid,
   }) {
     return IngredientsCompanion(
@@ -2793,6 +2889,8 @@ class IngredientsCompanion extends UpdateCompanion<Ingredient> {
       priceIsEstimate: priceIsEstimate ?? this.priceIsEstimate,
       lowStockNotified: lowStockNotified ?? this.lowStockNotified,
       note: note ?? this.note,
+      countUnit: countUnit ?? this.countUnit,
+      archivedAt: archivedAt ?? this.archivedAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2846,6 +2944,12 @@ class IngredientsCompanion extends UpdateCompanion<Ingredient> {
     if (note.present) {
       map['note'] = Variable<String>(note.value);
     }
+    if (countUnit.present) {
+      map['count_unit'] = Variable<String>(countUnit.value);
+    }
+    if (archivedAt.present) {
+      map['archived_at'] = Variable<DateTime>(archivedAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2869,6 +2973,8 @@ class IngredientsCompanion extends UpdateCompanion<Ingredient> {
           ..write('priceIsEstimate: $priceIsEstimate, ')
           ..write('lowStockNotified: $lowStockNotified, ')
           ..write('note: $note, ')
+          ..write('countUnit: $countUnit, ')
+          ..write('archivedAt: $archivedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -2977,6 +3083,34 @@ class $IngredientUnitsTable extends IngredientUnits
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _hiddenMeta = const VerificationMeta('hidden');
+  @override
+  late final GeneratedColumn<bool> hidden = GeneratedColumn<bool>(
+    'hidden',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("hidden" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _forRecipeMeta = const VerificationMeta(
+    'forRecipe',
+  );
+  @override
+  late final GeneratedColumn<bool> forRecipe = GeneratedColumn<bool>(
+    'for_recipe',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("for_recipe" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2987,6 +3121,8 @@ class $IngredientUnitsTable extends IngredientUnits
     unitName,
     factorToBase,
     isDefaultPurchase,
+    hidden,
+    forRecipe,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3060,6 +3196,18 @@ class $IngredientUnitsTable extends IngredientUnits
         ),
       );
     }
+    if (data.containsKey('hidden')) {
+      context.handle(
+        _hiddenMeta,
+        hidden.isAcceptableOrUnknown(data['hidden']!, _hiddenMeta),
+      );
+    }
+    if (data.containsKey('for_recipe')) {
+      context.handle(
+        _forRecipeMeta,
+        forRecipe.isAcceptableOrUnknown(data['for_recipe']!, _forRecipeMeta),
+      );
+    }
     return context;
   }
 
@@ -3105,6 +3253,14 @@ class $IngredientUnitsTable extends IngredientUnits
         DriftSqlType.bool,
         data['${effectivePrefix}is_default_purchase'],
       )!,
+      hidden: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}hidden'],
+      )!,
+      forRecipe: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}for_recipe'],
+      )!,
     );
   }
 
@@ -3123,6 +3279,13 @@ class IngredientUnit extends DataClass implements Insertable<IngredientUnit> {
   final String unitName;
   final double factorToBase;
   final bool isDefaultPurchase;
+
+  /// Satuan bawaan (kg, lusin, …) yang disembunyikan untuk bahan ini.
+  /// Skema v7.
+  final bool hidden;
+
+  /// Satuan takaran resep (sdm, sdt, gelas, siung, …). Skema v7.
+  final bool forRecipe;
   const IngredientUnit({
     required this.id,
     required this.createdAt,
@@ -3132,6 +3295,8 @@ class IngredientUnit extends DataClass implements Insertable<IngredientUnit> {
     required this.unitName,
     required this.factorToBase,
     required this.isDefaultPurchase,
+    required this.hidden,
+    required this.forRecipe,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3146,6 +3311,8 @@ class IngredientUnit extends DataClass implements Insertable<IngredientUnit> {
     map['unit_name'] = Variable<String>(unitName);
     map['factor_to_base'] = Variable<double>(factorToBase);
     map['is_default_purchase'] = Variable<bool>(isDefaultPurchase);
+    map['hidden'] = Variable<bool>(hidden);
+    map['for_recipe'] = Variable<bool>(forRecipe);
     return map;
   }
 
@@ -3161,6 +3328,8 @@ class IngredientUnit extends DataClass implements Insertable<IngredientUnit> {
       unitName: Value(unitName),
       factorToBase: Value(factorToBase),
       isDefaultPurchase: Value(isDefaultPurchase),
+      hidden: Value(hidden),
+      forRecipe: Value(forRecipe),
     );
   }
 
@@ -3178,6 +3347,8 @@ class IngredientUnit extends DataClass implements Insertable<IngredientUnit> {
       unitName: serializer.fromJson<String>(json['unitName']),
       factorToBase: serializer.fromJson<double>(json['factorToBase']),
       isDefaultPurchase: serializer.fromJson<bool>(json['isDefaultPurchase']),
+      hidden: serializer.fromJson<bool>(json['hidden']),
+      forRecipe: serializer.fromJson<bool>(json['forRecipe']),
     );
   }
   @override
@@ -3192,6 +3363,8 @@ class IngredientUnit extends DataClass implements Insertable<IngredientUnit> {
       'unitName': serializer.toJson<String>(unitName),
       'factorToBase': serializer.toJson<double>(factorToBase),
       'isDefaultPurchase': serializer.toJson<bool>(isDefaultPurchase),
+      'hidden': serializer.toJson<bool>(hidden),
+      'forRecipe': serializer.toJson<bool>(forRecipe),
     };
   }
 
@@ -3204,6 +3377,8 @@ class IngredientUnit extends DataClass implements Insertable<IngredientUnit> {
     String? unitName,
     double? factorToBase,
     bool? isDefaultPurchase,
+    bool? hidden,
+    bool? forRecipe,
   }) => IngredientUnit(
     id: id ?? this.id,
     createdAt: createdAt ?? this.createdAt,
@@ -3213,6 +3388,8 @@ class IngredientUnit extends DataClass implements Insertable<IngredientUnit> {
     unitName: unitName ?? this.unitName,
     factorToBase: factorToBase ?? this.factorToBase,
     isDefaultPurchase: isDefaultPurchase ?? this.isDefaultPurchase,
+    hidden: hidden ?? this.hidden,
+    forRecipe: forRecipe ?? this.forRecipe,
   );
   IngredientUnit copyWithCompanion(IngredientUnitsCompanion data) {
     return IngredientUnit(
@@ -3230,6 +3407,8 @@ class IngredientUnit extends DataClass implements Insertable<IngredientUnit> {
       isDefaultPurchase: data.isDefaultPurchase.present
           ? data.isDefaultPurchase.value
           : this.isDefaultPurchase,
+      hidden: data.hidden.present ? data.hidden.value : this.hidden,
+      forRecipe: data.forRecipe.present ? data.forRecipe.value : this.forRecipe,
     );
   }
 
@@ -3243,7 +3422,9 @@ class IngredientUnit extends DataClass implements Insertable<IngredientUnit> {
           ..write('ingredientId: $ingredientId, ')
           ..write('unitName: $unitName, ')
           ..write('factorToBase: $factorToBase, ')
-          ..write('isDefaultPurchase: $isDefaultPurchase')
+          ..write('isDefaultPurchase: $isDefaultPurchase, ')
+          ..write('hidden: $hidden, ')
+          ..write('forRecipe: $forRecipe')
           ..write(')'))
         .toString();
   }
@@ -3258,6 +3439,8 @@ class IngredientUnit extends DataClass implements Insertable<IngredientUnit> {
     unitName,
     factorToBase,
     isDefaultPurchase,
+    hidden,
+    forRecipe,
   );
   @override
   bool operator ==(Object other) =>
@@ -3270,7 +3453,9 @@ class IngredientUnit extends DataClass implements Insertable<IngredientUnit> {
           other.ingredientId == this.ingredientId &&
           other.unitName == this.unitName &&
           other.factorToBase == this.factorToBase &&
-          other.isDefaultPurchase == this.isDefaultPurchase);
+          other.isDefaultPurchase == this.isDefaultPurchase &&
+          other.hidden == this.hidden &&
+          other.forRecipe == this.forRecipe);
 }
 
 class IngredientUnitsCompanion extends UpdateCompanion<IngredientUnit> {
@@ -3282,6 +3467,8 @@ class IngredientUnitsCompanion extends UpdateCompanion<IngredientUnit> {
   final Value<String> unitName;
   final Value<double> factorToBase;
   final Value<bool> isDefaultPurchase;
+  final Value<bool> hidden;
+  final Value<bool> forRecipe;
   final Value<int> rowid;
   const IngredientUnitsCompanion({
     this.id = const Value.absent(),
@@ -3292,6 +3479,8 @@ class IngredientUnitsCompanion extends UpdateCompanion<IngredientUnit> {
     this.unitName = const Value.absent(),
     this.factorToBase = const Value.absent(),
     this.isDefaultPurchase = const Value.absent(),
+    this.hidden = const Value.absent(),
+    this.forRecipe = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   IngredientUnitsCompanion.insert({
@@ -3303,6 +3492,8 @@ class IngredientUnitsCompanion extends UpdateCompanion<IngredientUnit> {
     required String unitName,
     required double factorToBase,
     this.isDefaultPurchase = const Value.absent(),
+    this.hidden = const Value.absent(),
+    this.forRecipe = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : ingredientId = Value(ingredientId),
        unitName = Value(unitName),
@@ -3316,6 +3507,8 @@ class IngredientUnitsCompanion extends UpdateCompanion<IngredientUnit> {
     Expression<String>? unitName,
     Expression<double>? factorToBase,
     Expression<bool>? isDefaultPurchase,
+    Expression<bool>? hidden,
+    Expression<bool>? forRecipe,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -3327,6 +3520,8 @@ class IngredientUnitsCompanion extends UpdateCompanion<IngredientUnit> {
       if (unitName != null) 'unit_name': unitName,
       if (factorToBase != null) 'factor_to_base': factorToBase,
       if (isDefaultPurchase != null) 'is_default_purchase': isDefaultPurchase,
+      if (hidden != null) 'hidden': hidden,
+      if (forRecipe != null) 'for_recipe': forRecipe,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -3340,6 +3535,8 @@ class IngredientUnitsCompanion extends UpdateCompanion<IngredientUnit> {
     Value<String>? unitName,
     Value<double>? factorToBase,
     Value<bool>? isDefaultPurchase,
+    Value<bool>? hidden,
+    Value<bool>? forRecipe,
     Value<int>? rowid,
   }) {
     return IngredientUnitsCompanion(
@@ -3351,6 +3548,8 @@ class IngredientUnitsCompanion extends UpdateCompanion<IngredientUnit> {
       unitName: unitName ?? this.unitName,
       factorToBase: factorToBase ?? this.factorToBase,
       isDefaultPurchase: isDefaultPurchase ?? this.isDefaultPurchase,
+      hidden: hidden ?? this.hidden,
+      forRecipe: forRecipe ?? this.forRecipe,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3382,6 +3581,12 @@ class IngredientUnitsCompanion extends UpdateCompanion<IngredientUnit> {
     if (isDefaultPurchase.present) {
       map['is_default_purchase'] = Variable<bool>(isDefaultPurchase.value);
     }
+    if (hidden.present) {
+      map['hidden'] = Variable<bool>(hidden.value);
+    }
+    if (forRecipe.present) {
+      map['for_recipe'] = Variable<bool>(forRecipe.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -3399,6 +3604,8 @@ class IngredientUnitsCompanion extends UpdateCompanion<IngredientUnit> {
           ..write('unitName: $unitName, ')
           ..write('factorToBase: $factorToBase, ')
           ..write('isDefaultPurchase: $isDefaultPurchase, ')
+          ..write('hidden: $hidden, ')
+          ..write('forRecipe: $forRecipe, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -6524,6 +6731,17 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
     requiredDuringInsert: false,
     defaultValue: const Constant(0.0),
   );
+  static const VerificationMeta _archivedAtMeta = const VerificationMeta(
+    'archivedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> archivedAt = GeneratedColumn<DateTime>(
+    'archived_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -6546,6 +6764,7 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
     stockUnitCost,
     shelfLifeDays,
     safetyStock,
+    archivedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -6693,6 +6912,12 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
         ),
       );
     }
+    if (data.containsKey('archived_at')) {
+      context.handle(
+        _archivedAtMeta,
+        archivedAt.isAcceptableOrUnknown(data['archived_at']!, _archivedAtMeta),
+      );
+    }
     return context;
   }
 
@@ -6786,6 +7011,10 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
         DriftSqlType.double,
         data['${effectivePrefix}safety_stock'],
       )!,
+      archivedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}archived_at'],
+      ),
     );
   }
 
@@ -6840,6 +7069,10 @@ class Product extends DataClass implements Insertable<Product> {
   /// Stok jaga: pcs yang ingin selalu tersedia, ikut dihitung di daftar
   /// belanja (FR-12.10). Skema v4.
   final double safetyStock;
+
+  /// Diarsipkan: disembunyikan dari daftar dan pilihan, bisa dipulihkan
+  /// (FR-20.4). Dihapus padahal punya riwayat memakai `deletedAt`. Skema v7.
+  final DateTime? archivedAt;
   const Product({
     required this.id,
     required this.createdAt,
@@ -6861,6 +7094,7 @@ class Product extends DataClass implements Insertable<Product> {
     required this.stockUnitCost,
     this.shelfLifeDays,
     required this.safetyStock,
+    this.archivedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -6905,6 +7139,9 @@ class Product extends DataClass implements Insertable<Product> {
       map['shelf_life_days'] = Variable<int>(shelfLifeDays);
     }
     map['safety_stock'] = Variable<double>(safetyStock);
+    if (!nullToAbsent || archivedAt != null) {
+      map['archived_at'] = Variable<DateTime>(archivedAt);
+    }
     return map;
   }
 
@@ -6944,6 +7181,9 @@ class Product extends DataClass implements Insertable<Product> {
           ? const Value.absent()
           : Value(shelfLifeDays),
       safetyStock: Value(safetyStock),
+      archivedAt: archivedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(archivedAt),
     );
   }
 
@@ -6975,6 +7215,7 @@ class Product extends DataClass implements Insertable<Product> {
       stockUnitCost: serializer.fromJson<double>(json['stockUnitCost']),
       shelfLifeDays: serializer.fromJson<int?>(json['shelfLifeDays']),
       safetyStock: serializer.fromJson<double>(json['safetyStock']),
+      archivedAt: serializer.fromJson<DateTime?>(json['archivedAt']),
     );
   }
   @override
@@ -7001,6 +7242,7 @@ class Product extends DataClass implements Insertable<Product> {
       'stockUnitCost': serializer.toJson<double>(stockUnitCost),
       'shelfLifeDays': serializer.toJson<int?>(shelfLifeDays),
       'safetyStock': serializer.toJson<double>(safetyStock),
+      'archivedAt': serializer.toJson<DateTime?>(archivedAt),
     };
   }
 
@@ -7025,6 +7267,7 @@ class Product extends DataClass implements Insertable<Product> {
     double? stockUnitCost,
     Value<int?> shelfLifeDays = const Value.absent(),
     double? safetyStock,
+    Value<DateTime?> archivedAt = const Value.absent(),
   }) => Product(
     id: id ?? this.id,
     createdAt: createdAt ?? this.createdAt,
@@ -7052,6 +7295,7 @@ class Product extends DataClass implements Insertable<Product> {
         ? shelfLifeDays.value
         : this.shelfLifeDays,
     safetyStock: safetyStock ?? this.safetyStock,
+    archivedAt: archivedAt.present ? archivedAt.value : this.archivedAt,
   );
   Product copyWithCompanion(ProductsCompanion data) {
     return Product(
@@ -7093,6 +7337,9 @@ class Product extends DataClass implements Insertable<Product> {
       safetyStock: data.safetyStock.present
           ? data.safetyStock.value
           : this.safetyStock,
+      archivedAt: data.archivedAt.present
+          ? data.archivedAt.value
+          : this.archivedAt,
     );
   }
 
@@ -7118,13 +7365,14 @@ class Product extends DataClass implements Insertable<Product> {
           ..write('currentStock: $currentStock, ')
           ..write('stockUnitCost: $stockUnitCost, ')
           ..write('shelfLifeDays: $shelfLifeDays, ')
-          ..write('safetyStock: $safetyStock')
+          ..write('safetyStock: $safetyStock, ')
+          ..write('archivedAt: $archivedAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     createdAt,
     updatedAt,
@@ -7145,7 +7393,8 @@ class Product extends DataClass implements Insertable<Product> {
     stockUnitCost,
     shelfLifeDays,
     safetyStock,
-  );
+    archivedAt,
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -7169,7 +7418,8 @@ class Product extends DataClass implements Insertable<Product> {
           other.currentStock == this.currentStock &&
           other.stockUnitCost == this.stockUnitCost &&
           other.shelfLifeDays == this.shelfLifeDays &&
-          other.safetyStock == this.safetyStock);
+          other.safetyStock == this.safetyStock &&
+          other.archivedAt == this.archivedAt);
 }
 
 class ProductsCompanion extends UpdateCompanion<Product> {
@@ -7193,6 +7443,7 @@ class ProductsCompanion extends UpdateCompanion<Product> {
   final Value<double> stockUnitCost;
   final Value<int?> shelfLifeDays;
   final Value<double> safetyStock;
+  final Value<DateTime?> archivedAt;
   final Value<int> rowid;
   const ProductsCompanion({
     this.id = const Value.absent(),
@@ -7215,6 +7466,7 @@ class ProductsCompanion extends UpdateCompanion<Product> {
     this.stockUnitCost = const Value.absent(),
     this.shelfLifeDays = const Value.absent(),
     this.safetyStock = const Value.absent(),
+    this.archivedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ProductsCompanion.insert({
@@ -7238,6 +7490,7 @@ class ProductsCompanion extends UpdateCompanion<Product> {
     this.stockUnitCost = const Value.absent(),
     this.shelfLifeDays = const Value.absent(),
     this.safetyStock = const Value.absent(),
+    this.archivedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : businessId = Value(businessId),
        name = Value(name),
@@ -7264,6 +7517,7 @@ class ProductsCompanion extends UpdateCompanion<Product> {
     Expression<double>? stockUnitCost,
     Expression<int>? shelfLifeDays,
     Expression<double>? safetyStock,
+    Expression<DateTime>? archivedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -7287,6 +7541,7 @@ class ProductsCompanion extends UpdateCompanion<Product> {
       if (stockUnitCost != null) 'stock_unit_cost': stockUnitCost,
       if (shelfLifeDays != null) 'shelf_life_days': shelfLifeDays,
       if (safetyStock != null) 'safety_stock': safetyStock,
+      if (archivedAt != null) 'archived_at': archivedAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -7312,6 +7567,7 @@ class ProductsCompanion extends UpdateCompanion<Product> {
     Value<double>? stockUnitCost,
     Value<int?>? shelfLifeDays,
     Value<double>? safetyStock,
+    Value<DateTime?>? archivedAt,
     Value<int>? rowid,
   }) {
     return ProductsCompanion(
@@ -7335,6 +7591,7 @@ class ProductsCompanion extends UpdateCompanion<Product> {
       stockUnitCost: stockUnitCost ?? this.stockUnitCost,
       shelfLifeDays: shelfLifeDays ?? this.shelfLifeDays,
       safetyStock: safetyStock ?? this.safetyStock,
+      archivedAt: archivedAt ?? this.archivedAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -7406,6 +7663,9 @@ class ProductsCompanion extends UpdateCompanion<Product> {
     if (safetyStock.present) {
       map['safety_stock'] = Variable<double>(safetyStock.value);
     }
+    if (archivedAt.present) {
+      map['archived_at'] = Variable<DateTime>(archivedAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -7435,6 +7695,7 @@ class ProductsCompanion extends UpdateCompanion<Product> {
           ..write('stockUnitCost: $stockUnitCost, ')
           ..write('shelfLifeDays: $shelfLifeDays, ')
           ..write('safetyStock: $safetyStock, ')
+          ..write('archivedAt: $archivedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -7531,6 +7792,28 @@ class $RecipeItemsTable extends RecipeItems
     type: DriftSqlType.double,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _unitNameMeta = const VerificationMeta(
+    'unitName',
+  );
+  @override
+  late final GeneratedColumn<String> unitName = GeneratedColumn<String>(
+    'unit_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _unitFactorMeta = const VerificationMeta(
+    'unitFactor',
+  );
+  @override
+  late final GeneratedColumn<double> unitFactor = GeneratedColumn<double>(
+    'unit_factor',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -7540,6 +7823,8 @@ class $RecipeItemsTable extends RecipeItems
     productId,
     ingredientId,
     qtyBase,
+    unitName,
+    unitFactor,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -7601,6 +7886,18 @@ class $RecipeItemsTable extends RecipeItems
     } else if (isInserting) {
       context.missing(_qtyBaseMeta);
     }
+    if (data.containsKey('unit_name')) {
+      context.handle(
+        _unitNameMeta,
+        unitName.isAcceptableOrUnknown(data['unit_name']!, _unitNameMeta),
+      );
+    }
+    if (data.containsKey('unit_factor')) {
+      context.handle(
+        _unitFactorMeta,
+        unitFactor.isAcceptableOrUnknown(data['unit_factor']!, _unitFactorMeta),
+      );
+    }
     return context;
   }
 
@@ -7642,6 +7939,14 @@ class $RecipeItemsTable extends RecipeItems
         DriftSqlType.double,
         data['${effectivePrefix}qty_base'],
       )!,
+      unitName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}unit_name'],
+      ),
+      unitFactor: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}unit_factor'],
+      ),
     );
   }
 
@@ -7659,6 +7964,11 @@ class RecipeItem extends DataClass implements Insertable<RecipeItem> {
   final String productId;
   final String ingredientId;
   final double qtyBase;
+
+  /// Satuan takaran yang diketik (mis. sdm) dan faktornya ke satuan dasar;
+  /// kosong = satuan dasar (FR-20.3). Skema v7.
+  final String? unitName;
+  final double? unitFactor;
   const RecipeItem({
     required this.id,
     required this.createdAt,
@@ -7667,6 +7977,8 @@ class RecipeItem extends DataClass implements Insertable<RecipeItem> {
     required this.productId,
     required this.ingredientId,
     required this.qtyBase,
+    this.unitName,
+    this.unitFactor,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -7680,6 +7992,12 @@ class RecipeItem extends DataClass implements Insertable<RecipeItem> {
     map['product_id'] = Variable<String>(productId);
     map['ingredient_id'] = Variable<String>(ingredientId);
     map['qty_base'] = Variable<double>(qtyBase);
+    if (!nullToAbsent || unitName != null) {
+      map['unit_name'] = Variable<String>(unitName);
+    }
+    if (!nullToAbsent || unitFactor != null) {
+      map['unit_factor'] = Variable<double>(unitFactor);
+    }
     return map;
   }
 
@@ -7694,6 +8012,12 @@ class RecipeItem extends DataClass implements Insertable<RecipeItem> {
       productId: Value(productId),
       ingredientId: Value(ingredientId),
       qtyBase: Value(qtyBase),
+      unitName: unitName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(unitName),
+      unitFactor: unitFactor == null && nullToAbsent
+          ? const Value.absent()
+          : Value(unitFactor),
     );
   }
 
@@ -7710,6 +8034,8 @@ class RecipeItem extends DataClass implements Insertable<RecipeItem> {
       productId: serializer.fromJson<String>(json['productId']),
       ingredientId: serializer.fromJson<String>(json['ingredientId']),
       qtyBase: serializer.fromJson<double>(json['qtyBase']),
+      unitName: serializer.fromJson<String?>(json['unitName']),
+      unitFactor: serializer.fromJson<double?>(json['unitFactor']),
     );
   }
   @override
@@ -7723,6 +8049,8 @@ class RecipeItem extends DataClass implements Insertable<RecipeItem> {
       'productId': serializer.toJson<String>(productId),
       'ingredientId': serializer.toJson<String>(ingredientId),
       'qtyBase': serializer.toJson<double>(qtyBase),
+      'unitName': serializer.toJson<String?>(unitName),
+      'unitFactor': serializer.toJson<double?>(unitFactor),
     };
   }
 
@@ -7734,6 +8062,8 @@ class RecipeItem extends DataClass implements Insertable<RecipeItem> {
     String? productId,
     String? ingredientId,
     double? qtyBase,
+    Value<String?> unitName = const Value.absent(),
+    Value<double?> unitFactor = const Value.absent(),
   }) => RecipeItem(
     id: id ?? this.id,
     createdAt: createdAt ?? this.createdAt,
@@ -7742,6 +8072,8 @@ class RecipeItem extends DataClass implements Insertable<RecipeItem> {
     productId: productId ?? this.productId,
     ingredientId: ingredientId ?? this.ingredientId,
     qtyBase: qtyBase ?? this.qtyBase,
+    unitName: unitName.present ? unitName.value : this.unitName,
+    unitFactor: unitFactor.present ? unitFactor.value : this.unitFactor,
   );
   RecipeItem copyWithCompanion(RecipeItemsCompanion data) {
     return RecipeItem(
@@ -7754,6 +8086,10 @@ class RecipeItem extends DataClass implements Insertable<RecipeItem> {
           ? data.ingredientId.value
           : this.ingredientId,
       qtyBase: data.qtyBase.present ? data.qtyBase.value : this.qtyBase,
+      unitName: data.unitName.present ? data.unitName.value : this.unitName,
+      unitFactor: data.unitFactor.present
+          ? data.unitFactor.value
+          : this.unitFactor,
     );
   }
 
@@ -7766,7 +8102,9 @@ class RecipeItem extends DataClass implements Insertable<RecipeItem> {
           ..write('deletedAt: $deletedAt, ')
           ..write('productId: $productId, ')
           ..write('ingredientId: $ingredientId, ')
-          ..write('qtyBase: $qtyBase')
+          ..write('qtyBase: $qtyBase, ')
+          ..write('unitName: $unitName, ')
+          ..write('unitFactor: $unitFactor')
           ..write(')'))
         .toString();
   }
@@ -7780,6 +8118,8 @@ class RecipeItem extends DataClass implements Insertable<RecipeItem> {
     productId,
     ingredientId,
     qtyBase,
+    unitName,
+    unitFactor,
   );
   @override
   bool operator ==(Object other) =>
@@ -7791,7 +8131,9 @@ class RecipeItem extends DataClass implements Insertable<RecipeItem> {
           other.deletedAt == this.deletedAt &&
           other.productId == this.productId &&
           other.ingredientId == this.ingredientId &&
-          other.qtyBase == this.qtyBase);
+          other.qtyBase == this.qtyBase &&
+          other.unitName == this.unitName &&
+          other.unitFactor == this.unitFactor);
 }
 
 class RecipeItemsCompanion extends UpdateCompanion<RecipeItem> {
@@ -7802,6 +8144,8 @@ class RecipeItemsCompanion extends UpdateCompanion<RecipeItem> {
   final Value<String> productId;
   final Value<String> ingredientId;
   final Value<double> qtyBase;
+  final Value<String?> unitName;
+  final Value<double?> unitFactor;
   final Value<int> rowid;
   const RecipeItemsCompanion({
     this.id = const Value.absent(),
@@ -7811,6 +8155,8 @@ class RecipeItemsCompanion extends UpdateCompanion<RecipeItem> {
     this.productId = const Value.absent(),
     this.ingredientId = const Value.absent(),
     this.qtyBase = const Value.absent(),
+    this.unitName = const Value.absent(),
+    this.unitFactor = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   RecipeItemsCompanion.insert({
@@ -7821,6 +8167,8 @@ class RecipeItemsCompanion extends UpdateCompanion<RecipeItem> {
     required String productId,
     required String ingredientId,
     required double qtyBase,
+    this.unitName = const Value.absent(),
+    this.unitFactor = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : productId = Value(productId),
        ingredientId = Value(ingredientId),
@@ -7833,6 +8181,8 @@ class RecipeItemsCompanion extends UpdateCompanion<RecipeItem> {
     Expression<String>? productId,
     Expression<String>? ingredientId,
     Expression<double>? qtyBase,
+    Expression<String>? unitName,
+    Expression<double>? unitFactor,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -7843,6 +8193,8 @@ class RecipeItemsCompanion extends UpdateCompanion<RecipeItem> {
       if (productId != null) 'product_id': productId,
       if (ingredientId != null) 'ingredient_id': ingredientId,
       if (qtyBase != null) 'qty_base': qtyBase,
+      if (unitName != null) 'unit_name': unitName,
+      if (unitFactor != null) 'unit_factor': unitFactor,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -7855,6 +8207,8 @@ class RecipeItemsCompanion extends UpdateCompanion<RecipeItem> {
     Value<String>? productId,
     Value<String>? ingredientId,
     Value<double>? qtyBase,
+    Value<String?>? unitName,
+    Value<double?>? unitFactor,
     Value<int>? rowid,
   }) {
     return RecipeItemsCompanion(
@@ -7865,6 +8219,8 @@ class RecipeItemsCompanion extends UpdateCompanion<RecipeItem> {
       productId: productId ?? this.productId,
       ingredientId: ingredientId ?? this.ingredientId,
       qtyBase: qtyBase ?? this.qtyBase,
+      unitName: unitName ?? this.unitName,
+      unitFactor: unitFactor ?? this.unitFactor,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -7893,6 +8249,12 @@ class RecipeItemsCompanion extends UpdateCompanion<RecipeItem> {
     if (qtyBase.present) {
       map['qty_base'] = Variable<double>(qtyBase.value);
     }
+    if (unitName.present) {
+      map['unit_name'] = Variable<String>(unitName.value);
+    }
+    if (unitFactor.present) {
+      map['unit_factor'] = Variable<double>(unitFactor.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -7909,6 +8271,8 @@ class RecipeItemsCompanion extends UpdateCompanion<RecipeItem> {
           ..write('productId: $productId, ')
           ..write('ingredientId: $ingredientId, ')
           ..write('qtyBase: $qtyBase, ')
+          ..write('unitName: $unitName, ')
+          ..write('unitFactor: $unitFactor, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -9193,6 +9557,18 @@ class $SalesChannelsTable extends SalesChannels
     ),
     defaultValue: const Constant(true),
   );
+  static const VerificationMeta _feePerPcsMeta = const VerificationMeta(
+    'feePerPcs',
+  );
+  @override
+  late final GeneratedColumn<int> feePerPcs = GeneratedColumn<int>(
+    'fee_per_pcs',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -9204,6 +9580,7 @@ class $SalesChannelsTable extends SalesChannels
     commissionPct,
     feePerOrder,
     isActive,
+    feePerPcs,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -9278,6 +9655,12 @@ class $SalesChannelsTable extends SalesChannels
         isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta),
       );
     }
+    if (data.containsKey('fee_per_pcs')) {
+      context.handle(
+        _feePerPcsMeta,
+        feePerPcs.isAcceptableOrUnknown(data['fee_per_pcs']!, _feePerPcsMeta),
+      );
+    }
     return context;
   }
 
@@ -9323,6 +9706,10 @@ class $SalesChannelsTable extends SalesChannels
         DriftSqlType.bool,
         data['${effectivePrefix}is_active'],
       )!,
+      feePerPcs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}fee_per_pcs'],
+      )!,
     );
   }
 
@@ -9346,6 +9733,9 @@ class SalesChannel extends DataClass implements Insertable<SalesChannel> {
   /// Biaya tetap per transaksi.
   final int feePerOrder;
   final bool isActive;
+
+  /// Potongan Rupiah per pcs (FR-20.5). Skema v7.
+  final int feePerPcs;
   const SalesChannel({
     required this.id,
     required this.createdAt,
@@ -9356,6 +9746,7 @@ class SalesChannel extends DataClass implements Insertable<SalesChannel> {
     required this.commissionPct,
     required this.feePerOrder,
     required this.isActive,
+    required this.feePerPcs,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -9371,6 +9762,7 @@ class SalesChannel extends DataClass implements Insertable<SalesChannel> {
     map['commission_pct'] = Variable<double>(commissionPct);
     map['fee_per_order'] = Variable<int>(feePerOrder);
     map['is_active'] = Variable<bool>(isActive);
+    map['fee_per_pcs'] = Variable<int>(feePerPcs);
     return map;
   }
 
@@ -9387,6 +9779,7 @@ class SalesChannel extends DataClass implements Insertable<SalesChannel> {
       commissionPct: Value(commissionPct),
       feePerOrder: Value(feePerOrder),
       isActive: Value(isActive),
+      feePerPcs: Value(feePerPcs),
     );
   }
 
@@ -9405,6 +9798,7 @@ class SalesChannel extends DataClass implements Insertable<SalesChannel> {
       commissionPct: serializer.fromJson<double>(json['commissionPct']),
       feePerOrder: serializer.fromJson<int>(json['feePerOrder']),
       isActive: serializer.fromJson<bool>(json['isActive']),
+      feePerPcs: serializer.fromJson<int>(json['feePerPcs']),
     );
   }
   @override
@@ -9420,6 +9814,7 @@ class SalesChannel extends DataClass implements Insertable<SalesChannel> {
       'commissionPct': serializer.toJson<double>(commissionPct),
       'feePerOrder': serializer.toJson<int>(feePerOrder),
       'isActive': serializer.toJson<bool>(isActive),
+      'feePerPcs': serializer.toJson<int>(feePerPcs),
     };
   }
 
@@ -9433,6 +9828,7 @@ class SalesChannel extends DataClass implements Insertable<SalesChannel> {
     double? commissionPct,
     int? feePerOrder,
     bool? isActive,
+    int? feePerPcs,
   }) => SalesChannel(
     id: id ?? this.id,
     createdAt: createdAt ?? this.createdAt,
@@ -9443,6 +9839,7 @@ class SalesChannel extends DataClass implements Insertable<SalesChannel> {
     commissionPct: commissionPct ?? this.commissionPct,
     feePerOrder: feePerOrder ?? this.feePerOrder,
     isActive: isActive ?? this.isActive,
+    feePerPcs: feePerPcs ?? this.feePerPcs,
   );
   SalesChannel copyWithCompanion(SalesChannelsCompanion data) {
     return SalesChannel(
@@ -9461,6 +9858,7 @@ class SalesChannel extends DataClass implements Insertable<SalesChannel> {
           ? data.feePerOrder.value
           : this.feePerOrder,
       isActive: data.isActive.present ? data.isActive.value : this.isActive,
+      feePerPcs: data.feePerPcs.present ? data.feePerPcs.value : this.feePerPcs,
     );
   }
 
@@ -9475,7 +9873,8 @@ class SalesChannel extends DataClass implements Insertable<SalesChannel> {
           ..write('name: $name, ')
           ..write('commissionPct: $commissionPct, ')
           ..write('feePerOrder: $feePerOrder, ')
-          ..write('isActive: $isActive')
+          ..write('isActive: $isActive, ')
+          ..write('feePerPcs: $feePerPcs')
           ..write(')'))
         .toString();
   }
@@ -9491,6 +9890,7 @@ class SalesChannel extends DataClass implements Insertable<SalesChannel> {
     commissionPct,
     feePerOrder,
     isActive,
+    feePerPcs,
   );
   @override
   bool operator ==(Object other) =>
@@ -9504,7 +9904,8 @@ class SalesChannel extends DataClass implements Insertable<SalesChannel> {
           other.name == this.name &&
           other.commissionPct == this.commissionPct &&
           other.feePerOrder == this.feePerOrder &&
-          other.isActive == this.isActive);
+          other.isActive == this.isActive &&
+          other.feePerPcs == this.feePerPcs);
 }
 
 class SalesChannelsCompanion extends UpdateCompanion<SalesChannel> {
@@ -9517,6 +9918,7 @@ class SalesChannelsCompanion extends UpdateCompanion<SalesChannel> {
   final Value<double> commissionPct;
   final Value<int> feePerOrder;
   final Value<bool> isActive;
+  final Value<int> feePerPcs;
   final Value<int> rowid;
   const SalesChannelsCompanion({
     this.id = const Value.absent(),
@@ -9528,6 +9930,7 @@ class SalesChannelsCompanion extends UpdateCompanion<SalesChannel> {
     this.commissionPct = const Value.absent(),
     this.feePerOrder = const Value.absent(),
     this.isActive = const Value.absent(),
+    this.feePerPcs = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SalesChannelsCompanion.insert({
@@ -9540,6 +9943,7 @@ class SalesChannelsCompanion extends UpdateCompanion<SalesChannel> {
     this.commissionPct = const Value.absent(),
     this.feePerOrder = const Value.absent(),
     this.isActive = const Value.absent(),
+    this.feePerPcs = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : businessId = Value(businessId),
        name = Value(name);
@@ -9553,6 +9957,7 @@ class SalesChannelsCompanion extends UpdateCompanion<SalesChannel> {
     Expression<double>? commissionPct,
     Expression<int>? feePerOrder,
     Expression<bool>? isActive,
+    Expression<int>? feePerPcs,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -9565,6 +9970,7 @@ class SalesChannelsCompanion extends UpdateCompanion<SalesChannel> {
       if (commissionPct != null) 'commission_pct': commissionPct,
       if (feePerOrder != null) 'fee_per_order': feePerOrder,
       if (isActive != null) 'is_active': isActive,
+      if (feePerPcs != null) 'fee_per_pcs': feePerPcs,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -9579,6 +9985,7 @@ class SalesChannelsCompanion extends UpdateCompanion<SalesChannel> {
     Value<double>? commissionPct,
     Value<int>? feePerOrder,
     Value<bool>? isActive,
+    Value<int>? feePerPcs,
     Value<int>? rowid,
   }) {
     return SalesChannelsCompanion(
@@ -9591,6 +9998,7 @@ class SalesChannelsCompanion extends UpdateCompanion<SalesChannel> {
       commissionPct: commissionPct ?? this.commissionPct,
       feePerOrder: feePerOrder ?? this.feePerOrder,
       isActive: isActive ?? this.isActive,
+      feePerPcs: feePerPcs ?? this.feePerPcs,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -9625,6 +10033,9 @@ class SalesChannelsCompanion extends UpdateCompanion<SalesChannel> {
     if (isActive.present) {
       map['is_active'] = Variable<bool>(isActive.value);
     }
+    if (feePerPcs.present) {
+      map['fee_per_pcs'] = Variable<int>(feePerPcs.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -9643,6 +10054,7 @@ class SalesChannelsCompanion extends UpdateCompanion<SalesChannel> {
           ..write('commissionPct: $commissionPct, ')
           ..write('feePerOrder: $feePerOrder, ')
           ..write('isActive: $isActive, ')
+          ..write('feePerPcs: $feePerPcs, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -23451,6 +23863,8 @@ typedef $$IngredientsTableCreateCompanionBuilder =
       Value<bool> priceIsEstimate,
       Value<bool> lowStockNotified,
       Value<String?> note,
+      Value<String?> countUnit,
+      Value<DateTime?> archivedAt,
       Value<int> rowid,
     });
 typedef $$IngredientsTableUpdateCompanionBuilder =
@@ -23469,6 +23883,8 @@ typedef $$IngredientsTableUpdateCompanionBuilder =
       Value<bool> priceIsEstimate,
       Value<bool> lowStockNotified,
       Value<String?> note,
+      Value<String?> countUnit,
+      Value<DateTime?> archivedAt,
       Value<int> rowid,
     });
 
@@ -23662,6 +24078,16 @@ class $$IngredientsTableFilterComposer
 
   ColumnFilters<String> get note => $composableBuilder(
     column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get countUnit => $composableBuilder(
+    column: $table.countUnit,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get archivedAt => $composableBuilder(
+    column: $table.archivedAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -23888,6 +24314,16 @@ class $$IngredientsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get countUnit => $composableBuilder(
+    column: $table.countUnit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get archivedAt => $composableBuilder(
+    column: $table.archivedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$BusinessesTableOrderingComposer get businessId {
     final $$BusinessesTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -23967,6 +24403,14 @@ class $$IngredientsTableAnnotationComposer
 
   GeneratedColumn<String> get note =>
       $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<String> get countUnit =>
+      $composableBuilder(column: $table.countUnit, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get archivedAt => $composableBuilder(
+    column: $table.archivedAt,
+    builder: (column) => column,
+  );
 
   $$BusinessesTableAnnotationComposer get businessId {
     final $$BusinessesTableAnnotationComposer composer = $composerBuilder(
@@ -24167,6 +24611,8 @@ class $$IngredientsTableTableManager
                 Value<bool> priceIsEstimate = const Value.absent(),
                 Value<bool> lowStockNotified = const Value.absent(),
                 Value<String?> note = const Value.absent(),
+                Value<String?> countUnit = const Value.absent(),
+                Value<DateTime?> archivedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => IngredientsCompanion(
                 id: id,
@@ -24183,6 +24629,8 @@ class $$IngredientsTableTableManager
                 priceIsEstimate: priceIsEstimate,
                 lowStockNotified: lowStockNotified,
                 note: note,
+                countUnit: countUnit,
+                archivedAt: archivedAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -24201,6 +24649,8 @@ class $$IngredientsTableTableManager
                 Value<bool> priceIsEstimate = const Value.absent(),
                 Value<bool> lowStockNotified = const Value.absent(),
                 Value<String?> note = const Value.absent(),
+                Value<String?> countUnit = const Value.absent(),
+                Value<DateTime?> archivedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => IngredientsCompanion.insert(
                 id: id,
@@ -24217,6 +24667,8 @@ class $$IngredientsTableTableManager
                 priceIsEstimate: priceIsEstimate,
                 lowStockNotified: lowStockNotified,
                 note: note,
+                countUnit: countUnit,
+                archivedAt: archivedAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -24421,6 +24873,8 @@ typedef $$IngredientUnitsTableCreateCompanionBuilder =
       required String unitName,
       required double factorToBase,
       Value<bool> isDefaultPurchase,
+      Value<bool> hidden,
+      Value<bool> forRecipe,
       Value<int> rowid,
     });
 typedef $$IngredientUnitsTableUpdateCompanionBuilder =
@@ -24433,6 +24887,8 @@ typedef $$IngredientUnitsTableUpdateCompanionBuilder =
       Value<String> unitName,
       Value<double> factorToBase,
       Value<bool> isDefaultPurchase,
+      Value<bool> hidden,
+      Value<bool> forRecipe,
       Value<int> rowid,
     });
 
@@ -24508,6 +24964,16 @@ class $$IngredientUnitsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<bool> get hidden => $composableBuilder(
+    column: $table.hidden,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get forRecipe => $composableBuilder(
+    column: $table.forRecipe,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$IngredientsTableFilterComposer get ingredientId {
     final $$IngredientsTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -24576,6 +25042,16 @@ class $$IngredientUnitsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get hidden => $composableBuilder(
+    column: $table.hidden,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get forRecipe => $composableBuilder(
+    column: $table.forRecipe,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$IngredientsTableOrderingComposer get ingredientId {
     final $$IngredientsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -24633,6 +25109,12 @@ class $$IngredientUnitsTableAnnotationComposer
     column: $table.isDefaultPurchase,
     builder: (column) => column,
   );
+
+  GeneratedColumn<bool> get hidden =>
+      $composableBuilder(column: $table.hidden, builder: (column) => column);
+
+  GeneratedColumn<bool> get forRecipe =>
+      $composableBuilder(column: $table.forRecipe, builder: (column) => column);
 
   $$IngredientsTableAnnotationComposer get ingredientId {
     final $$IngredientsTableAnnotationComposer composer = $composerBuilder(
@@ -24696,6 +25178,8 @@ class $$IngredientUnitsTableTableManager
                 Value<String> unitName = const Value.absent(),
                 Value<double> factorToBase = const Value.absent(),
                 Value<bool> isDefaultPurchase = const Value.absent(),
+                Value<bool> hidden = const Value.absent(),
+                Value<bool> forRecipe = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => IngredientUnitsCompanion(
                 id: id,
@@ -24706,6 +25190,8 @@ class $$IngredientUnitsTableTableManager
                 unitName: unitName,
                 factorToBase: factorToBase,
                 isDefaultPurchase: isDefaultPurchase,
+                hidden: hidden,
+                forRecipe: forRecipe,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -24718,6 +25204,8 @@ class $$IngredientUnitsTableTableManager
                 required String unitName,
                 required double factorToBase,
                 Value<bool> isDefaultPurchase = const Value.absent(),
+                Value<bool> hidden = const Value.absent(),
+                Value<bool> forRecipe = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => IngredientUnitsCompanion.insert(
                 id: id,
@@ -24728,6 +25216,8 @@ class $$IngredientUnitsTableTableManager
                 unitName: unitName,
                 factorToBase: factorToBase,
                 isDefaultPurchase: isDefaultPurchase,
+                hidden: hidden,
+                forRecipe: forRecipe,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -27097,6 +27587,7 @@ typedef $$ProductsTableCreateCompanionBuilder = ProductsCompanion Function({
   Value<double> stockUnitCost,
   Value<int?> shelfLifeDays,
   Value<double> safetyStock,
+  Value<DateTime?> archivedAt,
   Value<int> rowid,
 });
 typedef $$ProductsTableUpdateCompanionBuilder = ProductsCompanion Function({
@@ -27120,6 +27611,7 @@ typedef $$ProductsTableUpdateCompanionBuilder = ProductsCompanion Function({
   Value<double> stockUnitCost,
   Value<int?> shelfLifeDays,
   Value<double> safetyStock,
+  Value<DateTime?> archivedAt,
   Value<int> rowid,
 });
 
@@ -27394,6 +27886,11 @@ class $$ProductsTableFilterComposer
 
   ColumnFilters<double> get safetyStock => $composableBuilder(
     column: $table.safetyStock,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get archivedAt => $composableBuilder(
+    column: $table.archivedAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -27701,6 +28198,11 @@ class $$ProductsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get archivedAt => $composableBuilder(
+    column: $table.archivedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$BusinessesTableOrderingComposer get businessId {
     final $$BusinessesTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -27805,6 +28307,11 @@ class $$ProductsTableAnnotationComposer
 
   GeneratedColumn<double> get safetyStock => $composableBuilder(
     column: $table.safetyStock,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get archivedAt => $composableBuilder(
+    column: $table.archivedAt,
     builder: (column) => column,
   );
 
@@ -28067,6 +28574,7 @@ class $$ProductsTableTableManager
                 Value<double> stockUnitCost = const Value.absent(),
                 Value<int?> shelfLifeDays = const Value.absent(),
                 Value<double> safetyStock = const Value.absent(),
+                Value<DateTime?> archivedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ProductsCompanion(
                 id: id,
@@ -28089,6 +28597,7 @@ class $$ProductsTableTableManager
                 stockUnitCost: stockUnitCost,
                 shelfLifeDays: shelfLifeDays,
                 safetyStock: safetyStock,
+                archivedAt: archivedAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -28113,6 +28622,7 @@ class $$ProductsTableTableManager
                 Value<double> stockUnitCost = const Value.absent(),
                 Value<int?> shelfLifeDays = const Value.absent(),
                 Value<double> safetyStock = const Value.absent(),
+                Value<DateTime?> archivedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ProductsCompanion.insert(
                 id: id,
@@ -28135,6 +28645,7 @@ class $$ProductsTableTableManager
                 stockUnitCost: stockUnitCost,
                 shelfLifeDays: shelfLifeDays,
                 safetyStock: safetyStock,
+                archivedAt: archivedAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -28386,6 +28897,8 @@ typedef $$RecipeItemsTableCreateCompanionBuilder =
       required String productId,
       required String ingredientId,
       required double qtyBase,
+      Value<String?> unitName,
+      Value<double?> unitFactor,
       Value<int> rowid,
     });
 typedef $$RecipeItemsTableUpdateCompanionBuilder =
@@ -28397,6 +28910,8 @@ typedef $$RecipeItemsTableUpdateCompanionBuilder =
       Value<String> productId,
       Value<String> ingredientId,
       Value<double> qtyBase,
+      Value<String?> unitName,
+      Value<double?> unitFactor,
       Value<int> rowid,
     });
 
@@ -28471,6 +28986,16 @@ class $$RecipeItemsTableFilterComposer
 
   ColumnFilters<double> get qtyBase => $composableBuilder(
     column: $table.qtyBase,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get unitName => $composableBuilder(
+    column: $table.unitName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get unitFactor => $composableBuilder(
+    column: $table.unitFactor,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -28555,6 +29080,16 @@ class $$RecipeItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get unitName => $composableBuilder(
+    column: $table.unitName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get unitFactor => $composableBuilder(
+    column: $table.unitFactor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$ProductsTableOrderingComposer get productId {
     final $$ProductsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -28625,6 +29160,14 @@ class $$RecipeItemsTableAnnotationComposer
 
   GeneratedColumn<double> get qtyBase =>
       $composableBuilder(column: $table.qtyBase, builder: (column) => column);
+
+  GeneratedColumn<String> get unitName =>
+      $composableBuilder(column: $table.unitName, builder: (column) => column);
+
+  GeneratedColumn<double> get unitFactor => $composableBuilder(
+    column: $table.unitFactor,
+    builder: (column) => column,
+  );
 
   $$ProductsTableAnnotationComposer get productId {
     final $$ProductsTableAnnotationComposer composer = $composerBuilder(
@@ -28708,6 +29251,8 @@ class $$RecipeItemsTableTableManager
                 Value<String> productId = const Value.absent(),
                 Value<String> ingredientId = const Value.absent(),
                 Value<double> qtyBase = const Value.absent(),
+                Value<String?> unitName = const Value.absent(),
+                Value<double?> unitFactor = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => RecipeItemsCompanion(
                 id: id,
@@ -28717,6 +29262,8 @@ class $$RecipeItemsTableTableManager
                 productId: productId,
                 ingredientId: ingredientId,
                 qtyBase: qtyBase,
+                unitName: unitName,
+                unitFactor: unitFactor,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -28728,6 +29275,8 @@ class $$RecipeItemsTableTableManager
                 required String productId,
                 required String ingredientId,
                 required double qtyBase,
+                Value<String?> unitName = const Value.absent(),
+                Value<double?> unitFactor = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => RecipeItemsCompanion.insert(
                 id: id,
@@ -28737,6 +29286,8 @@ class $$RecipeItemsTableTableManager
                 productId: productId,
                 ingredientId: ingredientId,
                 qtyBase: qtyBase,
+                unitName: unitName,
+                unitFactor: unitFactor,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -29710,6 +30261,7 @@ typedef $$SalesChannelsTableCreateCompanionBuilder =
       Value<double> commissionPct,
       Value<int> feePerOrder,
       Value<bool> isActive,
+      Value<int> feePerPcs,
       Value<int> rowid,
     });
 typedef $$SalesChannelsTableUpdateCompanionBuilder =
@@ -29723,6 +30275,7 @@ typedef $$SalesChannelsTableUpdateCompanionBuilder =
       Value<double> commissionPct,
       Value<int> feePerOrder,
       Value<bool> isActive,
+      Value<int> feePerPcs,
       Value<int> rowid,
     });
 
@@ -29842,6 +30395,11 @@ class $$SalesChannelsTableFilterComposer
 
   ColumnFilters<bool> get isActive => $composableBuilder(
     column: $table.isActive,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get feePerPcs => $composableBuilder(
+    column: $table.feePerPcs,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -29968,6 +30526,11 @@ class $$SalesChannelsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get feePerPcs => $composableBuilder(
+    column: $table.feePerPcs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$BusinessesTableOrderingComposer get businessId {
     final $$BusinessesTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -30028,6 +30591,9 @@ class $$SalesChannelsTableAnnotationComposer
 
   GeneratedColumn<bool> get isActive =>
       $composableBuilder(column: $table.isActive, builder: (column) => column);
+
+  GeneratedColumn<int> get feePerPcs =>
+      $composableBuilder(column: $table.feePerPcs, builder: (column) => column);
 
   $$BusinessesTableAnnotationComposer get businessId {
     final $$BusinessesTableAnnotationComposer composer = $composerBuilder(
@@ -30145,6 +30711,7 @@ class $$SalesChannelsTableTableManager
                 Value<double> commissionPct = const Value.absent(),
                 Value<int> feePerOrder = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
+                Value<int> feePerPcs = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SalesChannelsCompanion(
                 id: id,
@@ -30156,6 +30723,7 @@ class $$SalesChannelsTableTableManager
                 commissionPct: commissionPct,
                 feePerOrder: feePerOrder,
                 isActive: isActive,
+                feePerPcs: feePerPcs,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -30169,6 +30737,7 @@ class $$SalesChannelsTableTableManager
                 Value<double> commissionPct = const Value.absent(),
                 Value<int> feePerOrder = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
+                Value<int> feePerPcs = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SalesChannelsCompanion.insert(
                 id: id,
@@ -30180,6 +30749,7 @@ class $$SalesChannelsTableTableManager
                 commissionPct: commissionPct,
                 feePerOrder: feePerOrder,
                 isActive: isActive,
+                feePerPcs: feePerPcs,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

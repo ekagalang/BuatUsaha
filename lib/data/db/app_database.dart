@@ -17,6 +17,10 @@ export '../../domain/enums.dart';
 
 part 'app_database.g.dart';
 
+/// Versi skema database; backup dari versi yang lebih tinggi ditolak saat
+/// dipulihkan (FR-20.7).
+const appSchemaVersion = 7;
+
 @DriftDatabase(
   tables: [
     Businesses,
@@ -67,7 +71,11 @@ class AppDatabase extends _$AppDatabase {
   Future<void> closeOnce() => _closing ??= close();
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => appSchemaVersion;
+
+  /// Penanda di `sync_state` (lokal): perbaikan stok awal data lama belum
+  /// dijalankan. Waktunya = saat migrasi v7.
+  static const openingFixKey = '_openingFix';
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -104,6 +112,24 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(payments, payments.cashAccountId);
         await m.addColumn(purchases, purchases.cashAccountId);
         await m.addColumn(expenses, expenses.cashAccountId);
+      }
+      if (from < 7) {
+        await m.addColumn(ingredients, ingredients.countUnit);
+        await m.addColumn(ingredients, ingredients.archivedAt);
+        await m.addColumn(products, products.archivedAt);
+        await m.addColumn(recipeItems, recipeItems.unitName);
+        await m.addColumn(recipeItems, recipeItems.unitFactor);
+        await m.addColumn(salesChannels, salesChannels.feePerPcs);
+        await m.addColumn(ingredientUnits, ingredientUnits.hidden);
+        await m.addColumn(ingredientUnits, ingredientUnits.forRecipe);
+        // Stok pertama yang dulu diisi lewat opname dijadikan stok awal
+        // sekali, saat aplikasi berjalan dan sinkron aktif (FR-20.6).
+        await into(syncState).insertOnConflictUpdate(
+          SyncStateCompanion.insert(
+            entity: AppDatabase.openingFixKey,
+            lastPulledAt: Value(DateTime.now().toUtc()),
+          ),
+        );
       }
     },
     beforeOpen: (details) async {

@@ -23,12 +23,22 @@ class InsufficientStockException implements Exception {
 }
 
 class RecipeInput {
-  const RecipeInput({required this.ingredientId, required this.qtyBase});
+  const RecipeInput({
+    required this.ingredientId,
+    required this.qtyBase,
+    this.unitName,
+    this.unitFactor,
+  });
 
   final String ingredientId;
 
   /// Takaran per 1 resep, satuan dasar bahan.
   final Decimal qtyBase;
+
+  /// Satuan takaran yang diketik (mis. sdm) dan faktornya ke satuan dasar;
+  /// `null` = satuan dasar (FR-20.3).
+  final String? unitName;
+  final Decimal? unitFactor;
 }
 
 class CostInput {
@@ -94,6 +104,9 @@ class ProductView {
   StockDeductMode get mode =>
       product.stockDeductMode ?? business.stockDeductMode;
   bool get isReadyStock => mode == StockDeductMode.onProduction;
+
+  /// Diarsipkan: tidak tampil di daftar Menu dan pilihan pesanan (FR-20.4).
+  bool get isArchived => product.archivedAt != null;
 
   Decimal get markupTarget => product.targetMarkupPct == null
       ? dec(business.defaultMarkupPct)
@@ -266,6 +279,10 @@ class ProductRepository {
           RecipeInput(
             ingredientId: l.ingredient.id,
             qtyBase: dec(l.item.qtyBase),
+            unitName: l.item.unitName,
+            unitFactor: l.item.unitFactor == null
+                ? null
+                : dec(l.item.unitFactor!),
           ),
       ],
       costs: [
@@ -608,14 +625,20 @@ class ProductRepository {
                 productId: productId,
                 ingredientId: r.ingredientId,
                 qtyBase: dbl(r.qtyBase),
+                unitName: Value(r.unitName),
+                unitFactor: Value(_factor(r)),
               ),
             );
-      } else if (old.qtyBase != dbl(r.qtyBase)) {
+      } else if (old.qtyBase != dbl(r.qtyBase) ||
+          old.unitName != r.unitName ||
+          old.unitFactor != _factor(r)) {
         await (_db.update(
           _db.recipeItems,
         )..where((t) => t.id.equals(old.id))).write(
           RecipeItemsCompanion(
             qtyBase: Value(dbl(r.qtyBase)),
+            unitName: Value(r.unitName),
+            unitFactor: Value(_factor(r)),
             updatedAt: Value(_now()),
           ),
         );
@@ -667,6 +690,9 @@ class ProductRepository {
     }
   }
 
+  static double? _factor(RecipeInput r) =>
+      r.unitName == null || r.unitFactor == null ? null : dbl(r.unitFactor!);
+
   Future<void> _insertCost(String productId, CostInput c) => _db
       .into(_db.productCosts)
       .insert(
@@ -691,6 +717,8 @@ class ProductRepository {
               productId: productId,
               ingredientId: r.ingredientId,
               qtyBase: dbl(r.qtyBase),
+              unitName: Value(r.unitName),
+              unitFactor: Value(_factor(r)),
             ),
           );
     }

@@ -8,6 +8,7 @@ import 'package:buat_usaha/presentation/settings/account_section.dart';
 import 'package:buat_usaha/presentation/theme.dart';
 import 'package:buat_usaha/services/sync_controller.dart';
 
+import '../support/screen.dart';
 import '../support/fake_account_gateway.dart';
 import '../support/fake_remote_store.dart';
 import '../support/seed.dart';
@@ -135,8 +136,7 @@ void main() {
       original?.call(details);
     };
     addTearDown(() => FlutterError.onError = original);
-    await tester.binding.setSurfaceSize(const Size(360, 1400));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+    setScreenSize(tester, const Size(360, 1400));
     await linkedPhone(tester);
     await tester.runAsync(
       () => seed.stock.updateIngredient(seed.ids['gula']!, name: 'Gula aren'),

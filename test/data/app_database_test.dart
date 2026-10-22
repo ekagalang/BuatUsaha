@@ -245,7 +245,7 @@ void main() {
   });
 
   test(
-    'migrasi skema v1 ke v6 menambah kolom dan tabel tanpa menghapus data',
+    'migrasi skema v1 ke v7 menambah kolom dan tabel tanpa menghapus data',
     () async {
       final dir = Directory.systemTemp.createTempSync('hpp_migrasi');
       final file = File('${dir.path}/app.sqlite');
@@ -295,6 +295,18 @@ void main() {
       for (final t in ['payments', 'purchases', 'expenses']) {
         await old.customStatement('ALTER TABLE $t DROP COLUMN cash_account_id');
       }
+      for (final (t, c) in [
+        ('ingredients', 'count_unit'),
+        ('ingredients', 'archived_at'),
+        ('products', 'archived_at'),
+        ('recipe_items', 'unit_name'),
+        ('recipe_items', 'unit_factor'),
+        ('sales_channels', 'fee_per_pcs'),
+        ('ingredient_units', 'hidden'),
+        ('ingredient_units', 'for_recipe'),
+      ]) {
+        await old.customStatement('ALTER TABLE $t DROP COLUMN $c');
+      }
       await old.customStatement('PRAGMA user_version = 1');
       await old.close();
 
@@ -310,6 +322,11 @@ void main() {
       // Akun kas bawaan dibuat lagi saat usaha dibuka.
       await BusinessRepository(old).ensureDefault();
       expect(await old.select(old.cashAccounts).get(), hasLength(3));
+      // Perbaikan stok awal data lama menunggu dijalankan sekali (FR-20.6).
+      expect(
+        (await old.select(old.syncState).get()).map((s) => s.entity),
+        contains(AppDatabase.openingFixKey),
+      );
       final columns = await old
           .customSelect("SELECT name FROM pragma_table_info('expenses')")
           .get();

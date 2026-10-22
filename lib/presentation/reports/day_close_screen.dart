@@ -8,6 +8,7 @@ import '../../data/repositories/day_close_repository.dart';
 import '../../domain/costing/costing.dart';
 import '../common/format.dart';
 import '../common/widgets.dart';
+import '../layout.dart';
 import '../theme.dart';
 
 String wasteReasonLabel(WasteReason r) => switch (r) {
@@ -97,7 +98,10 @@ class _DayCloseScreenState extends ConsumerState<DayCloseScreen> {
             keptValue += e.leftover.lossFor(e.kept);
           }
           return ListView(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+            padding: readablePadding(
+              context,
+              const EdgeInsets.fromLTRB(20, 0, 20, 24),
+            ),
             children: [
               Text(
                 formatLongDate(today),

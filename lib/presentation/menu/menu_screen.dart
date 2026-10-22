@@ -7,12 +7,14 @@ import '../../data/repositories/product_repository.dart';
 import '../../domain/enums.dart';
 import '../common/format.dart';
 import '../common/widgets.dart';
+import '../layout.dart';
 import '../motion.dart';
 import '../theme.dart';
 import 'menu_detail_screen.dart';
+import 'menu_drafts.dart';
 import 'menu_labels.dart';
 
-enum _Filter { all, ready, preOrder, attention }
+enum _Filter { all, ready, preOrder, attention, archived }
 
 /// Tab Menu: daftar menu beserta HPP, harga, margin, dan kapasitas (mockup
 /// `Menu`).
@@ -29,7 +31,8 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
   @override
   Widget build(BuildContext context) {
     final products = ref.watch(productsProvider);
-    return Scaffold(
+    final drafts = ref.watch(menuDraftsProvider).value ?? const <MenuDraft>[];
+    final scaffold = Scaffold(
       appBar: AppBar(
         title: const Text('Menu'),
         actions: [
@@ -52,14 +55,96 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
       body: products.when(
         loading: () => const SkeletonList(height: 140),
         error: (error, _) => Center(child: Text('Gagal memuat menu: $error')),
-        data: (list) => list.isEmpty ? const _EmptyState() : _content(list),
+        data: (list) => list.isEmpty && drafts.isEmpty
+            ? const _EmptyState()
+            : _content(list, drafts),
       ),
+    );
+    // Tablet mendatar: daftar dan detail berdampingan (FR-21.3).
+    final first = products.value?.where((v) => !v.isArchived).firstOrNull;
+    return ListDetailLayout(
+      list: scaffold,
+      emptyText: 'Pilih menu untuk melihat detailnya.',
+      initialId: first?.product.id,
+      initialDetail: first == null
+          ? null
+          : (_) => MenuDetailScreen(id: first.product.id),
     );
   }
 
-  Widget _content(List<ProductView> list) {
+  /// Draf menu di HP ini (FR-20.1): lanjutkan atau buang.
+  List<Widget> _drafts(List<MenuDraft> drafts, List<ProductView> list) {
+    if (drafts.isEmpty) return const [];
+    final names = {for (final v in list) v.product.id: v.product.name};
+    return [
+      SectionTitle('Draf (${drafts.length})'),
+      const SizedBox(height: 8),
+      for (final d in drafts) ...[
+        Container(
+          padding: const EdgeInsets.fromLTRB(14, 8, 6, 8),
+          decoration: BoxDecoration(
+            color: AppColors.warningContainer,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.dashed, width: 1.5),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      d.isNew ? d.name : names[d.productId] ?? d.name,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      [
+                        d.isNew ? 'Menu baru' : 'Perubahan resep',
+                        if (d.ingredientCount > 0) '${d.ingredientCount} bahan',
+                        'diubah ${formatShortDate(d.savedAt)} '
+                            '${formatTime(d.savedAt)}',
+                      ].join(' · '),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.warning,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Buang draf ${d.name}',
+                icon: const Icon(Icons.delete_outline),
+                color: AppColors.danger,
+                onPressed: () =>
+                    ref.read(menuDraftsProvider.notifier).remove(d.id),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(minimumSize: const Size(0, 40)),
+                onPressed: () => context.push(
+                  d.isNew
+                      ? '/menu/baru?draf=${Uri.encodeComponent(d.id)}'
+                      : '/menu/${d.productId}/ubah',
+                ),
+                child: const Text('Lanjutkan'),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+      ],
+      const SizedBox(height: 8),
+    ];
+  }
+
+  Widget _content(List<ProductView> list, List<MenuDraft> drafts) {
     final shown = list.where(
       (v) => switch (_filter) {
+        _Filter.archived => v.isArchived,
+        _ when v.isArchived => false,
         _Filter.all => true,
         _Filter.ready => v.isReadyStock,
         _Filter.preOrder => !v.isReadyStock,
@@ -69,15 +154,21 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
       children: [
+        ..._drafts(drafts, list),
         Wrap(
           spacing: 8,
           runSpacing: 8,
           children: [
-            for (final (filter, label) in const [
+            for (final (filter, label) in [
               (_Filter.all, 'Semua'),
               (_Filter.ready, 'Ready stock'),
               (_Filter.preOrder, 'Pre-order'),
               (_Filter.attention, 'Perlu perhatian'),
+              if (list.any((v) => v.isArchived))
+                (
+                  _Filter.archived,
+                  'Diarsipkan (${list.where((v) => v.isArchived).length})',
+                ),
             ])
               ChoicePill(
                 label: label,
@@ -97,14 +188,36 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
             ),
           )
         else
-          for (final (i, view) in shown.indexed) ...[
-            StaggeredEntrance(
-              key: ValueKey(view.product.id),
-              index: i,
-              child: _MenuCard(view),
-            ),
-            const SizedBox(height: 10),
-          ],
+          // Tablet tegak: kartu dalam kisi (FR-21.5).
+          ResponsiveGrid(
+            children: [
+              for (final (i, view) in shown.indexed)
+                StaggeredEntrance(
+                  key: ValueKey(view.product.id),
+                  index: i,
+                  child: view.isArchived
+                      ? Card(
+                          clipBehavior: Clip.antiAlias,
+                          child: ArchivedTile(
+                            name: view.product.name,
+                            meta:
+                                'Diarsipkan ${formatShortDate(view.product.archivedAt!)}',
+                            onTap: () =>
+                                context.push('/menu/${view.product.id}'),
+                            onRestore: () => runWithSnack(
+                              context,
+                              () => ref
+                                  .read(archiveRepositoryProvider)
+                                  .restoreProduct(view.product.id),
+                              '${view.product.name} dipulihkan.',
+                            ),
+                          ),
+                        )
+                      : _MenuCard(view),
+                ),
+            ],
+          ),
+        const SizedBox(height: 14),
         const SizedBox(height: 4),
         const Text(
           'Kapasitas dihitung per menu. Bahan dipakai bersama, jadi kapasitas '
@@ -136,6 +249,7 @@ class _MenuCard extends StatelessWidget {
     final cantMake = capacity == null || capacity.maxPcs <= 0;
     // Kartu membesar menjadi Detail menu (FR-11.8).
     return ContainerToDetail(
+      detailId: product.id,
       open: (_) => MenuDetailScreen(id: product.id),
       closed: (context, open) => InkWell(
         onTap: open,

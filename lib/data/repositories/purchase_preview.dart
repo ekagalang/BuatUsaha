@@ -100,7 +100,7 @@ class PurchasePreviewer {
             for (final b in before)
               AvgChange(
                 name: b.name,
-                unit: b.baseUnit.code,
+                unit: b.unitLabel,
                 before: b.avgUnitCost == null ? null : dec(b.avgUnitCost!),
                 after: after[b.id]?.avgUnitCost == null
                     ? null

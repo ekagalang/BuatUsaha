@@ -8,6 +8,7 @@ import '../../data/repositories/stock_repository.dart';
 import '../../domain/costing/costing.dart';
 import '../common/format.dart';
 import '../common/widgets.dart';
+import '../layout.dart';
 import '../theme.dart';
 
 /// Simulasi kenaikan harga bahan (FR-14.4): HPP, laba, dan saran harga baru
@@ -78,7 +79,7 @@ class _PriceSimulationScreenState extends ConsumerState<PriceSimulationScreen> {
                 ListTile(
                   title: Text(i.ingredient.name),
                   subtitle: Text(
-                    formatUnitPrice(i.avgUnitCost, i.ingredient.baseUnit.code),
+                    formatUnitPrice(i.avgUnitCost, i.ingredient.unitLabel),
                   ),
                   onTap: () => Navigator.pop(context, i),
                 ),
@@ -98,7 +99,10 @@ class _PriceSimulationScreenState extends ConsumerState<PriceSimulationScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Simulasi harga bahan')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+        padding: readablePadding(
+          context,
+          const EdgeInsets.fromLTRB(20, 4, 20, 24),
+        ),
         children: [
           const InfoBox(
             'Coba kalau harga bahan naik atau turun: HPP dan saran harga '
@@ -137,7 +141,7 @@ class _PriceSimulationScreenState extends ConsumerState<PriceSimulationScreen> {
                                 ),
                               ),
                               Text(
-                                'Sekarang ${formatUnitPrice(view.avgUnitCost, view.ingredient.baseUnit.code)}',
+                                'Sekarang ${formatUnitPrice(view.avgUnitCost, view.ingredient.unitLabel)}',
                                 style: const TextStyle(
                                   fontSize: 12,
                                   color: AppColors.textMuted,
@@ -160,7 +164,7 @@ class _PriceSimulationScreenState extends ConsumerState<PriceSimulationScreen> {
                               labelText: _byPercent ? 'Naik' : 'Harga baru',
                               suffixText: _byPercent
                                   ? '%'
-                                  : '/${view.ingredient.baseUnit.code}',
+                                  : '/${view.ingredient.unitLabel}',
                               prefixText: _byPercent ? null : 'Rp',
                             ),
                             onChanged: (_) => _recompute(byId),
@@ -182,7 +186,10 @@ class _PriceSimulationScreenState extends ConsumerState<PriceSimulationScreen> {
           Align(
             alignment: Alignment.centerLeft,
             child: OutlinedButton.icon(
-              onPressed: () => _add(ingredients),
+              onPressed: () => _add([
+                for (final v in ingredients)
+                  if (!v.isArchived) v,
+              ]),
               icon: const Icon(Icons.add),
               label: const Text('Tambah bahan'),
             ),

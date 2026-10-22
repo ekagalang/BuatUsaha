@@ -208,6 +208,7 @@ class PricingRepository {
             price: price,
             commissionPct: dec(c.commissionPct),
             feePerOrder: c.feePerOrder,
+            feePerPcs: c.feePerPcs,
             avgPcsPerOrder: avg,
           );
           return ChannelPriceRow(
@@ -222,6 +223,7 @@ class PricingRepository {
                     directPrice: view.product.sellingPrice,
                     commissionPct: dec(c.commissionPct),
                     feePerOrder: c.feePerOrder,
+                    feePerPcs: c.feePerPcs,
                     avgPcsPerOrder: avg,
                     rounding: rounding,
                   ),
@@ -249,7 +251,8 @@ class PricingRepository {
     final rows = <SimulationRow>[];
     for (final view in views) {
       final costing = view.costing;
-      if (!costing.lines.any((l) => newUnitCost.containsKey(l.ingredient.id))) {
+      if (view.isArchived ||
+          !costing.lines.any((l) => newUnitCost.containsKey(l.ingredient.id))) {
         continue;
       }
       final hpp = calculateHpp(
