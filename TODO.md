@@ -276,7 +276,8 @@ Rincian FR-11 sampai FR-19 ada di PRD tab "Rencana fase 2b". Setiap sprint: rinc
   - [x] Test: 14 data + 5 layar (termasuk huruf 130%); 243 tes lulus
   - [x] Versi 1.4.0, CHANGELOG, README, Design.md bagian 18
   - [x] Build APK lokal 1.4.0 (build 17)
-  - [ ] Commit + push ke dev, rilis 1.4.0 (pengguna)
+  - [x] Commit + push ke dev (5e7c0fb, bersama tampilan tablet)
+  - [ ] Rilis 1.4.0 lewat MR ke main (pengguna)
   - [ ] Pesan eror dan versi aplikasi saat impor backup pengguna lain (pengguna)
 - [x] **Tampilan tablet** (FR-21.1–21.7, permintaan pengguna 22 Okt 2026): di tablet tampil seperti HP yang melebar
   - [x] Dirinci di PRD ("Tampilan tablet"): ukuran ringkas/sedang/lebar, rel navigasi, daftar + detail berdampingan, Beranda/Laporan dua kolom, kisi kartu, form lebar baca 720 dp
