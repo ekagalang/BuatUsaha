@@ -101,21 +101,38 @@ class UpdateController extends Notifier<UpdateStatus> {
     return const UpdateStatus();
   }
 
+  // Versi terpasang dan catatan cek dibaca terpisah: penyimpanan yang gagal
+  // tidak boleh menyembunyikan versi atau menggagalkan cek.
   Future<void> _load() async {
+    InstalledApp? installed;
     try {
-      final installed = await ref.read(appPlatformProvider).installed();
-      final last = DateTime.tryParse(
-        await _store.getString(UpdateKeys.lastCheck) ?? '',
-      );
-      final dismissed = await _store.getString(UpdateKeys.dismissed);
-      if (!ref.mounted) return;
-      state = state.copyWith(
-        installed: installed,
-        lastCheckedAt: last,
-        dismissedTag: dismissed,
-      );
+      installed = await ref.read(appPlatformProvider).installed();
     } catch (_) {
       // Tanpa info versi kartu pembaruan tidak tampil.
+    }
+    final last = DateTime.tryParse(await _read(UpdateKeys.lastCheck) ?? '');
+    final dismissed = await _read(UpdateKeys.dismissed);
+    if (!ref.mounted) return;
+    state = state.copyWith(
+      installed: installed,
+      lastCheckedAt: last,
+      dismissedTag: dismissed,
+    );
+  }
+
+  Future<String?> _read(String key) async {
+    try {
+      return await _store.getString(key);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _write(String key, String value) async {
+    try {
+      await _store.setString(key, value);
+    } catch (_) {
+      // Hanya catatan; cek berikutnya berjalan lagi.
     }
   }
 
@@ -141,7 +158,7 @@ class UpdateController extends Notifier<UpdateStatus> {
     try {
       final latest = await ref.read(releaseSourceProvider).latest();
       final now = DateTime.now();
-      await _store.setString(UpdateKeys.lastCheck, now.toIso8601String());
+      await _write(UpdateKeys.lastCheck, now.toIso8601String());
       if (!ref.mounted) return;
       state = state.copyWith(
         latest: latest,
@@ -157,7 +174,7 @@ class UpdateController extends Notifier<UpdateStatus> {
   Future<void> dismiss() async {
     final tag = state.latest?.tag;
     if (tag == null) return;
-    await _store.setString(UpdateKeys.dismissed, tag);
+    await _write(UpdateKeys.dismissed, tag);
     if (ref.mounted) state = state.copyWith(dismissedTag: tag);
   }
 

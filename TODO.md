@@ -279,6 +279,10 @@ Rincian FR-11 sampai FR-19 ada di PRD tab "Rencana fase 2b". Setiap sprint: rinc
   - [x] Commit + push ke dev (5e7c0fb, bersama tampilan tablet)
   - [ ] Rilis 1.4.0 lewat MR ke main (pengguna)
   - [ ] Pesan eror dan versi aplikasi saat impor backup pengguna lain (pengguna)
+- [x] **Cek pembaruan gagal di HP** (laporan pengguna 23 Okt 2026: "Versi —" dan "tidak ada internet" di APK 1.3.0)
+  - [x] Penyebab: `shared_preferences_android` 2.5.1 rusak di build release (R8 membuang kelas Kotlin yang dipanggil lewat JNI, `NoSuchMethodError`), dibuktikan di emulator dengan build release
+  - [x] Naik ke 2.5.3 (perbaikan resmi di 2.5.2), minimum dikunci di pubspec; UpdateController tetap membaca versi dan menyelesaikan cek walau penyimpanan gagal; tes baru; 251 tes lulus
+  - [ ] HP dengan 1.3.0 tidak bisa mendeteksi 1.4.0 sendiri: pasang 1.4.0 sekali secara manual dari halaman Releases (pengguna)
 - [x] **Tampilan tablet** (FR-21.1–21.7, permintaan pengguna 22 Okt 2026): di tablet tampil seperti HP yang melebar
   - [x] Dirinci di PRD ("Tampilan tablet"): ukuran ringkas/sedang/lebar, rel navigasi, daftar + detail berdampingan, Beranda/Laporan dua kolom, kisi kartu, form lebar baca 720 dp
   - [x] Mockup baris "Tampilan tablet" di canvas: `TabletBeranda`, `TabletPesanan` (bisa diklik), `TabletMenuTegak`, `TabletForm`

@@ -121,6 +121,7 @@ Salinan dari [CHANGELOG.md](CHANGELOG.md). Saat rilis, CHANGELOG.md tetap menjad
 - Penyesuaian stok ikut dihitung di laporan
 - Pesan jelas saat memulihkan backup dari aplikasi versi lebih baru
 - Tampilan tablet: rel navigasi di kiri, daftar dan detail berdampingan saat mendatar, Beranda dan Laporan dua kolom, kartu menu dalam kisi, form tidak melebar
+- Perbaikan: versi aplikasi dan Cek pembaruan kembali berfungsi (sebelumnya selalu "tidak ada internet"); draf menu tersimpan di HP
 
 ### 1.3.0 (21 Oktober 2026)
 
