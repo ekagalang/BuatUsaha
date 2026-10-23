@@ -16,6 +16,7 @@ import '../common/rupiah_input.dart';
 import '../common/widgets.dart';
 import '../motion.dart';
 import '../menu/menu_labels.dart';
+import '../layout.dart';
 import '../theme.dart';
 import 'order_labels.dart';
 
@@ -115,6 +116,7 @@ class _OrderFormScreenState extends ConsumerState<OrderFormScreen> {
     final autoFee = await repo.suggestedChannelFee(
       view.order.channelId,
       view.itemsRevenue,
+      pcs: view.pcs,
     );
     if (!mounted) return;
     final o = view.order;
@@ -197,6 +199,8 @@ class _OrderFormScreenState extends ConsumerState<OrderFormScreen> {
       itemsTotal: _itemsRevenue,
       commissionPct: dec(channel.commissionPct),
       feePerOrder: channel.feePerOrder,
+      feePerPcs: channel.feePerPcs,
+      pcs: _items.fold(0, (s, i) => s + i.qty),
     );
   }
 
@@ -433,7 +437,10 @@ class _OrderFormScreenState extends ConsumerState<OrderFormScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(title)),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+        padding: readablePadding(
+          context,
+          const EdgeInsets.fromLTRB(20, 4, 20, 24),
+        ),
         children: [
           SectionTitle(widget.direct ? 'Pembeli (opsional)' : 'Pelanggan'),
           const SizedBox(height: 8),
@@ -461,9 +468,7 @@ class _OrderFormScreenState extends ConsumerState<OrderFormScreen> {
               ),
               for (final c in channels)
                 ChoicePill(
-                  label: c.commissionPct > 0
-                      ? '${c.name} · ${formatDecimal(dec(c.commissionPct))}%'
-                      : c.name,
+                  label: channelPillLabel(c),
                   selected: _channelId == c.id,
                   onSelected: () =>
                       setState(() => _selectChannel(c.id, products)),
@@ -484,7 +489,10 @@ class _OrderFormScreenState extends ConsumerState<OrderFormScreen> {
             const SizedBox(height: 8),
           ],
           OutlinedButton.icon(
-            onPressed: () => _addItem(products),
+            onPressed: () => _addItem([
+              for (final p in products)
+                if (!p.isArchived) p,
+            ]),
             icon: const Icon(Icons.add),
             label: const Text('Tambah item'),
           ),

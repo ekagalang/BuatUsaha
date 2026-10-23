@@ -9,6 +9,7 @@ import '../common/rupiah_input.dart';
 import '../cash/cash_account_picker.dart';
 import '../common/widgets.dart';
 import '../motion.dart';
+import '../layout.dart';
 import '../theme.dart';
 
 /// Daftar dan form pengeluaran operasional per bulan (FR-7.3, FR-7.7).
@@ -29,7 +30,10 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Pengeluaran')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        padding: readablePadding(
+          context,
+          const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        ),
         children: [
           Row(
             children: [

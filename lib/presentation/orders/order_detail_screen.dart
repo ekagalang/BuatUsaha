@@ -14,6 +14,7 @@ import '../common/rupiah_input.dart';
 import '../common/widgets.dart';
 import '../documents/document_screens.dart';
 import '../motion.dart';
+import '../layout.dart';
 import '../theme.dart';
 import 'order_form_screen.dart';
 import 'order_labels.dart';
@@ -99,7 +100,10 @@ class _Detail extends ConsumerWidget {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        padding: readablePadding(
+          context,
+          const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        ),
         children: [
           Row(
             children: [

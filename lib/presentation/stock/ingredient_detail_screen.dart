@@ -6,13 +6,16 @@ import 'package:go_router/go_router.dart';
 import '../../data/db/app_database.dart';
 import '../../data/db/decimal_convert.dart';
 import '../../data/providers.dart';
+import '../../data/repositories/archive_repository.dart';
 import '../../data/repositories/product_repository.dart';
 import '../../data/repositories/stock_repository.dart';
 import '../../domain/costing/costing.dart';
 import '../common/format.dart';
 import '../common/widgets.dart';
+import '../layout.dart';
 import '../motion.dart';
 import '../theme.dart';
+import 'ingredient_manage.dart';
 import 'labels.dart';
 
 /// Detail bahan: ringkasan, aksi stok, dan kartu stok (FR-1.4, FR-1.5, FR-9.1).
@@ -37,23 +40,61 @@ class IngredientDetailScreen extends ConsumerWidget {
           title: Text(v.ingredient.name),
           actions: [
             PopupMenuButton<String>(
-              tooltip: 'Pengaturan bahan',
+              tooltip: 'Menu lainnya',
               onSelected: (action) => switch (action) {
-                'unit' => _addUnit(context, ref, v),
-                _ => _editMinStock(context, ref, v),
+                'edit' => _edit(context, v),
+                'restore' => runWithSnack(
+                  context,
+                  () => ref
+                      .read(archiveRepositoryProvider)
+                      .restoreIngredient(v.ingredient.id),
+                  '${v.ingredient.name} dipulihkan.',
+                ),
+                'archive' => _remove(context, ref, v, RemoveAction.archive),
+                _ => _remove(context, ref, v, RemoveAction.delete),
               },
-              itemBuilder: (_) => const [
-                PopupMenuItem(value: 'unit', child: Text('Tambah satuan beli')),
-                PopupMenuItem(value: 'min', child: Text('Ubah stok minimum')),
+              itemBuilder: (_) => [
+                const PopupMenuItem(value: 'edit', child: Text('Ubah bahan')),
+                if (v.isArchived)
+                  const PopupMenuItem(
+                    value: 'restore',
+                    child: Text('Pulihkan dari arsip'),
+                  )
+                else
+                  const PopupMenuItem(
+                    value: 'archive',
+                    child: Text('Arsipkan bahan'),
+                  ),
+                const PopupMenuItem(
+                  value: 'delete',
+                  child: Text(
+                    'Hapus bahan',
+                    style: TextStyle(color: AppColors.danger),
+                  ),
+                ),
               ],
             ),
           ],
         ),
         body: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+          padding: readablePadding(
+            context,
+            const EdgeInsets.fromLTRB(20, 4, 20, 24),
+          ),
           children: [
+            if (v.isArchived) ...[
+              const InfoBox(
+                'Bahan ini diarsipkan: tidak tampil di daftar dan pilihan. '
+                'Pulihkan lewat menu ⋮.',
+              ),
+              const SizedBox(height: 12),
+            ],
             _Summary(view: v),
             const SizedBox(height: 12),
+            if (_canSetInitial(card.value)) ...[
+              InitialStockCard(view: v),
+              const SizedBox(height: 12),
+            ],
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -77,6 +118,8 @@ class IngredientDetailScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 24),
             _UsedInMenus(ingredient: v),
+            const SizedBox(height: 24),
+            IngredientUnitsCard(ingredient: v.ingredient),
             const SizedBox(height: 24),
             const SectionTitle('Kartu stok'),
             const SizedBox(height: 4),
@@ -113,6 +156,48 @@ class IngredientDetailScreen extends ConsumerWidget {
     );
   }
 
+  /// Belum ada transaksi selain stok awal / harga perkiraan (FR-20.6).
+  static bool _canSetInitial(List<StockCardEntry>? entries) =>
+      entries != null &&
+      entries.every((e) => e.movement.type == MovementType.opening);
+
+  /// Opname/penyesuaian di bahan stok 0 tanpa riwayat: tawarkan stok awal.
+  Future<bool> _offerInitial(
+    BuildContext context,
+    WidgetRef ref,
+    IngredientView v,
+    Decimal qty,
+  ) async {
+    if (qty <= Decimal.zero ||
+        v.stock != Decimal.zero ||
+        !_canSetInitial(ref.read(stockCardProvider(id)).value)) {
+      return false;
+    }
+    final initial = await askFirstStock(context);
+    if (initial != true || !context.mounted) return initial == null;
+    await setInitialStockFlow(context, ref, v, qty: qty);
+    return true;
+  }
+
+  Future<void> _edit(BuildContext context, IngredientView v) =>
+      showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        showDragHandle: true,
+        backgroundColor: AppColors.background,
+        builder: (_) => EditIngredientSheet(ingredient: v.ingredient),
+      );
+
+  Future<void> _remove(
+    BuildContext context,
+    WidgetRef ref,
+    IngredientView v,
+    RemoveAction action,
+  ) async {
+    final gone = await removeIngredientFlow(context, ref, v, initial: action);
+    if (gone && context.mounted) closeDetail(context);
+  }
+
   Widget _cardRow(
     BuildContext context,
     WidgetRef ref,
@@ -124,7 +209,7 @@ class IngredientDetailScreen extends ConsumerWidget {
     final isPurchase = m.refType == 'purchase_item' && active;
     return _CardRow(
       entry: entry,
-      unit: v.ingredient.baseUnit.code,
+      unit: v.ingredient.unitLabel,
       onTap: active && !isPurchase ? () => _void(context, ref, entry) : null,
       onEdit: isPurchase
           ? () async {
@@ -164,13 +249,14 @@ class IngredientDetailScreen extends ConsumerWidget {
       builder: (_) => _QtyDialog(
         title: 'Penyesuaian stok',
         qtyLabel: 'Jumlah',
-        unit: v.ingredient.baseUnit.code,
+        unit: v.ingredient.unitLabel,
         withDirection: true,
         noteLabel: 'Alasan (opsional)',
       ),
     );
     if (result == null || !context.mounted) return;
     final (qty, note) = result;
+    if (await _offerInitial(context, ref, v, qty) || !context.mounted) return;
     await _run(
       context,
       () => ref
@@ -190,7 +276,7 @@ class IngredientDetailScreen extends ConsumerWidget {
       builder: (_) => _QtyDialog(
         title: 'Bahan rusak atau kedaluwarsa',
         qtyLabel: 'Jumlah dibuang',
-        unit: v.ingredient.baseUnit.code,
+        unit: v.ingredient.unitLabel,
         noteLabel: 'Keterangan (opsional)',
         helper: 'Dicatat sebagai kerugian dengan harga rata-rata saat ini.',
       ),
@@ -211,7 +297,7 @@ class IngredientDetailScreen extends ConsumerWidget {
     WidgetRef ref,
     IngredientView v,
   ) async {
-    final unit = v.ingredient.baseUnit.code;
+    final unit = v.ingredient.unitLabel;
     final result = await showAppDialog<(Decimal, String?)>(
       context: context,
       builder: (_) => _QtyDialog(
@@ -227,6 +313,9 @@ class IngredientDetailScreen extends ConsumerWidget {
     );
     if (result == null || !context.mounted) return;
     final (counted, note) = result;
+    if (await _offerInitial(context, ref, v, counted) || !context.mounted) {
+      return;
+    }
     final messenger = ScaffoldMessenger.of(context);
     try {
       final delta = await ref
@@ -278,53 +367,6 @@ class IngredientDetailScreen extends ConsumerWidget {
       }
     }, 'Dibatalkan.');
   }
-
-  Future<void> _addUnit(
-    BuildContext context,
-    WidgetRef ref,
-    IngredientView v,
-  ) async {
-    final result = await showAppDialog<(String, Decimal)>(
-      context: context,
-      builder: (_) => _UnitDialog(baseUnit: v.ingredient.baseUnit.code),
-    );
-    if (result == null || !context.mounted) return;
-    final (name, factor) = result;
-    await _run(
-      context,
-      () => ref
-          .read(stockRepositoryProvider)
-          .addCustomUnit(v.ingredient.id, unitName: name, factorToBase: factor),
-      'Satuan $name ditambahkan.',
-    );
-  }
-
-  Future<void> _editMinStock(
-    BuildContext context,
-    WidgetRef ref,
-    IngredientView v,
-  ) async {
-    final result = await showAppDialog<(Decimal, String?)>(
-      context: context,
-      builder: (_) => _QtyDialog(
-        title: 'Stok minimum',
-        qtyLabel: 'Batas minimum',
-        unit: v.ingredient.baseUnit.code,
-        initial: v.minStock,
-        allowZero: true,
-        helper: 'Isi 0 jika bahan ini tidak perlu dipantau.',
-      ),
-    );
-    if (result == null || !context.mounted) return;
-    final (minStock, _) = result;
-    await _run(
-      context,
-      () => ref
-          .read(stockRepositoryProvider)
-          .updateIngredient(v.ingredient.id, minStock: minStock),
-      'Stok minimum diperbarui.',
-    );
-  }
 }
 
 class _Summary extends StatelessWidget {
@@ -334,7 +376,7 @@ class _Summary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final unit = view.ingredient.baseUnit.code;
+    final unit = view.ingredient.unitLabel;
     final avg = view.avgUnitCost;
     return Card(
       child: Padding(
@@ -561,7 +603,6 @@ class _QtyDialog extends StatefulWidget {
     this.helper,
     this.withDirection = false,
     this.allowZero = false,
-    this.initial,
   });
 
   final String title;
@@ -571,18 +612,13 @@ class _QtyDialog extends StatefulWidget {
   final String? helper;
   final bool withDirection;
   final bool allowZero;
-  final Decimal? initial;
 
   @override
   State<_QtyDialog> createState() => _QtyDialogState();
 }
 
 class _QtyDialogState extends State<_QtyDialog> {
-  late final _qty = TextEditingController(
-    text: widget.initial == null
-        ? ''
-        : formatDecimal(widget.initial!, maxDecimals: 3),
-  );
+  final _qty = TextEditingController();
   final _note = TextEditingController();
   var _increase = false;
 
@@ -665,74 +701,6 @@ class _QtyDialogState extends State<_QtyDialog> {
   }
 }
 
-class _UnitDialog extends StatefulWidget {
-  const _UnitDialog({required this.baseUnit});
-
-  final String baseUnit;
-
-  @override
-  State<_UnitDialog> createState() => _UnitDialogState();
-}
-
-class _UnitDialogState extends State<_UnitDialog> {
-  final _name = TextEditingController();
-  final _factor = TextEditingController();
-
-  @override
-  void dispose() {
-    _name.dispose();
-    _factor.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final name = _name.text.trim();
-    final factor = parseDecimalInput(_factor.text);
-    final valid = name.isNotEmpty && factor != null && factor > Decimal.zero;
-    return AlertDialog(
-      title: const Text('Tambah satuan beli'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: _name,
-            autofocus: true,
-            onChanged: (_) => setState(() {}),
-            decoration: const InputDecoration(
-              labelText: 'Nama satuan',
-              hintText: 'mis. rak, pack, karung',
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _factor,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            onChanged: (_) => setState(() {}),
-            decoration: InputDecoration(
-              labelText: '1 ${name.isEmpty ? 'satuan' : name} berisi',
-              suffixText: widget.baseUnit,
-            ),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Batal'),
-        ),
-        FilledButton(
-          style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
-          onPressed: valid
-              ? () => Navigator.pop(context, (name, factor))
-              : null,
-          child: const Text('Simpan'),
-        ),
-      ],
-    );
-  }
-}
-
 /// Menu yang resepnya memakai bahan ini (PRD 7, mockup `DetailBahan`).
 class _UsedInMenus extends ConsumerWidget {
   const _UsedInMenus({required this.ingredient});
@@ -742,7 +710,7 @@ class _UsedInMenus extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final id = ingredient.ingredient.id;
-    final unit = ingredient.ingredient.baseUnit.code;
+    final unit = ingredient.ingredient.unitLabel;
     final avg = ingredient.avgUnitCost;
     final menus = [
       for (final p

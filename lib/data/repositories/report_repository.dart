@@ -602,7 +602,9 @@ class ReportRepository {
     ];
   }
 
-  /// Bahan rusak dan selisih opname (FR-7.5); selisih lebih mengurangi rugi.
+  /// Bahan rusak, selisih opname, dan penyesuaian stok (FR-7.5, FR-20.6);
+  /// selisih lebih mengurangi rugi, sehingga semua perubahan nilai modal di
+  /// luar belanja dan penjualan tercermin di laba.
   Future<int> _materialLoss(
     String businessId,
     DateTime from,
@@ -619,7 +621,11 @@ class ReportRepository {
         await (_db.select(_db.stockMovements)..where(
               (t) =>
                   t.ingredientId.isIn(ingredientIds) &
-                  t.type.isInValues([MovementType.waste, MovementType.opname]) &
+                  t.type.isInValues([
+                    MovementType.waste,
+                    MovementType.opname,
+                    MovementType.adjustment,
+                  ]) &
                   t.occurredAt.isBiggerOrEqualValue(from.toUtc()) &
                   t.occurredAt.isSmallerThanValue(to.toUtc()),
             ))

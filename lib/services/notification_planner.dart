@@ -239,7 +239,7 @@ class NotificationPlanner {
     for (final (i, ingredient) in rows.indexed) {
       final view = IngredientView(ingredient);
       if (!view.isLow) continue;
-      final unit = ingredient.baseUnit.code;
+      final unit = ingredient.unitLabel;
       result.add(
         PlannedNotification(
           id: NotificationIds.lowStockBase + i,

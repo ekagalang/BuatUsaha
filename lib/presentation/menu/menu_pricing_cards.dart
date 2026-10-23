@@ -12,6 +12,7 @@ import '../common/format.dart';
 import '../common/rupiah_input.dart';
 import '../common/widgets.dart';
 import '../motion.dart';
+import '../orders/order_labels.dart' show channelFeeText;
 import '../theme.dart';
 
 /// Kartu Harga per channel di Detail menu (FR-14.1, FR-14.2).
@@ -168,9 +169,7 @@ class _ChannelPriceDialogState extends State<_ChannelPriceDialog> {
             const SizedBox(height: 12),
             Text(
               'Saran ${formatRupiah(suggestion)}: laba per pcs sama dengan '
-              'jual langsung setelah potongan '
-              '${formatDecimal(dec(row.channel.commissionPct))}%'
-              '${row.channel.feePerOrder > 0 ? ' + ${formatRupiah(row.channel.feePerOrder)}/pesanan' : ''}.',
+              'jual langsung setelah potongan ${channelFeeText(row.channel)}.',
               style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
             ),
             Align(

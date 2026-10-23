@@ -210,6 +210,27 @@ ThemeData buildAppTheme() {
         ),
       ),
     ),
+    // Rel navigasi tablet (FR-21.2), serupa navigasi bawah.
+    navigationRailTheme: const NavigationRailThemeData(
+      backgroundColor: AppColors.surface,
+      indicatorColor: AppColors.primaryContainer,
+      selectedIconTheme: IconThemeData(color: AppColors.primary),
+      unselectedIconTheme: IconThemeData(color: AppColors.textMuted),
+      selectedLabelTextStyle: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+        color: AppColors.primary,
+      ),
+      unselectedLabelTextStyle: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w500,
+        color: AppColors.textMuted,
+      ),
+    ),
+    // Lembar bawah tidak melebar penuh di tablet (FR-21.6).
+    bottomSheetTheme: const BottomSheetThemeData(
+      constraints: BoxConstraints(maxWidth: 640),
+    ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
         // Lebar penuh di bilah bawah diatur pemanggil (SizedBox), agar tombol

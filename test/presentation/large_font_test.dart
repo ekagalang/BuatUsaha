@@ -25,6 +25,7 @@ import 'package:buat_usaha/presentation/stock/ingredients_screen.dart';
 import 'package:buat_usaha/presentation/stock/purchase_form_screen.dart';
 import 'package:buat_usaha/presentation/theme.dart';
 
+import '../support/screen.dart';
 import '../support/seed.dart';
 
 /// Data yang mengisi semua layar: produksi, pesanan hari ini, belanja salah
@@ -146,8 +147,7 @@ void main() {
         original?.call(details);
       };
       addTearDown(() => FlutterError.onError = original);
-      await tester.binding.setSurfaceSize(const Size(360, 2400));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+      setScreenSize(tester, const Size(360, 2400));
       await tester.pumpWidget(
         ProviderScope(
           overrides: [appDatabaseProvider.overrideWithValue(ids.seed.db)],

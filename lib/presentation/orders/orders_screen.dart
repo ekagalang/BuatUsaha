@@ -4,11 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/providers.dart';
+import '../../data/repositories/stock_repository.dart' show IngredientUnitLabel;
 import '../../data/repositories/order_repository.dart';
 import '../../domain/costing/costing.dart';
 import '../../domain/enums.dart';
 import '../common/format.dart';
 import '../common/widgets.dart';
+import '../layout.dart';
 import '../motion.dart';
 import 'order_detail_screen.dart';
 import '../theme.dart';
@@ -52,7 +54,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
     final weekEnd = _today.add(const Duration(days: 8));
     final to = monthEnd.isAfter(weekEnd) ? monthEnd : weekEnd;
     final orders = ref.watch(ordersInRangeProvider((from, to)));
-    return Scaffold(
+    final scaffold = Scaffold(
       appBar: AppBar(
         title: const Text('Pesanan'),
         actions: [
@@ -110,6 +112,16 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
           ],
         ),
       ),
+    );
+    // Tablet mendatar: daftar dan detail berdampingan (FR-21.3).
+    final first = orders.value?.firstOrNull;
+    return ListDetailLayout(
+      list: scaffold,
+      emptyText: 'Pilih pesanan untuk melihat detailnya.',
+      initialId: first?.order.id,
+      initialDetail: first == null
+          ? null
+          : (_) => OrderDetailScreen(id: first.order.id),
     );
   }
 
@@ -409,6 +421,7 @@ class OrderCard extends StatelessWidget {
         : formatTime(order.dueAt);
     // Kartu membesar menjadi Detail pesanan (FR-11.8).
     return ContainerToDetail(
+      detailId: order.id,
       open: (_) => OrderDetailScreen(id: order.id),
       closed: (context, open) => InkWell(
         onTap: open,
@@ -526,7 +539,7 @@ class _NeedsCard extends ConsumerWidget {
               )
             else ...[
               InfoBox(
-                'Bahan kurang: ${needs.shortages.map((s) => '${s.ingredient.name} ${formatQty(s.missingQty, s.ingredient.baseUnit.code)}').join(', ')}. '
+                'Bahan kurang: ${needs.shortages.map((s) => '${s.ingredient.name} ${formatQty(s.missingQty, s.ingredient.unitLabel)}').join(', ')}. '
                 'Perkiraan belanja ${formatRupiah(toRupiah(needs.shortages.fold(Decimal.zero, (sum, s) => sum + (s.estimatedCost ?? Decimal.zero))))}.',
                 kind: StatusKind.danger,
               ),

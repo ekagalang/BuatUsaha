@@ -106,3 +106,14 @@ class RecordingNotifications implements NotificationScheduler {
   Future<void> showNow(PlannedNotification notification) async =>
       shown.add(notification);
 }
+
+/// Seperti SharedPreferences 2.5.1 di build release: setiap akses gagal.
+class BrokenStore implements KeyValueStore {
+  @override
+  Future<String?> getString(String key) =>
+      Future.error(StateError('NoSuchMethodError'));
+
+  @override
+  Future<void> setString(String key, String value) =>
+      Future.error(StateError('NoSuchMethodError'));
+}

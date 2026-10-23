@@ -174,7 +174,7 @@ void main() {
   });
 
   group('UpdateController', () {
-    ProviderContainer container(FakeReleaseSource source, MemoryStore store) {
+    ProviderContainer container(FakeReleaseSource source, KeyValueStore store) {
       final c = ProviderContainer(
         overrides: [
           appPlatformProvider.overrideWithValue(FakeAppPlatform()),
@@ -222,6 +222,20 @@ void main() {
       expect(source.calls, 1);
       expect(c2.read(updateControllerProvider).hasUpdate, isFalse);
     });
+
+    test(
+      'penyimpanan rusak: versi tetap terbaca dan cek tetap jalan',
+      () async {
+        final source = FakeReleaseSource(release('v1.1.0'));
+        final c = container(source, BrokenStore());
+        await c.read(updateControllerProvider.notifier).check();
+        final status = c.read(updateControllerProvider);
+        expect(status.installed?.versionName, '1.0.0');
+        expect(status.check, UpdateCheck.done);
+        expect(status.hasUpdate, isTrue);
+        await c.read(updateControllerProvider.notifier).dismiss();
+      },
+    );
 
     test('tanpa internet: status gagal', () async {
       final source = FakeReleaseSource(release('v1.1.0'))..offline = true;

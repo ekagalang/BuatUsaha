@@ -808,6 +808,8 @@ class OrderRepository {
                 (t) =>
                     t.businessId.equals(businessId) &
                     t.isActive.equals(true) &
+                    t.archivedAt.isNull() &
+                    t.deletedAt.isNull() &
                     t.safetyStock.isBiggerThanValue(0),
               ))
               .get();
@@ -890,6 +892,7 @@ class OrderRepository {
     required String name,
     required Decimal commissionPct,
     int feePerOrder = 0,
+    int feePerPcs = 0,
     bool isActive = true,
   }) async {
     if (name.trim().isEmpty) throw ArgumentError('Nama channel belum diisi.');
@@ -897,6 +900,7 @@ class OrderRepository {
       name: Value(name.trim()),
       commissionPct: Value(dbl(commissionPct)),
       feePerOrder: Value(feePerOrder),
+      feePerPcs: Value(feePerPcs),
       isActive: Value(isActive),
       updatedAt: Value(_now()),
     );
@@ -912,7 +916,11 @@ class OrderRepository {
   }
 
   /// Potongan bawaan channel untuk total item tertentu (FR-5.9).
-  Future<int> suggestedChannelFee(String? channelId, int itemsRevenue) async {
+  Future<int> suggestedChannelFee(
+    String? channelId,
+    int itemsRevenue, {
+    int pcs = 0,
+  }) async {
     if (channelId == null || itemsRevenue <= 0) return 0;
     final channel = await (_db.select(
       _db.salesChannels,
@@ -921,6 +929,8 @@ class OrderRepository {
       itemsTotal: itemsRevenue,
       commissionPct: dec(channel.commissionPct),
       feePerOrder: channel.feePerOrder,
+      feePerPcs: channel.feePerPcs,
+      pcs: pcs,
     );
   }
 
@@ -1139,7 +1149,11 @@ class OrderRepository {
 
   Future<int> _channelFeeFor(OrderInput input) async =>
       input.channelFee ??
-      await suggestedChannelFee(input.channelId, input.itemsRevenue);
+      await suggestedChannelFee(
+        input.channelId,
+        input.itemsRevenue,
+        pcs: input.items.fold(0, (sum, i) => sum + i.qty),
+      );
 
   Future<String?> _customerFor(String businessId, OrderInput input) async {
     final name = input.customerName?.trim() ?? '';

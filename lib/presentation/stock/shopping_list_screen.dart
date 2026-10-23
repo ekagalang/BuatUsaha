@@ -6,11 +6,13 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../data/db/decimal_convert.dart';
 import '../../data/providers.dart';
+import '../../data/repositories/stock_repository.dart' show IngredientUnitLabel;
 import '../../data/repositories/shopping_repository.dart';
 import '../../domain/stock/units.dart';
 import '../common/format.dart';
 import '../common/widgets.dart';
 import '../motion.dart';
+import '../layout.dart';
 import '../theme.dart';
 
 /// Rentang pesanan yang bisa dipilih (FR-12.1).
@@ -24,7 +26,7 @@ String shoppingQtyLabel(ShoppingLine line) {
   final item = line.item;
   final qty = dec(item.qty);
   final text = formatQty(qty, item.unitName);
-  final base = line.ingredient?.baseUnit.code;
+  final base = line.ingredient?.unitLabel;
   final factor = dec(item.factorToBase);
   if (base == null ||
       factor == Decimal.one ||
@@ -236,7 +238,10 @@ class _Body extends StatelessWidget {
     final todo = view.todo;
     final done = view.done;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+      padding: readablePadding(
+        context,
+        const EdgeInsets.fromLTRB(20, 4, 20, 24),
+      ),
       children: [
         Wrap(
           spacing: 8,
@@ -613,7 +618,7 @@ class _EditSheetState extends ConsumerState<_EditSheet> {
   @override
   Widget build(BuildContext context) {
     final ingredient = widget.line.ingredient;
-    final base = ingredient?.baseUnit.code;
+    final base = ingredient?.unitLabel;
     final avg = ingredient?.avgUnitCost;
     final baseQty = _value * _unit.factorToBase;
     final hint = [
@@ -744,7 +749,9 @@ class _AddSheetState extends ConsumerState<_AddSheet> {
     final all = ref.watch(ingredientsProvider).value ?? const [];
     final shown = all
         .where(
-          (v) => v.ingredient.name.toLowerCase().contains(query.toLowerCase()),
+          (v) =>
+              !v.isArchived &&
+              v.ingredient.name.toLowerCase().contains(query.toLowerCase()),
         )
         .take(6)
         .toList();
@@ -786,7 +793,7 @@ class _AddSheetState extends ConsumerState<_AddSheet> {
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                     trailing: Text(
-                      'stok ${formatQty(v.stock, v.ingredient.baseUnit.code)}',
+                      'stok ${formatQty(v.stock, v.ingredient.unitLabel)}',
                       style: const TextStyle(
                         fontSize: 13,
                         color: AppColors.textMuted,

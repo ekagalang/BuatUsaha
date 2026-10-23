@@ -24,6 +24,8 @@ import '../documents/logo_image.dart';
 import '../documents/receipt.dart';
 import '../motion.dart';
 import '../menu/menu_labels.dart';
+import '../orders/order_labels.dart' show channelFeeText;
+import '../layout.dart';
 import '../theme.dart';
 import 'account_section.dart';
 
@@ -41,7 +43,10 @@ class SettingsScreen extends ConsumerWidget {
       body: business == null || settings == null
           ? const Center(child: CircularProgressIndicator())
           : ListView(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+              padding: readablePadding(
+                context,
+                const EdgeInsets.fromLTRB(20, 0, 20, 32),
+              ),
               children: [
                 _ProfileSection(business: business),
                 const SizedBox(height: 24),
@@ -760,9 +765,10 @@ class _ChannelSection extends ConsumerWidget {
                   ),
                   subtitle: Text(
                     [
-                      'komisi ${formatDecimal(dec(c.commissionPct))}%',
-                      if (c.feePerOrder > 0)
-                        '+ ${formatRupiah(c.feePerOrder)}/transaksi',
+                      if (channelFeeText(c).isEmpty)
+                        'tanpa potongan'
+                      else
+                        channelFeeText(c),
                       if (!c.isActive) 'nonaktif',
                     ].join(' · '),
                   ),
@@ -799,6 +805,7 @@ class _ChannelSection extends ConsumerWidget {
             name: result.name,
             commissionPct: result.pct,
             feePerOrder: result.fee,
+            feePerPcs: result.perPcs,
             isActive: result.active,
           ),
       'Channel ${result.name} disimpan.',
@@ -807,11 +814,12 @@ class _ChannelSection extends ConsumerWidget {
 }
 
 class _ChannelResult {
-  const _ChannelResult(this.name, this.pct, this.fee, this.active);
+  const _ChannelResult(this.name, this.pct, this.fee, this.perPcs, this.active);
 
   final String name;
   final Decimal pct;
   final int fee;
+  final int perPcs;
   final bool active;
 }
 
@@ -836,6 +844,11 @@ class _ChannelDialogState extends State<_ChannelDialog> {
         ? formatRupiahDigits(widget.channel!.feePerOrder)
         : '',
   );
+  late final _perPcs = TextEditingController(
+    text: (widget.channel?.feePerPcs ?? 0) > 0
+        ? formatRupiahDigits(widget.channel!.feePerPcs)
+        : '',
+  );
   late var _active = widget.channel?.isActive ?? true;
 
   @override
@@ -843,6 +856,7 @@ class _ChannelDialogState extends State<_ChannelDialog> {
     _name.dispose();
     _pct.dispose();
     _fee.dispose();
+    _perPcs.dispose();
     super.dispose();
   }
 
@@ -869,7 +883,7 @@ class _ChannelDialogState extends State<_ChannelDialog> {
                 decimal: true,
               ),
               decoration: const InputDecoration(
-                labelText: 'Komisi',
+                labelText: 'Komisi (opsional)',
                 suffixText: '%',
                 hintText: 'mis. 20',
               ),
@@ -880,8 +894,21 @@ class _ChannelDialogState extends State<_ChannelDialog> {
               keyboardType: TextInputType.number,
               inputFormatters: const [RupiahInputFormatter()],
               decoration: const InputDecoration(
-                labelText: 'Biaya per transaksi (opsional)',
+                labelText: 'Biaya per pesanan (opsional)',
                 prefixText: 'Rp ',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _perPcs,
+              keyboardType: TextInputType.number,
+              inputFormatters: const [RupiahInputFormatter()],
+              decoration: const InputDecoration(
+                labelText: 'Potongan per pcs (opsional)',
+                prefixText: 'Rp ',
+                helperText:
+                    'Isi yang dipakai mitra saja; yang lain biarkan kosong.',
+                helperMaxLines: 2,
               ),
             ),
             SwitchListTile(
@@ -907,6 +934,7 @@ class _ChannelDialogState extends State<_ChannelDialog> {
                     _name.text.trim(),
                     parseDecimalInput(_pct.text) ?? Decimal.zero,
                     parseRupiahInput(_fee.text) ?? 0,
+                    parseRupiahInput(_perPcs.text) ?? 0,
                     _active,
                   ),
                 )
@@ -1050,7 +1078,13 @@ class _DataSectionState extends ConsumerState<_DataSection> {
       final tmp = await getTemporaryDirectory();
       final file = File('${tmp.path}${Platform.pathSeparator}restore.sqlite');
       await file.writeAsBytes(await picked.readAsBytes(), flush: true);
-      await _restoreFrom(file, null);
+      final date = backupDateOf(File(picked.name));
+      await _restoreFrom(
+        file,
+        date == null
+            ? null
+            : 'dibuat ${formatShortDate(date)} ${date.year} ${formatTime(date)}',
+      );
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Restore gagal: $e')));
     }

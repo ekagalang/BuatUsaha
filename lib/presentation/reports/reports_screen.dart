@@ -11,6 +11,7 @@ import '../common/format.dart';
 import '../common/widgets.dart';
 import '../documents/document_screens.dart';
 import '../orders/order_form_screen.dart' show SummaryRow;
+import '../layout.dart';
 import '../theme.dart';
 
 enum Period { day, week, month, range }
@@ -123,7 +124,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+        padding: readablePadding(
+          context,
+          const EdgeInsets.fromLTRB(20, 4, 20, 24),
+          maxWidth: 1100,
+        ),
         children: [
           Segmented(
             labels: const ['Hari', 'Minggu', 'Bulan', 'Rentang'],
@@ -509,82 +514,98 @@ class _PeriodView extends ConsumerWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _StatusHero(
-              title: 'Laba bersih periode',
-              net: r.netProfit,
-              caption: '${r.orders} transaksi selesai',
-            ),
-            const SizedBox(height: 12),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    SummaryRow('Omzet', formatRupiah(r.revenue)),
-                    SummaryRow('Potongan channel', formatRupiah(-r.channelFee)),
-                    SummaryRow('HPP terjual', formatRupiah(-r.cogs)),
-                    SummaryRow(
-                      'Laba kotor${margin == null ? '' : ' (margin ${formatDecimal(margin, maxDecimals: 1)}%)'}',
-                      formatRupiah(r.grossProfit),
-                      bold: true,
-                    ),
-                    SummaryRow(
-                      'Rugi produk dibuang',
-                      formatRupiah(-r.productLoss),
-                    ),
-                    SummaryRow('Rugi bahan', formatRupiah(-r.materialLoss)),
-                    SummaryRow(
-                      monthly
-                          ? 'Pengeluaran (termasuk bulanan)'
-                          : 'Pengeluaran',
-                      formatRupiah(-r.expenses),
-                    ),
-                    SummaryRow(
-                      'Laba bersih',
-                      formatRupiah(r.netProfit),
-                      bold: true,
-                      color: r.netProfit >= 0
-                          ? AppColors.success
-                          : AppColors.danger,
-                    ),
-                    if (r.shipping > 0)
-                      SummaryRow(
-                        'Ongkir ditagih (bukan omzet)',
-                        formatRupiah(r.shipping),
-                      ),
-                  ],
+            // Tablet: ringkasan dan grafik berdampingan (FR-21.4).
+            TwoColumns(
+              left: [
+                _StatusHero(
+                  title: 'Laba bersih periode',
+                  net: r.netProfit,
+                  caption: '${r.orders} transaksi selesai',
                 ),
-              ),
+                const SizedBox(height: 12),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        SummaryRow('Omzet', formatRupiah(r.revenue)),
+                        SummaryRow(
+                          'Potongan channel',
+                          formatRupiah(-r.channelFee),
+                        ),
+                        SummaryRow('HPP terjual', formatRupiah(-r.cogs)),
+                        SummaryRow(
+                          'Laba kotor${margin == null ? '' : ' (margin ${formatDecimal(margin, maxDecimals: 1)}%)'}',
+                          formatRupiah(r.grossProfit),
+                          bold: true,
+                        ),
+                        SummaryRow(
+                          'Rugi produk dibuang',
+                          formatRupiah(-r.productLoss),
+                        ),
+                        SummaryRow('Rugi bahan', formatRupiah(-r.materialLoss)),
+                        SummaryRow(
+                          monthly
+                              ? 'Pengeluaran (termasuk bulanan)'
+                              : 'Pengeluaran',
+                          formatRupiah(-r.expenses),
+                        ),
+                        SummaryRow(
+                          'Laba bersih',
+                          formatRupiah(r.netProfit),
+                          bold: true,
+                          color: r.netProfit >= 0
+                              ? AppColors.success
+                              : AppColors.danger,
+                        ),
+                        if (r.shipping > 0)
+                          SummaryRow(
+                            'Ongkir ditagih (bukan omzet)',
+                            formatRupiah(r.shipping),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (r.incompleteHppItems > 0) ...[
+                  const SizedBox(height: 8),
+                  InfoBox(
+                    '${r.incompleteHppItems} item terjual dengan HPP belum lengkap; '
+                    'laba sebenarnya bisa lebih kecil.',
+                  ),
+                ],
+              ],
+              right: [
+                const SizedBox(height: 16),
+                const SectionTitle('Tren laba harian'),
+                const SizedBox(height: 8),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 16, 16, 8),
+                    child: SizedBox(height: 180, child: _TrendChart(r.trend)),
+                  ),
+                ),
+              ],
             ),
-            if (r.incompleteHppItems > 0) ...[
-              const SizedBox(height: 8),
-              InfoBox(
-                '${r.incompleteHppItems} item terjual dengan HPP belum lengkap; '
-                'laba sebenarnya bisa lebih kecil.',
-              ),
-            ],
-            const SizedBox(height: 16),
-            const SectionTitle('Tren laba harian'),
-            const SizedBox(height: 8),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 16, 16, 8),
-                child: SizedBox(height: 180, child: _TrendChart(r.trend)),
-              ),
-            ),
-            const SizedBox(height: 16),
-            const SectionTitle('Menu terlaris'),
-            const SizedBox(height: 8),
-            _RankList(
-              ranks: r.bestSellers.take(5).toList(),
-              value: (p) => '${p.qty} pcs',
-            ),
-            const SizedBox(height: 16),
-            const SectionTitle('Paling menguntungkan'),
-            const SizedBox(height: 8),
-            _RankList(
-              ranks: r.mostProfitable.take(5).toList(),
-              value: (p) => formatRupiah(toRupiah(p.profit)),
+            TwoColumns(
+              left: [
+                const SizedBox(height: 16),
+                const SectionTitle('Menu terlaris'),
+                const SizedBox(height: 8),
+                _RankList(
+                  ranks: r.bestSellers.take(5).toList(),
+                  value: (p) => '${p.qty} pcs',
+                ),
+              ],
+              right: [
+                const SizedBox(height: 16),
+                const SectionTitle('Paling menguntungkan'),
+                const SizedBox(height: 8),
+                _RankList(
+                  ranks: r.mostProfitable.take(5).toList(),
+                  value: (p) => formatRupiah(toRupiah(p.profit)),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             const SectionTitle('Per channel'),

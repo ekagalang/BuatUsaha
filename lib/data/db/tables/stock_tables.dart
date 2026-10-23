@@ -29,9 +29,18 @@ class Ingredients extends Table with EntityColumns {
   BoolColumn get lowStockNotified =>
       boolean().withDefault(const Constant(false))();
   TextColumn get note => text().nullable()();
+
+  /// Nama satuan untuk bahan yang dihitung per jumlah (butir, lembar, …);
+  /// kosong = pcs (FR-20.3). Skema v7.
+  TextColumn get countUnit => text().nullable()();
+
+  /// Diarsipkan: disembunyikan dari daftar dan pilihan, bisa dipulihkan
+  /// (FR-20.2). Dihapus padahal punya riwayat memakai `deletedAt`. Skema v7.
+  DateTimeColumn get archivedAt => dateTime().nullable()();
 }
 
-/// Konversi satuan beli ke satuan dasar, mis. 1 pack mentega = 200 g.
+/// Konversi satuan beli atau satuan resep ke satuan dasar, mis. 1 pack
+/// mentega = 200 g, 1 sdm tepung = 8 g.
 class IngredientUnits extends Table with EntityColumns {
   TextColumn get ingredientId =>
       text().references(Ingredients, #id, onDelete: KeyAction.cascade)();
@@ -39,6 +48,13 @@ class IngredientUnits extends Table with EntityColumns {
   RealColumn get factorToBase => real()();
   BoolColumn get isDefaultPurchase =>
       boolean().withDefault(const Constant(false))();
+
+  /// Satuan bawaan (kg, lusin, …) yang disembunyikan untuk bahan ini.
+  /// Skema v7.
+  BoolColumn get hidden => boolean().withDefault(const Constant(false))();
+
+  /// Satuan takaran resep (sdm, sdt, gelas, siung, …). Skema v7.
+  BoolColumn get forRecipe => boolean().withDefault(const Constant(false))();
 
   @override
   List<Set<Column<Object>>> get uniqueKeys => [

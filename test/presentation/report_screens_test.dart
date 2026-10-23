@@ -13,11 +13,11 @@ import 'package:buat_usaha/presentation/reports/reports_screen.dart';
 import 'package:buat_usaha/presentation/settings/settings_screen.dart';
 import 'package:buat_usaha/presentation/theme.dart';
 
+import '../support/screen.dart';
 import '../support/seed.dart';
 
 Future<void> _pump(WidgetTester tester, AppDatabase db, Widget screen) async {
-  await tester.binding.setSurfaceSize(const Size(360, 3200));
-  addTearDown(() => tester.binding.setSurfaceSize(null));
+  setScreenSize(tester, const Size(360, 3200));
   await tester.pumpWidget(
     ProviderScope(
       overrides: [appDatabaseProvider.overrideWithValue(db)],

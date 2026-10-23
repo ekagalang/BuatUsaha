@@ -14,6 +14,16 @@ Future<File> databaseFile() async {
 
 String _two(int n) => n.toString().padLeft(2, '0');
 
+/// Tanggal backup dari nama file `buatusaha-backup-YYYYMMDD-HHMM.sqlite`;
+/// `null` bila namanya lain.
+DateTime? backupDateOf(File file) {
+  final m = RegExp(r'(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})')
+      .firstMatch(file.uri.pathSegments.last);
+  if (m == null) return null;
+  final n = [for (var i = 1; i <= 5; i++) int.parse(m.group(i)!)];
+  return DateTime(n[0], n[1], n[2], n[3], n[4]);
+}
+
 /// Backup dan restore seluruh data ke satu file (FR-8.3).
 class BackupService {
   const BackupService._();
@@ -35,9 +45,27 @@ class BackupService {
   /// Memastikan file benar-benar backup aplikasi ini; mengembalikan nama
   /// usaha di dalamnya. Melempar [FormatException] jika bukan.
   static Future<String> inspect(File file) async {
-    final header = await file.openRead(0, 16).first;
-    if (String.fromCharCodes(header.take(15)) != 'SQLite format 3') {
+    final header = <int>[
+      for (final chunk in await file.openRead(0, 100).toList()) ...chunk,
+    ];
+    if (header.length < 64 ||
+        String.fromCharCodes(header.take(15)) != 'SQLite format 3') {
       throw const FormatException('File ini bukan backup BuatUsaha.');
+    }
+    // Versi skema = PRAGMA user_version di header (byte 60–63, big-endian).
+    // Backup dari aplikasi yang lebih baru tidak bisa dibuka versi ini
+    // (FR-20.7).
+    final version =
+        (header[60] << 24) |
+        (header[61] << 16) |
+        (header[62] << 8) |
+        header[63];
+    if (version > appSchemaVersion) {
+      throw const FormatException(
+        'Backup ini dibuat aplikasi BuatUsaha versi yang lebih baru. '
+        'Perbarui aplikasi di HP ini dulu (Pengaturan › Tentang aplikasi › '
+        'Cek pembaruan), lalu pulihkan lagi.',
+      );
     }
     // Buka salinan supaya file asli tidak ikut dimigrasi.
     final copy = await file.copy('${file.path}.check');

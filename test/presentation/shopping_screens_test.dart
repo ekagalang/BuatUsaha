@@ -11,6 +11,7 @@ import 'package:buat_usaha/presentation/stock/purchase_form_screen.dart';
 import 'package:buat_usaha/presentation/stock/shopping_list_screen.dart';
 import 'package:buat_usaha/presentation/theme.dart';
 
+import '../support/screen.dart';
 import '../support/seed.dart';
 
 Future<void> _settle(WidgetTester tester) async {
@@ -46,8 +47,7 @@ void main() {
     double textScale = 1,
     Widget? home,
   }) async {
-    await tester.binding.setSurfaceSize(const Size(360, 1600));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+    setScreenSize(tester, const Size(360, 1600));
     final router = GoRouter(
       routes: [
         GoRoute(

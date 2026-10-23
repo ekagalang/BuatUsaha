@@ -10,6 +10,7 @@ import '../common/rupiah_input.dart';
 import '../common/widgets.dart';
 import '../motion.dart';
 import '../orders/order_form_screen.dart' show SummaryRow;
+import '../layout.dart';
 import '../theme.dart';
 import 'cash_account_picker.dart';
 
@@ -56,7 +57,10 @@ class _CashScreenState extends ConsumerState<CashScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Gagal memuat kas: $e')),
         data: (p) => ListView(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+          padding: readablePadding(
+            context,
+            const EdgeInsets.fromLTRB(20, 4, 20, 24),
+          ),
           children: [
             _BalanceHero(period: p),
             const SizedBox(height: 16),

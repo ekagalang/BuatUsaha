@@ -6,13 +6,17 @@ import 'package:go_router/go_router.dart';
 import '../../data/db/app_database.dart';
 import '../../data/db/decimal_convert.dart';
 import '../../data/providers.dart';
+import '../../data/repositories/stock_repository.dart' show IngredientUnitLabel;
+import '../../data/repositories/archive_repository.dart';
 import '../../data/repositories/product_repository.dart';
 import '../../domain/costing/costing.dart';
 import '../common/format.dart';
 import '../common/widgets.dart';
+import '../layout.dart';
 import '../motion.dart';
 import '../reports/day_close_screen.dart' show wasteReasonLabel;
 import '../theme.dart';
+import '../stock/ingredient_manage.dart' show removeProductFlow;
 import 'menu_labels.dart';
 import 'menu_pricing_cards.dart';
 
@@ -58,19 +62,70 @@ class _Detail extends ConsumerWidget {
       appBar: AppBar(
         title: Text(product.name),
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: OutlinedButton(
-              style: OutlinedButton.styleFrom(minimumSize: const Size(0, 40)),
-              onPressed: () => context.push('/menu/${product.id}/ubah'),
-              child: const Text('Ubah resep'),
-            ),
+          OutlinedButton(
+            style: OutlinedButton.styleFrom(minimumSize: const Size(0, 40)),
+            onPressed: () => context.push('/menu/${product.id}/ubah'),
+            child: const Text('Ubah resep'),
+          ),
+          PopupMenuButton<String>(
+            tooltip: 'Menu lainnya',
+            onSelected: (action) async {
+              if (action == 'restore') {
+                await runWithSnack(
+                  context,
+                  () => ref
+                      .read(archiveRepositoryProvider)
+                      .restoreProduct(product.id),
+                  '${product.name} dipulihkan.',
+                );
+                return;
+              }
+              final gone = await removeProductFlow(
+                context,
+                ref,
+                product,
+                initial: action == 'archive'
+                    ? RemoveAction.archive
+                    : RemoveAction.delete,
+              );
+              if (gone && context.mounted) closeDetail(context);
+            },
+            itemBuilder: (_) => [
+              if (view.isArchived)
+                const PopupMenuItem(
+                  value: 'restore',
+                  child: Text('Pulihkan dari arsip'),
+                )
+              else
+                const PopupMenuItem(
+                  value: 'archive',
+                  child: Text('Arsipkan menu'),
+                ),
+              const PopupMenuItem(
+                value: 'delete',
+                child: Text(
+                  'Hapus menu',
+                  style: TextStyle(color: AppColors.danger),
+                ),
+              ),
+            ],
           ),
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        padding: readablePadding(
+          context,
+          const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        ),
         children: [
+          if (view.isArchived) ...[
+            const SizedBox(height: 8),
+            const InfoBox(
+              'Menu ini diarsipkan: tidak tampil di daftar Menu dan pesanan '
+              'baru. Pulihkan lewat menu ⋮.',
+            ),
+            const SizedBox(height: 8),
+          ],
           Text(
             subtitle,
             style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
@@ -385,8 +440,8 @@ class _Breakdown extends StatelessWidget {
               _Line(
                 l.ingredient.name,
                 detail:
-                    '${formatQty(dec(l.item.qtyBase), l.ingredient.baseUnit.code)}'
-                    ' × ${formatUnitPrice(l.line.unitCost, l.ingredient.baseUnit.code)}',
+                    '${formatQty(dec(l.item.qtyBase), l.ingredient.unitLabel)}'
+                    ' × ${formatUnitPrice(l.line.unitCost, l.ingredient.unitLabel)}',
                 value: l.line.cost == null
                     ? '—'
                     : formatRupiah(toRupiah(l.line.cost!)),
@@ -642,7 +697,7 @@ class _TargetSimulationState extends State<_TargetSimulation> {
                 _Line(
                   byId[s.ingredientId]?.ingredient.name ?? '',
                   detail:
-                      'kurang ${formatQty(s.missingQty, byId[s.ingredientId]?.ingredient.baseUnit.code ?? '')}',
+                      'kurang ${formatQty(s.missingQty, byId[s.ingredientId]?.ingredient.unitLabel ?? '')}',
                   value: s.estimatedCost == null
                       ? 'belum ada harga'
                       : formatRupiah(toRupiah(s.estimatedCost!)),
@@ -1058,9 +1113,9 @@ class _ProductionSheetState extends State<_ProductionSheet> {
                     decoration: InputDecoration(
                       isDense: true,
                       labelText: l.ingredient.name,
-                      suffixText: l.ingredient.baseUnit.code,
+                      suffixText: l.ingredient.unitLabel,
                       helperText:
-                          'stok ${formatQty(dec(l.ingredient.currentStock), l.ingredient.baseUnit.code)}',
+                          'stok ${formatQty(dec(l.ingredient.currentStock), l.ingredient.unitLabel)}',
                     ),
                   ),
                 ),

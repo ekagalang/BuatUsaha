@@ -5,6 +5,7 @@ import '../services/local_notifications.dart';
 import '../services/notification_sync.dart';
 import 'db/app_database.dart';
 import 'db/database_provider.dart';
+import 'repositories/archive_repository.dart';
 import 'repositories/business_repository.dart';
 import 'repositories/cash_repository.dart';
 import 'repositories/day_close_repository.dart';
@@ -287,3 +288,24 @@ final cashPeriodProvider =
           .watch(cashRepositoryProvider)
           .watchPeriod(business.id, range.$1, range.$2);
     });
+
+/// Perbaikan stok awal data lama, sekali setelah update ke skema v7
+/// (FR-20.6); isinya jumlah bahan yang diperbaiki.
+final openingFixProvider = FutureProvider<int>((ref) async {
+  final business = await ref.watch(currentBusinessProvider.future);
+  return ref.read(stockRepositoryProvider).runOpeningFix(business.id);
+});
+
+final archiveRepositoryProvider = Provider(
+  (ref) => ArchiveRepository(
+    ref.watch(appDatabaseProvider),
+    ref.watch(stockRepositoryProvider),
+    ref.watch(productRepositoryProvider),
+  ),
+);
+
+/// Baris satuan tersimpan satu bahan, termasuk yang disembunyikan.
+final ingredientUnitsProvider =
+    StreamProvider.family<List<IngredientUnit>, String>(
+      (ref, id) => ref.watch(stockRepositoryProvider).watchUnits(id),
+    );

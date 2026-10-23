@@ -24,6 +24,9 @@ class SalesChannels extends Table with EntityColumns {
   /// Biaya tetap per transaksi.
   IntColumn get feePerOrder => integer().withDefault(const Constant(0))();
   BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+
+  /// Potongan Rupiah per pcs (FR-20.5). Skema v7.
+  IntColumn get feePerPcs => integer().withDefault(const Constant(0))();
 }
 
 /// Pesanan dan penjualan langsung. Omzet diakui saat status COMPLETED.

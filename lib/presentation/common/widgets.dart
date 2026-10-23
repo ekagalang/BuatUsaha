@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/db/app_database.dart';
 import '../../data/repositories/day_close_repository.dart';
+import '../layout.dart';
 import '../motion.dart';
 import '../theme.dart';
 import 'format.dart';
@@ -118,14 +119,17 @@ class BottomActionBar extends StatelessWidget {
         top: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (above != null) ...[above!, const SizedBox(height: 12)],
-              Pressable(
-                child: SizedBox(width: double.infinity, child: child),
-              ),
-            ],
+          // Lebar baca di tablet (FR-21.6).
+          child: Readable(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (above != null) ...[above!, const SizedBox(height: 12)],
+                Pressable(
+                  child: SizedBox(width: double.infinity, child: child),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -333,4 +337,41 @@ String? closedDayWarning(Business? business, DateTime at) {
   if (last == null || dayKey(at).compareTo(last) > 0) return null;
   return '${formatLongDate(at)} sudah Tutup hari; ringkasan hari itu akan '
       'berubah.';
+}
+
+/// Baris bahan atau menu yang diarsipkan, dengan tombol Pulihkan
+/// (FR-20.2, FR-20.4).
+class ArchivedTile extends StatelessWidget {
+  const ArchivedTile({
+    super.key,
+    required this.name,
+    required this.meta,
+    required this.onTap,
+    required this.onRestore,
+  });
+
+  final String name;
+  final String meta;
+  final VoidCallback onTap;
+  final VoidCallback onRestore;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      onTap: onTap,
+      title: Text(
+        name,
+        style: const TextStyle(
+          fontWeight: FontWeight.w700,
+          color: AppColors.textMuted,
+        ),
+      ),
+      subtitle: Text(meta),
+      trailing: OutlinedButton(
+        style: OutlinedButton.styleFrom(minimumSize: const Size(0, 40)),
+        onPressed: onRestore,
+        child: const Text('Pulihkan'),
+      ),
+    );
+  }
 }

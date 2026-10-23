@@ -263,3 +263,26 @@ Dibuat langsung tanpa mockup atas pilihan pengguna (S4 + S5, 21 Okt 2026); memak
 - Layar Kas: kartu hero total saldo (gaya `_StatusHero` Laporan), baris akun (nama, jenis, saldo); pemilih bulan seperti Laporan; ringkasan masuk/keluar/bersih; kartu penjelasan laba vs kas; daftar mutasi per hari (masuk `success`, keluar `danger`). Tombol bawah **Catat kas**; AppBar **Atur akun**.
 - Lembar Catat kas: Segmented 4 jenis (Modal masuk, Ambil pribadi, Pindah, Koreksi saldo), ChoicePill akun (dan akun tujuan untuk Pindah), nominal, tanggal, catatan.
 - Form Belanja dan Pengeluaran: baris ChoicePill "Dibayar dari" (akun aktif), bawaan Tunai.
+
+## 18. Perbaikan uji pakai: draf, kelola bahan/menu, satuan
+
+Mengikuti mockup baris "Perbaikan uji pakai" (`DrafMenu`, `KelolaBahan`, `SatuanBahan`, `HapusMenuChannel`), di-acc 22 Okt 2026. Prinsipnya fleksibel: tidak ada "tidak bisa"; setiap akibat jadi pilihan yang dijelaskan, pilihan yang disarankan ditandai.
+
+- Draf menu: bagian **Draf (n)** di atas daftar Menu, kartu `warningContainer` bergaris putus `dashed`, tombol buang (ikon) dan **Lanjutkan**. Keluar dari form dengan perubahan: snackbar "Disimpan sebagai draf" + Lanjutkan. Ubah resep yang punya draf: kotak `primaryContainer` dengan **Buang draf** dan **Pakai draf**.
+- Detail bahan › ⋮: Ubah bahan, Arsipkan/Pulihkan, Hapus bahan (`danger`). Bahan tanpa transaksi: kartu **Belum ada stok / Stok awal** dengan tombol isi. Kartu **Satuan**: satuan beli/resep (pill "beli"/"resep", ketuk untuk ubah isi, ikon sembunyikan), satuan bawaan dengan Sembunyikan/Tampilkan, tombol + Satuan beli dan + Satuan resep.
+- Dialog arsip/hapus: radio Arsipkan (disarankan) / Hapus, lalu pilihan sisa stok dan resep; tombol utama `danger` bila Hapus.
+- Form Belanja: pilihan "+ Satuan baru" di daftar satuan; di bawah baris, teks `success` "1 pack = 10 butir · 10 butir masuk stok · Rp2.300/butir" dan tombol **Ubah isi**.
+- Resep: takaran pendek + tombol satuan (teks `primary` + panah) berisi satuan dasar, satuan bahan, dan sdt/sdm/gelas; di bawahnya "= 24 g · Rp336 per resep".
+- Daftar Bahan dan Menu: saringan **Diarsipkan (n)** muncul bila ada; barisnya abu-abu dengan tombol **Pulihkan**.
+
+## 19. Tampilan tablet
+
+Mengikuti mockup baris "Tampilan tablet" (`TabletBeranda`, `TabletPesanan`, `TabletMenuTegak`, `TabletForm`), di-acc 22 Okt 2026. Kodenya di `lib/presentation/layout.dart`.
+
+- Ukuran jendela: ringkas < 600 dp (HP, tidak berubah), sedang 600–839 dp (tablet tegak), lebar ≥ 840 dp (tablet mendatar).
+- Navigasi: ≥ 600 dp memakai `NavigationRail` (label selalu tampil, tanda cupcake di atas, tombol Pengaturan di bawah) dipisah garis `border` dari isi.
+- Daftar + detail (`ListDetailLayout`): bila lebar isi ≥ 760 dp, Pesanan, Menu, dan Bahan menampilkan daftar (min(420 dp, 42%)) di kiri dan detail di kanan. Item pertama terbuka otomatis; kartu terpilih berlatar `primaryContainer` dengan garis `primary`. Di bawah 760 dp detail tetap layar sendiri.
+- Beranda: dua kolom (ringkasan hari ini, nilai, perlu perhatian | Catat cepat, pesanan hari ini); di HP urutan lama. Laporan: dua kolom untuk ringkasan | grafik tren dan terlaris | paling menguntungkan, maks. 1.100 dp.
+- Kisi (`ResponsiveGrid`): kartu menu 1 kolom di HP, 2 kolom ≥ 560 dp, 3 kolom ≥ 1.000 dp; kartu bahan nilai modal berdampingan ≥ 560 dp.
+- Form dan detail: isi dibatasi lebar baca 720 dp di tengah (`readablePadding`), begitu juga bar tombol bawah (`Readable`, setinggi isinya). Lembar bawah maks. 640 dp.
+- Tes memakai `setScreenSize` (`test/support/screen.dart`) karena `setSurfaceSize` saja tidak mengubah MediaQuery.

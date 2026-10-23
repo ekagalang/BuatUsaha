@@ -8,6 +8,7 @@ import '../common/format.dart';
 import '../common/rupiah_input.dart';
 import '../common/widgets.dart';
 import '../orders/order_labels.dart' show methodLabel;
+import '../layout.dart';
 import '../theme.dart';
 import 'cash_screen.dart' show cashKindLabel;
 
@@ -21,7 +22,10 @@ class CashAccountsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Akun kas')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+        padding: readablePadding(
+          context,
+          const EdgeInsets.fromLTRB(20, 4, 20, 24),
+        ),
         children: [
           const Text(
             'Pembayaran pesanan masuk ke akun sesuai cara bayarnya. Saldo '

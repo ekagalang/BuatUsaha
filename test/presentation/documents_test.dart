@@ -23,6 +23,7 @@ import 'package:buat_usaha/presentation/settings/settings_screen.dart';
 import 'package:buat_usaha/presentation/theme.dart';
 import 'package:buat_usaha/services/update_controller.dart';
 
+import '../support/screen.dart';
 import '../support/fake_updates.dart';
 import '../support/seed.dart';
 
@@ -273,8 +274,7 @@ void main() {
       Widget home, {
       FakeAppPlatform? platform,
     }) async {
-      await tester.binding.setSurfaceSize(const Size(360, 1800));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+      setScreenSize(tester, const Size(360, 1800));
       final router = GoRouter(
         routes: [GoRoute(path: '/', builder: (_, _) => home)],
       );

@@ -15,7 +15,9 @@ import '../common/format.dart';
 import '../common/rupiah_input.dart';
 import '../cash/cash_account_picker.dart';
 import '../common/widgets.dart';
+import '../layout.dart';
 import '../theme.dart';
+import 'ingredient_manage.dart' show editUnit;
 
 class _Line {
   _Line();
@@ -252,6 +254,36 @@ class _PurchaseFormScreenState extends ConsumerState<PurchaseFormScreen> {
     });
   }
 
+  /// Satuan beli baru atau ubah isinya langsung dari baris belanja
+  /// (FR-20.3); baris memakai satuan itu.
+  Future<void> _editUnit(
+    _Line line,
+    IngredientView view, {
+    UnitOption? unit,
+  }) async {
+    final saved = await editUnit(
+      context,
+      ref,
+      view.ingredient,
+      name: unit?.name,
+      factor: unit?.factorToBase,
+    );
+    if (saved == null || !mounted) return;
+    final units = await ref
+        .read(stockRepositoryProvider)
+        .unitOptions(view.ingredient.id);
+    if (!mounted) return;
+    setState(() {
+      line
+        ..units = units
+        ..unit = units.firstWhere(
+          (u) => normalizeUnitName(u.name) == normalizeUnitName(saved.name),
+          orElse: () => saved,
+        );
+    });
+    _changed();
+  }
+
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
@@ -328,7 +360,10 @@ class _PurchaseFormScreenState extends ConsumerState<PurchaseFormScreen> {
       body: ingredients.isEmpty
           ? _NoIngredients(onAdd: () => context.push('/bahan/baru'))
           : ListView(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+              padding: readablePadding(
+                context,
+                const EdgeInsets.fromLTRB(20, 4, 20, 24),
+              ),
               children: [
                 if (_fromListCount > 0) ...[
                   InfoBox(
@@ -383,10 +418,22 @@ class _PurchaseFormScreenState extends ConsumerState<PurchaseFormScreen> {
                 for (final (i, line) in _lines.indexed) ...[
                   _LineCard(
                     line: line,
-                    ingredients: ingredients,
+                    ingredients: [
+                      for (final v in ingredients)
+                        if (!v.isArchived ||
+                            v.ingredient.id == line.ingredientId)
+                          v,
+                    ],
                     view: byId[line.ingredientId],
                     editing: _editing,
                     onIngredient: (id) => _pickIngredient(line, id),
+                    onEditUnit: byId[line.ingredientId] == null
+                        ? null
+                        : (unit) => _editUnit(
+                            line,
+                            byId[line.ingredientId]!,
+                            unit: unit,
+                          ),
                     onChanged: _changed,
                     onRemove: _lines.length == 1
                         ? null
@@ -458,6 +505,7 @@ class _LineCard extends StatelessWidget {
     required this.view,
     required this.editing,
     required this.onIngredient,
+    required this.onEditUnit,
     required this.onChanged,
     required this.onRemove,
   });
@@ -467,6 +515,9 @@ class _LineCard extends StatelessWidget {
   final IngredientView? view;
   final bool editing;
   final ValueChanged<String> onIngredient;
+
+  /// `null` = satuan baru; selain itu ubah isi satuan itu.
+  final void Function(UnitOption? unit)? onEditUnit;
   final VoidCallback onChanged;
   final VoidCallback? onRemove;
 
@@ -534,13 +585,28 @@ class _LineCard extends StatelessWidget {
                           child: Text(
                             u.isCustom
                                 ? '${u.name} (${formatDecimal(u.factorToBase)} '
-                                      '${view?.ingredient.baseUnit.code ?? ''})'
+                                      '${view?.ingredient.unitLabel ?? ''})'
                                 : u.name,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
+                      if (onEditUnit != null)
+                        const DropdownMenuItem(
+                          value: _newUnit,
+                          child: Text(
+                            '+ Satuan baru',
+                            style: TextStyle(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
                     ],
                     onChanged: (name) {
+                      if (name == _newUnit) {
+                        onEditUnit?.call(null);
+                        return;
+                      }
                       line.unit = line.units.firstWhere((u) => u.name == name);
                       onChanged();
                     },
@@ -548,6 +614,14 @@ class _LineCard extends StatelessWidget {
                 ),
               ],
             ),
+            if (view != null && line.unit != null)
+              _PackHelper(
+                line: line,
+                view: view!,
+                onEdit: onEditUnit == null || !line.unit!.isCustom
+                    ? null
+                    : () => onEditUnit!(line.unit),
+              ),
             const SizedBox(height: 10),
             TextField(
               controller: line.price,
@@ -576,10 +650,60 @@ class _LineCard extends StatelessWidget {
   }
 }
 
+const _newUnit = '\u0000baru';
+
+/// "1 pack (isi 10 butir) Rp23.000 → Rp2.300/butir": hitungan isi kemasan
+/// dan harga per satuan dasar langsung saat diketik (FR-20.3).
+class _PackHelper extends StatelessWidget {
+  const _PackHelper({required this.line, required this.view, this.onEdit});
+
+  final _Line line;
+  final IngredientView view;
+  final VoidCallback? onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    final unit = line.unit!;
+    final base = view.ingredient.unitLabel;
+    final qty = parseDecimalInput(line.qty.text);
+    final price = parseRupiahInput(line.price.text);
+    final total = qty == null ? null : qty * unit.factorToBase;
+    final perBase = total == null || total <= Decimal.zero || price == null
+        ? null
+        : divide(rupiah(price), total);
+    final isPack = unit.factorToBase != Decimal.one;
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              [
+                if (isPack)
+                  '1 ${unit.name} = ${formatQty(unit.factorToBase, base)}',
+                if (total != null && isPack)
+                  '${formatQty(total, base)} masuk stok',
+                if (perBase != null) formatUnitPrice(perBase, base),
+              ].join(' · '),
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.success,
+              ),
+            ),
+          ),
+          if (onEdit != null)
+            TextButton(onPressed: onEdit, child: const Text('Ubah isi')),
+        ],
+      ),
+    );
+  }
+}
+
 extension on _LineCard {
   /// "Rp14/g · sebelumnya Rp140/g" di layar ubah belanja.
   Widget _unitPriceNote(IngredientView view) {
-    final base = view.ingredient.baseUnit.code;
+    final base = view.ingredient.unitLabel;
     final qty = parseDecimalInput(line.qty.text);
     final price = parseRupiahInput(line.price.text);
     final now = qty == null || qty <= Decimal.zero || price == null
@@ -688,7 +812,7 @@ class _Preview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final base = view.ingredient.baseUnit.code;
+    final base = view.ingredient.unitLabel;
     final qty = parseDecimalInput(line.qty.text);
     final price = parseRupiahInput(line.price.text);
     if (qty == null || qty <= Decimal.zero || price == null) {

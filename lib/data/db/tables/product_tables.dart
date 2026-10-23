@@ -44,6 +44,10 @@ class Products extends Table with EntityColumns {
   /// Stok jaga: pcs yang ingin selalu tersedia, ikut dihitung di daftar
   /// belanja (FR-12.10). Skema v4.
   RealColumn get safetyStock => real().withDefault(const Constant(0.0))();
+
+  /// Diarsipkan: disembunyikan dari daftar dan pilihan, bisa dipulihkan
+  /// (FR-20.4). Dihapus padahal punya riwayat memakai `deletedAt`. Skema v7.
+  DateTimeColumn get archivedAt => dateTime().nullable()();
 }
 
 /// Takaran bahan per 1 resep (bill of materials).
@@ -52,6 +56,11 @@ class RecipeItems extends Table with EntityColumns {
       text().references(Products, #id, onDelete: KeyAction.cascade)();
   TextColumn get ingredientId => text().references(Ingredients, #id)();
   RealColumn get qtyBase => real()();
+
+  /// Satuan takaran yang diketik (mis. sdm) dan faktornya ke satuan dasar;
+  /// kosong = satuan dasar (FR-20.3). Skema v7.
+  TextColumn get unitName => text().nullable()();
+  RealColumn get unitFactor => real().nullable()();
 
   @override
   List<Set<Column<Object>>> get uniqueKeys => [

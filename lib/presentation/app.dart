@@ -5,6 +5,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../data/providers.dart';
 import '../services/local_notifications.dart';
 import '../services/sync_controller.dart';
 import '../services/update_controller.dart';
@@ -15,6 +16,7 @@ import 'cash/cash_screen.dart';
 import 'common/brand_marks.dart';
 import 'documents/document_screens.dart';
 import 'home/home_screen.dart';
+import 'layout.dart';
 import 'motion.dart';
 import 'menu/menu_detail_screen.dart';
 import 'menu/menu_form_screen.dart';
@@ -111,7 +113,8 @@ GoRouter buildRouter({Listenable? refresh, GoRouterRedirect? redirect}) {
         GoRoute(
           path: 'baru',
           parentNavigatorKey: rootKey,
-          builder: (context, state) => const MenuFormScreen(),
+          builder: (context, state) =>
+              MenuFormScreen(draftId: state.uri.queryParameters['draf']),
         ),
         GoRoute(
           path: 'simulasi',
@@ -371,13 +374,71 @@ class _Splash extends StatelessWidget {
   }
 }
 
-class HomeShell extends StatelessWidget {
+class HomeShell extends ConsumerWidget {
   const HomeShell({super.key, required this.shell});
 
   final StatefulNavigationShell shell;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.listen(openingFixProvider, (_, next) {
+      final fixed = next.value ?? 0;
+      if (fixed == 0) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '$fixed bahan: stok dari opname pertama dijadikan stok awal. '
+            'Laba bersih tidak lagi ikut naik.',
+          ),
+        ),
+      );
+    });
+    void select(int index) {
+      Haptics.select();
+      shell.goBranch(index, initialLocation: index == shell.currentIndex);
+    }
+
+    // Tablet: rel navigasi di kiri menggantikan navigasi bawah (FR-21.2).
+    if (windowSizeOf(context) != WindowSize.compact) {
+      return Scaffold(
+        body: Row(
+          children: [
+            NavigationRail(
+              selectedIndex: shell.currentIndex,
+              onDestinationSelected: select,
+              labelType: NavigationRailLabelType.all,
+              backgroundColor: AppColors.surface,
+              leading: const Padding(
+                padding: EdgeInsets.only(top: 8, bottom: 12),
+                child: _RailMark(),
+              ),
+              trailing: Expanded(
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: IconButton(
+                      tooltip: 'Pengaturan',
+                      onPressed: () => context.push('/pengaturan'),
+                      icon: const Icon(Icons.settings_outlined),
+                    ),
+                  ),
+                ),
+              ),
+              destinations: [
+                for (final tab in appTabs)
+                  NavigationRailDestination(
+                    icon: Icon(tab.icon),
+                    label: Text(tab.label),
+                  ),
+              ],
+            ),
+            const VerticalDivider(width: 1, color: AppColors.border),
+            Expanded(child: shell),
+          ],
+        ),
+      );
+    }
     return Scaffold(
       body: shell,
       bottomNavigationBar: DecoratedBox(
@@ -386,14 +447,38 @@ class HomeShell extends StatelessWidget {
         ),
         child: NavigationBar(
           selectedIndex: shell.currentIndex,
-          onDestinationSelected: (index) {
-            Haptics.select();
-            shell.goBranch(index, initialLocation: index == shell.currentIndex);
-          },
+          onDestinationSelected: select,
           destinations: [
             for (final tab in appTabs)
               NavigationDestination(icon: Icon(tab.icon), label: tab.label),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Tanda aplikasi di atas rel navigasi.
+class _RailMark extends StatelessWidget {
+  const _RailMark();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 44,
+      height: 44,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: AppColors.primary,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: const Text(
+        'B',
+        style: TextStyle(
+          fontFamily: 'Fraunces',
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+          color: AppColors.onPrimary,
         ),
       ),
     );

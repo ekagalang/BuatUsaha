@@ -1,5 +1,6 @@
+import '../../data/db/app_database.dart';
+import '../../data/db/decimal_convert.dart';
 import '../../data/repositories/order_repository.dart';
-import '../../domain/enums.dart';
 import '../common/format.dart';
 import '../common/widgets.dart';
 
@@ -67,3 +68,17 @@ String itemsSummary(OrderView view) => [
 ].join(', ');
 
 String channelName(OrderView view) => view.channel?.name ?? 'Langsung';
+
+/// Potongan channel ringkas: "20%", "Rp1.500/pcs", "20% + Rp2.000/pesanan";
+/// kosong bila tanpa potongan (FR-20.5).
+String channelFeeText(SalesChannel c) => [
+  if (c.commissionPct > 0) '${formatDecimal(dec(c.commissionPct))}%',
+  if (c.feePerPcs > 0) '${formatRupiah(c.feePerPcs)}/pcs',
+  if (c.feePerOrder > 0) '${formatRupiah(c.feePerOrder)}/pesanan',
+].join(' + ');
+
+/// Label pilihan channel di form pesanan, mis. "GoFood · 20%".
+String channelPillLabel(SalesChannel c) {
+  final fee = channelFeeText(c);
+  return fee.isEmpty ? c.name : '${c.name} · $fee';
+}

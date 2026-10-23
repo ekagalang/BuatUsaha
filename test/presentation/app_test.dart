@@ -9,6 +9,7 @@ import 'package:buat_usaha/data/sync/sync_engine.dart';
 import 'package:buat_usaha/presentation/app.dart';
 import 'package:buat_usaha/services/sync_controller.dart';
 
+import '../support/screen.dart';
 import '../support/fake_account_gateway.dart';
 import '../support/fake_remote_store.dart';
 import '../support/seed.dart';
@@ -33,8 +34,7 @@ void main() {
     AppDatabase db, {
     FakeAccountGateway? gateway,
   }) async {
-    await tester.binding.setSurfaceSize(const Size(360, 1800));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+    setScreenSize(tester, const Size(360, 1800));
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
